@@ -119,11 +119,6 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/vouchers/{voucher}', [\App\Http\Controllers\Accountant\VoucherController::class, 'show'])->name('vouchers.show');
         Route::post('/vouchers/{voucher}/approve', [\App\Http\Controllers\Accountant\VoucherController::class, 'approve'])->name('vouchers.approve');
         Route::post('/vouchers/{voucher}/return', [\App\Http\Controllers\Accountant\VoucherController::class, 'return'])->name('vouchers.return');
-        Route::get('/budget', [\App\Http\Controllers\Accountant\BudgetController::class, 'index'])->name('budget.index');
-        Route::get('/budget/{voucher}', [\App\Http\Controllers\Accountant\BudgetController::class, 'show'])->name('budget.show');
-        Route::post('/budget/{voucher}/mark-ready', [\App\Http\Controllers\Accountant\BudgetController::class, 'markReady'])->name('budget.mark-ready');
-        Route::post('/budget/{voucher}/hold', [\App\Http\Controllers\Accountant\BudgetController::class, 'hold'])->name('budget.hold');
-        Route::post('/budget/{voucher}/re-evaluate', [\App\Http\Controllers\Accountant\BudgetController::class, 'reEvaluate'])->name('budget.re-evaluate');
     });
 
     // Treasurer panel
@@ -137,6 +132,11 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/cheques', [\App\Http\Controllers\Treasurer\ChequeController::class, 'index'])->name('cheques.index');
         Route::get('/cheques/{voucher}', [\App\Http\Controllers\Treasurer\ChequeController::class, 'show'])->name('cheques.show');
         Route::post('/cheques/{voucher}/acknowledge', [\App\Http\Controllers\Treasurer\ChequeController::class, 'acknowledge'])->name('cheques.acknowledge');
+        Route::get('/budget', [\App\Http\Controllers\Treasurer\BudgetController::class, 'index'])->name('budget.index');
+        Route::get('/budget/{voucher}', [\App\Http\Controllers\Treasurer\BudgetController::class, 'show'])->name('budget.show');
+        Route::post('/budget/{voucher}/mark-ready', [\App\Http\Controllers\Treasurer\BudgetController::class, 'markReady'])->name('budget.mark-ready');
+        Route::post('/budget/{voucher}/hold', [\App\Http\Controllers\Treasurer\BudgetController::class, 'hold'])->name('budget.hold');
+        Route::post('/budget/{voucher}/re-evaluate', [\App\Http\Controllers\Treasurer\BudgetController::class, 'reEvaluate'])->name('budget.re-evaluate');
     });
 
     // Mayor's Office panel

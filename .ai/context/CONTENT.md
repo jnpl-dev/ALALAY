@@ -724,7 +724,7 @@ Same structure as Admin Account Settings (Section 2.6). Scoped to the logged-in 
 
 ### 5.1 Dashboard
 
-**Purpose:** Daily snapshot of voucher checking and budget management workload.
+**Purpose:** Daily snapshot of voucher checking workload.
 
 **KPI Cards (today's data):**
 | KPI | Source |
@@ -733,9 +733,6 @@ Same structure as Admin Account Settings (Section 2.6). Scoped to the logged-in 
 | Total Pending Vouchers | `applications` where `status = 'voucher_checking'` |
 | Approved Vouchers | `reviews` where `stage = 'voucher_checking'` and `decision = 'voucher_approved'` |
 | Returned Vouchers | `reviews` where `stage = 'voucher_checking'` and `decision = 'voucher_returned'` |
-| Pending Budget Checking | `applications` where `status = 'budget_checking'` |
-| Applications On Hold | `applications` where `status = 'on_hold'` |
-| Cheque Ready Applications | `applications` where `status = 'cheque_ready'` |
 
 **Table — Vouchers Requiring Action Today:**
 | Column | Source |
@@ -758,7 +755,7 @@ Same structure as Admin Account Settings (Section 2.6). Scoped to the logged-in 
 |---|---|---|
 | Vouchers Received vs. Approved Over Time | Line | `vouchers.created_at` vs. `reviews` where `decision = 'voucher_approved'` |
 | Returned Vouchers Per Month | Bar | `reviews` where `decision = 'voucher_returned'` grouped by month |
-| Applications On Hold Over Time | Line | `applications` where `status = 'on_hold'` grouped by date |
+| Average Voucher Checking Turnaround Time | Metric | Avg diff between `vouchers.created_at` and voucher checking review |
 | Total Assistance Amount Approved Per Month | Bar | `assistance_codes.amount` sum where voucher approved, grouped by month |
 
 ---
@@ -836,74 +833,7 @@ Decision Buttons:
 
 ---
 
-### 5.4 Budget Checking
-
-**Tabs:** `Pending` | `Cheque Ready` | `On Hold`
-
----
-
-**Pending Tab** — applications with `status = 'budget_checking'`
-
-*Table:*
-| Column | Source |
-|---|---|
-| Reference Code | `applications.reference_code` |
-| Beneficiary Name | `beneficiary_first_name` + `beneficiary_last_name` |
-| Category | `assistance_categories.category_name` |
-| Amount | `assistance_codes.amount` |
-| Date Received | `reviews.created_at` (where `stage = 'treasurer_acknowledgment'`) |
-| Action | Review button |
-
-*Budget Check Page (on Review button click):*
-- Application summary and voucher details (read-only).
-- Inline voucher viewer.
-- Right Panel — Review Trail.
-
-Decision Buttons:
-- **Mark as Cheque Ready:**
-  - Sets `applications.status = 'cheque_ready'`.
-  - Inserts row into `reviews` (stage: `budget_checking`, decision: `cheque_ready`, from: `budget_checking`, to: `cheque_ready`).
-  - Writes to `audit_logs`.
-  - **SMS triggered:** `cheque_claiming` → sent to `applications.claimant_phone`.
-
-- **Put On Hold:**
-  - Sets `applications.status = 'on_hold'`.
-  - Inserts row into `reviews` (stage: `budget_checking`, decision: `on_hold`, from: `budget_checking`, to: `on_hold`).
-  - Writes to `audit_logs`.
-
----
-
-**Cheque Ready Tab** — applications with `status = 'cheque_ready'`
-
-*Table:*
-| Column | Source |
-|---|---|
-| Reference Code | `applications.reference_code` |
-| Beneficiary Name | `beneficiary_first_name` + `beneficiary_last_name` |
-| Amount | `assistance_codes.amount` |
-| Date Marked Ready | `reviews.created_at` (where `decision = 'cheque_ready'`) |
-| Action | View button |
-
-*View Page:* Read-only.
-
----
-
-**On Hold Tab** — applications with `status = 'on_hold'`
-
-*Table:*
-| Column | Source |
-|---|---|
-| Reference Code | `applications.reference_code` |
-| Beneficiary Name | `beneficiary_first_name` + `beneficiary_last_name` |
-| Amount | `assistance_codes.amount` |
-| Date Put On Hold | `reviews.created_at` (where `decision = 'on_hold'`) |
-| Action | Re-evaluate button |
-
-*Re-evaluate:* Opens Budget Check Page (same as Pending flow) — allows Accountant to mark as Cheque Ready when budget becomes available.
-
----
-
-### 5.5 Account Settings
+### 5.4 Account Settings
 
 Same structure as Admin Account Settings (Section 2.6). Scoped to the logged-in Accountant user.
 
@@ -953,9 +883,9 @@ Same structure as Admin Account Settings (Section 2.6). Scoped to the logged-in 
 
 ---
 
-### 6.3 Cheques
+### 6.3 Cheques (Acknowledgment)
 
-**Tabs:** `Pending` | `Ready` | `On Hold`
+**Tabs:** `Pending` | `Ready` | `On Hold` (read-only views; budget actions in Budget Checking)
 
 ---
 
@@ -1017,7 +947,77 @@ Decision Buttons:
 
 ---
 
-### 6.4 Account Settings
+### 6.4 Budget Checking
+
+**Access:** Treasurer only (after acknowledging the voucher).
+**Route prefix:** `/treasurer/budget`
+
+**Tabs:** `Pending` | `Cheque Ready` | `On Hold`
+
+---
+
+**Pending Tab** — applications with `status = 'budget_checking'`
+
+*Table:*
+| Column | Source |
+|---|---|
+| Reference Code | `applications.reference_code` |
+| Beneficiary Name | `beneficiary_first_name` + `beneficiary_last_name` |
+| Category | `assistance_categories.category_name` |
+| Amount | `assistance_codes.amount` |
+| Date Received | `reviews.created_at` (where `stage = 'treasurer_acknowledgment'`) |
+| Action | Review button |
+
+*Budget Check Page (on Review button click):*
+- Application summary and voucher details (read-only).
+- Inline voucher viewer.
+- Right Panel — Review Trail.
+
+Decision Buttons:
+- **Mark as Cheque Ready:**
+  - Sets `applications.status = 'cheque_ready'`.
+  - Inserts row into `reviews` (stage: `budget_checking`, decision: `cheque_ready`, from: `budget_checking`, to: `cheque_ready`).
+  - Writes to `audit_logs`.
+  - **SMS triggered:** `cheque_claiming` → sent to `applications.claimant_phone`.
+
+- **Put On Hold:**
+  - Sets `applications.status = 'on_hold'`.
+  - Inserts row into `reviews` (stage: `budget_checking`, decision: `on_hold`, from: `budget_checking`, to: `on_hold`).
+  - Writes to `audit_logs`.
+
+---
+
+**Cheque Ready Tab** — applications with `status = 'cheque_ready'` (read-only; managed via Budget Checking)
+
+*Table:*
+| Column | Source |
+|---|---|
+| Reference Code | `applications.reference_code` |
+| Beneficiary Name | `beneficiary_first_name` + `beneficiary_last_name` |
+| Amount | `assistance_codes.amount` |
+| Date Marked Ready | `reviews.created_at` (where `decision = 'cheque_ready'`) |
+| Action | View button |
+
+*View Page:* Read-only.
+
+---
+
+**On Hold Tab** — applications with `status = 'on_hold'` (read-only; managed via Budget Checking)
+
+*Table:*
+| Column | Source |
+|---|---|
+| Reference Code | `applications.reference_code` |
+| Beneficiary Name | `beneficiary_first_name` + `beneficiary_last_name` |
+| Amount | `assistance_codes.amount` |
+| Date Put On Hold | `reviews.created_at` (where `decision = 'on_hold'`) |
+| Action | View button |
+
+*View Page:* Read-only.
+
+---
+
+### 6.5 Account Settings
 
 Same structure as Admin Account Settings (Section 2.6). Scoped to the logged-in Treasurer user.
 

@@ -190,15 +190,15 @@
 - [x] Apply middleware to route groups in `web.php` — all role panel routes grouped with correct `role:X` middleware
 
 ### 2.4 Authorization (Policies)
-- [ ] `ApplicationPolicy`
-- [ ] `VoucherPolicy`
-- [ ] `AssistanceCodePolicy`
-- [ ] `SocialCaseStudyPolicy`
-- [ ] `AuditLogPolicy`
-- [ ] `UserPolicy`
-- [ ] `SystemSettingPolicy`
-- [ ] Register all in `AuthServiceProvider`
-- [ ] Test each policy with correct and incorrect roles
+- [x] `ApplicationPolicy` — `viewAny`/`view` for all internal roles; `approve`/`returnApp` for AICS (status=submitted) and MSWDO (status=mswdo_review)
+- [x] `VoucherPolicy` — `viewAny`/`view` for MSWDO/Accountant/Treasurer/Mayor; `create` for MSWDO; `approve`/`returnVoucher` for Accountant; `acknowledge` for Treasurer; `markReady`/`hold`/`reEvaluate` for Accountant
+- [x] `AssistanceCodePolicy` — `viewAny`/`view` for internal roles; `create` for AICS only
+- [x] `SocialCaseStudyPolicy` — `viewAny`/`view` for AICS/MSWDO; `create` for MSWDO only
+- [x] `AuditLogPolicy` — `viewAny`/`export` for Admin only
+- [x] `UserPolicy` — `viewAny`/`create`/`delete`/`toggleStatus`/`revokeSessions` for Admin; `view`/`update` for Admin or self; Admin cannot delete/toggle/revoke own session
+- [x] `SystemSettingPolicy` — `viewAny`/`update` for Admin only
+- [x] Register all in `AppServiceProvider` (extends `AuthServiceProvider` with `$policies` property)
+- [ ] Test each policy with correct and incorrect roles (requires controller integration)
 
 ### 2.5 Core Services
 - [ ] `AuditLogger` — `log(action, module, entityType, entityId, description)` method
@@ -276,11 +276,6 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `Accountant/VoucherController@show` — stub exists
 - [x] `Accountant/VoucherController@approve` — stub exists
 - [x] `Accountant/VoucherController@return` — stub exists
-- [x] `Accountant/BudgetController@index` — stub exists
-- [x] `Accountant/BudgetController@show` — stub exists
-- [x] `Accountant/BudgetController@markReady` — dispatches cheque claiming SMS — stub exists
-- [x] `Accountant/BudgetController@hold` — stub exists
-- [x] `Accountant/BudgetController@reEvaluate` — stub exists
 
 ### 3.8 Treasurer Controllers
 - [ ] `Treasurer/DashboardController@index`
@@ -288,6 +283,11 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `Treasurer/ChequeController@index` — stub exists
 - [x] `Treasurer/ChequeController@show` — stub exists
 - [x] `Treasurer/ChequeController@acknowledge` — stub exists
+- [x] `Treasurer/BudgetController@index` — stub exists
+- [x] `Treasurer/BudgetController@show` — stub exists
+- [x] `Treasurer/BudgetController@markReady` — stub exists
+- [x] `Treasurer/BudgetController@hold` — stub exists
+- [x] `Treasurer/BudgetController@reEvaluate` — stub exists
 
 ### 3.9 Mayor's Office Controllers
 - [ ] `MayorsOffice/DashboardController@index` — consolidated KPIs
@@ -391,17 +391,17 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 4.8 Accountant Panel Pages
 - [ ] `Accountant/Dashboard.vue`
-- [x] `Accountant/Analytics.vue` — 4 stat cards (vouchers, approved, budget PHP, disbursed PHP) + budget + transactions (persistent layout)
+- [x] `Accountant/Analytics.vue` — 4 stat cards (vouchers, approved, returned, total PHP) + voucher trends + transactions (persistent layout)
 - [ ] `Accountant/Vouchers/Index.vue` — TabView (Pending/Approved/Returned)
 - [ ] `Accountant/Vouchers/Review.vue` — voucher viewer + summary + ReviewTrail + approve/return
-- [ ] `Accountant/Budget/Index.vue` — TabView (Pending/Cheque Ready/On Hold)
-- [ ] `Accountant/Budget/Check.vue` — voucher + application summary + ReviewTrail + mark ready/hold
 
 ### 4.9 Treasurer Panel Pages
 - [ ] `Treasurer/Dashboard.vue`
 - [x] `Treasurer/Analytics.vue` — 4 stat cards (cheques, acknowledged, total PHP, pending) + disbursement + recent (persistent layout)
 - [ ] `Treasurer/Cheques/Index.vue` — TabView (Pending/Ready/On Hold)
 - [ ] `Treasurer/Cheques/Review.vue` — voucher viewer + summary + ReviewTrail + acknowledge
+- [ ] `Treasurer/Budget/Index.vue` — TabView (Pending/Cheque Ready/On Hold)
+- [ ] `Treasurer/Budget/Check.vue` — voucher + application summary + ReviewTrail + mark ready/hold/re-evaluate
 
 ### 4.10 Mayor's Office Panel Pages
 - [ ] `MayorsOffice/Dashboard.vue` — consolidated KPIs + activity table + category table
@@ -423,9 +423,9 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [ ] Accountant approve voucher → verify status `with_treasurer`
 - [ ] Accountant return voucher → verify MSWDO can re-create (version increments)
 - [ ] Treasurer acknowledge → verify status `budget_checking`
-- [ ] Accountant mark cheque ready → verify status `cheque_ready` + SMS
-- [ ] Accountant put on hold → verify status `on_hold`
-- [ ] Accountant re-evaluate on-hold → mark cheque ready
+- [ ] Treasurer mark cheque ready → verify status `cheque_ready` + SMS
+- [ ] Treasurer put on hold → verify status `on_hold`
+- [ ] Treasurer re-evaluate on-hold → mark cheque ready
 - [ ] Walk-in submission (AICS Staff encodes) → verify `submission_type = 'walk_in'`, `encoded_by` set
 
 ### 5.2 Role Access Control
