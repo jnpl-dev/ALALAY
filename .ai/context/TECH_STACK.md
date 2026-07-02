@@ -158,8 +158,8 @@ ALALAY uses the **Inertia.js monolith architecture**:
 
 | Layer | Technology | Usage |
 |---|---|---|
-| Provider | **Semaphore SMS API** (recommended for PH) | Sends the actual SMS messages to applicants at each key stage — submission complete, under review, resubmission needed, cheque ready. |
-| Integration | **Custom `SmsService` + `SendSmsJob`** | `SmsService` builds the request to Semaphore; `SendSmsJob` runs it in the background queue so sending an SMS never slows down the page the staff member is using. |
+| Provider | **PhilSMS SMS API** | Sends the actual SMS messages to applicants at each key stage — submission complete, under review, resubmission needed, cheque ready. |
+| Integration | **Custom `SmsService` + `SendSmsJob`** | `SmsService` builds the request to PhilSMS; `SendSmsJob` runs it in the background queue so sending an SMS never slows down the page the staff member is using. |
 | Queue Driver | **Laravel Queues** (database driver) | Stores pending SMS jobs in the `jobs` table until a queue worker process picks them up and sends them. |
 | Notification Log | **`sms_notifications` table** | Keeps a permanent record of every SMS attempt — what was sent, to whom, and whether it succeeded or failed — for troubleshooting and accountability. |
 
@@ -341,8 +341,9 @@ SUPABASE_STORAGE_ENDPOINT=https://<project-ref>.supabase.co/storage/v1/s3
 SUPABASE_STORAGE_REGION=ap-southeast-1
 
 # SMS API
-SMS_API_KEY=
-SMS_API_ENDPOINT=
+SMS_DRIVER=log
+PHILSMS_API_TOKEN=
+SMS_API_ENDPOINT=https://app.philsms.com/api/v3/sms/send
 SMS_SENDER_NAME=ALALAY
 ```
 

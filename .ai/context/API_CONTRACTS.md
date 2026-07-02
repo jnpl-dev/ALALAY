@@ -727,7 +727,7 @@ Same request/validation as `POST /admin/users`. Password optional on update.
     "sms": {
       "sms_api_key": "***masked***",
       "sms_sender_name": "ALALAY",
-      "sms_api_endpoint": "https://api.semaphore.co/api/v4/messages"
+      "sms_api_endpoint": "https://app.philsms.com/api/v3/sms/send"
     },
     "notifications": {
       "sms_template_submission_complete": "Your AICS application {reference_code} has been submitted. Track it at {track_url}.",

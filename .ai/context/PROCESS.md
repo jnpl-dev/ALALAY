@@ -201,14 +201,14 @@
 - [ ] Test each policy with correct and incorrect roles (requires controller integration)
 
 ### 2.5 Core Services
-- [ ] `AuditLogger` — `log(action, module, entityType, entityId, description)` method
-- [ ] `SmsService` — wraps SMS provider API; dispatches `SendSmsJob`
-- [ ] `SendSmsJob` — queued; calls SMS API; writes to `sms_notifications`; retries on failure
-- [ ] `FileUploadService` — validates file; uploads to Supabase Storage; returns metadata
-- [ ] `SignedUrlService` — generates short-lived Supabase Storage signed URLs
-- [ ] `ReferenceCodeService` — generates unique `GMN-YYYY-XXXXXX` reference codes
-- [ ] Configure Supabase Storage disk in `config/filesystems.php`
-- [ ] Test file upload to Supabase and signed URL generation
+- [x] `AuditLogger` — `log(action, module, entityType, entityId, description)` creates `audit_logs` row with user, role, IP, user agent
+- [x] `SmsService` — wraps PhilSMS API (`POST /api/v3/sms/send`, Bearer token auth); driver=`log` by default (writes to log + `sms_notifications`), driver=`philsms` when `PHILSMS_API_TOKEN` is set. Config in `config/sms.php`
+- [x] `SendSmsJob` — queued; reads template from `system_settings` (fallback to hardcoded defaults); builds message with `{reference_code}`, `{claimant_name}`, `{track_url}`, `{remarks}` placeholders; calls `SmsService`; retries on failure
+- [x] `FileUploadService` — validates file size against `system_settings.max_file_size_kb`; uploads to `{table}/{entityId}/{filename}` on Supabase Storage
+- [x] `SignedUrlService` — generates temporary signed URL via `Storage::disk('supabase')->temporaryUrl()` with configurable expiry (default 15 min)
+- [x] `ReferenceCodeService` — generates `GMN-YYYY-XXXXXX` format (6 random uppercase alphanumeric); checks uniqueness against `applications.reference_code`
+- [x] Configure Supabase Storage disk in `config/filesystems.php` (`driver => s3` with Supabase endpoint)
+- [ ] Test file upload to Supabase and signed URL generation (requires Supabase credentials)
 - [ ] Test SMS job dispatch and queue processing (`php artisan queue:work`)
 
 ---
