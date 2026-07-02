@@ -129,7 +129,7 @@ ALALAY uses the **Inertia.js monolith architecture**:
 
 | Layer | Technology | Usage |
 |---|---|---|
-| Provider | **Supabase Storage** | Hosts every uploaded file — supporting documents, social case study scans, voucher images — outside of the local server, in private (non-public) storage buckets. |
+| Provider | **Supabase Storage** | Hosts every uploaded file — captured supporting documents, social case study scans, voucher images — outside of the local server, in private (non-public) storage buckets. |
 | Laravel Integration | **league/flysystem-aws-s3-v3** | The bridge package that lets Laravel's built-in file storage commands work with Supabase, since Supabase Storage speaks the same protocol as Amazon S3. |
 | File Access Method | **Signed URLs** (via `SignedUrlService`) | Generates a temporary, expiring link to a private file whenever someone needs to view it — files are never made permanently public or directly accessible by guessing a URL. |
 | Path Convention | `{bucket}/{table}/{application_id}/{filename}` | Keeps every file organized by which application it belongs to, making lookup and (if ever needed) bulk deletion straightforward. |

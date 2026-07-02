@@ -28,7 +28,7 @@ Letter regardless of category.
 This rule is enforced in:
 - `SubmitApplicationRequest` — validate Authorization Letter is present when
   `claimant_relationship_to_beneficiary` is not in the direct relative list
-- Apply page (Vue) — show Authorization Letter upload field as required when
+- Apply page (Vue) — show Authorization Letter document capture as required when
   the relationship field value is not a direct relative
 - `is_mandatory = false` in the database because it is conditionally mandatory,
   not always mandatory — the DB flag alone cannot express conditional logic
@@ -453,7 +453,7 @@ public function rules(): array
         // ... other validation rules ...
 
         // Authorization Letter is required only when claimant is NOT a direct relative
-        "documents.{$authLetterDocId}" => $isDirectRelative ? 'nullable|file' : 'required|file|mimes:jpg,jpeg,png,pdf',
+        "documents.{$authLetterDocId}" => $isDirectRelative ? 'nullable|file' : 'required|file|mimes:jpg,jpeg,png',
     ];
 }
 

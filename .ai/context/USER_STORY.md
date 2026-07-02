@@ -15,7 +15,7 @@
 |---|---|
 | **Applicant** | Submits application (online or in-person), receives reference code, tracks application, resubmits documents when returned |
 | **AICS Staff** | Screens applications; creates assistance codes |
-| **MSWDO** | Reviews applications; conducts and uploads social case study; creates vouchers |
+| **MSWDO** | Reviews applications; conducts and captures social case study (DocumentScanner); creates vouchers |
 | **Accountant** | Checks voucher validity; checks budget availability |
 | **Treasurer** | Receives and acknowledges approved vouchers |
 | **Mayor's Office Staff** | View-only access to application data and reports; no direct manipulation of the workflow |
@@ -87,7 +87,7 @@ Both methods produce the same workflow and issue a reference code to the applica
 
 | Decision | Next Step | SMS Trigger |
 |---|---|---|
-| ✅ Valid | MSWDO conducts **Social Case Study** and uploads the document/image to the system. Application moves to **Stage 3** | `Application Under Review` |
+| ✅ Valid | MSWDO conducts **Social Case Study** and captures the document/image (via DocumentScanner camera) to the system. Application moves to **Stage 3** | `Application Under Review` |
 | 🔄 Returned | Application returned to applicant for document resubmission | `Resubmission Needed` |
 
 **Resubmission:** Applicant uses reference code to access and resubmit corrected documents. Application re-enters Stage 2.
@@ -96,7 +96,7 @@ Both methods produce the same workflow and issue a reference code to the applica
 
 ### Stage 3 — Assistance Coding
 - **Actor:** AICS Staff
-- **Input:** Application with uploaded social case study
+- **Input:** Application with captured social case study
 - **Action:** AICS Staff reviews the social case study and generates an **Assistance Code**.
 - **Outcome:** Application with assistance code moves to MSWDO for voucher creation.
 
@@ -148,7 +148,7 @@ Both methods produce the same workflow and issue a reference code to the applica
 | `SCREENING` | Under review by AICS Staff |
 | `RETURNED_TO_APPLICANT` | Returned for document resubmission |
 | `MSWDO_REVIEW` | Under review by MSWDO |
-| `SOCIAL_CASE_STUDY_UPLOADED` | Social case study conducted and uploaded |
+| `SOCIAL_CASE_STUDY_UPLOADED` | Social case study conducted and captured |
 | `ASSISTANCE_CODING` | AICS Staff creating assistance code |
 | `VOUCHER_CREATION` | MSWDO creating voucher |
 | `VOUCHER_CHECKING` | Accountant reviewing voucher |
@@ -165,7 +165,7 @@ Both methods produce the same workflow and issue a reference code to the applica
 1. A reference code is **unique per application** and issued immediately upon submission.
 2. Hybrid submission supports both **online** and **in-person (walk-in)** channels; both follow the same workflow.
 3. Applications can only be returned to the applicant from **Stage 1 (AICS Staff)** or **Stage 2 (MSWDO)**.
-4. The **Social Case Study image/document** must be uploaded before an application can proceed past Stage 2.
+4. The **Social Case Study image/document** must be captured (via DocumentScanner) before an application can proceed past Stage 2.
 5. An **Assistance Code** must exist before a voucher can be created.
 6. A voucher must be **Accountant-approved** before it is forwarded to the Treasurer.
 7. Applications placed **On Hold** remain in queue until budget is available; no resubmission is required from the applicant.

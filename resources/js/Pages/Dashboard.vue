@@ -2,6 +2,8 @@
 import { Head, usePage, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 
+defineOptions({ layout: AppLayout })
+
 const page = usePage()
 const user = page.props.auth?.user
 </script>
@@ -9,8 +11,7 @@ const user = page.props.auth?.user
 <template>
   <Head title="Dashboard" />
 
-  <AppLayout>
-    <div class="grid grid-cols-12 gap-8">
+  <div class="grid grid-cols-12 gap-8">
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
         <div class="card mb-0">
           <div class="flex justify-between mb-4">
@@ -136,5 +137,4 @@ const user = page.props.auth?.user
         </div>
       </div>
     </div>
-  </AppLayout>
 </template>

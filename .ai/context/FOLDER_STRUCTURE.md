@@ -317,6 +317,7 @@ resources/js/
 │   │   ├── ApplicationInfo.vue        # Claimant + beneficiary display
 │   │   ├── DocumentList.vue           # Uploaded docs list + view buttons
 │   │   ├── DocumentViewer.vue         # Inline PDF/image viewer via signed URL
+│   │   ├── DocumentScanner.vue         # Camera capture with guide overlay + enhancement pipeline
 │   │   └── ReturnModal.vue            # Return modal: doc checklist + remarks
 │   └── Charts/
 │       ├── LineChart.vue
@@ -328,6 +329,7 @@ resources/js/
 │   ├── useToast.js                    # PrimeVue Toast wrapper
 │   ├── useConfirm.js                  # PrimeVue ConfirmDialog wrapper
 │   ├── useFileViewer.js               # Fetches signed URL; opens DocumentViewer
+│   ├── useDocumentScanner.js          # Camera access, frame capture, enhancement pipeline (downscale → grayscale → contrast stretch → adaptive threshold → JPEG export)
 │   ├── useStatusLabel.js              # Maps status enum → { label, severity }
 │   └── useDateFilter.js               # Date filter state and period presets
 │
@@ -377,10 +379,10 @@ resources/js/
 │   │   ├── Analytics.vue
 │   │   ├── Applications/
 │   │   │   ├── Index.vue
-│   │   │   └── Review.vue             # Review + social case study upload
+│   │   │   └── Review.vue             # Review + social case study capture (DocumentScanner)
 │   │   ├── Vouchers/
 │   │   │   ├── Index.vue
-│   │   │   └── Create.vue             # Two-step: info view → voucher upload
+│   │   │   └── Create.vue             # Two-step: info view → voucher capture (DocumentScanner)
 │   │   └── AccountSettings.vue
 │   ├── Accountant/
 │   │   ├── Dashboard.vue

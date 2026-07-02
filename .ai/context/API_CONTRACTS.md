@@ -457,13 +457,13 @@ beneficiary_name_extension            (string, nullable, max:10)
 beneficiary_sex                       (enum: male|female, required)
 beneficiary_dob                       (date, required, before:today)
 beneficiary_address                   (string, required)
-documents[{required_doc_id}]          (file, mimes:jpg,jpeg,png,pdf — required per is_mandatory)
+documents[{required_doc_id}]          (file, mimes:jpg,jpeg,png — required per is_mandatory)
 ```
 
 **Validation Rules (additional):**
 - `category_id`: must exist in `assistance_categories` where `is_active = 1`
 - `documents`: array of files keyed by `required_doc_id`; all mandatory doc IDs must be present
-- Each file: max size from `system_settings.max_file_size_kb`; mimes: jpg, jpeg, png, pdf
+- Each file: max size from `system_settings.max_file_size_kb`; mimes: jpg, jpeg, png
 
 **Response 201:**
 ```json
@@ -737,7 +737,7 @@ Same request/validation as `POST /admin/users`. Password optional on update.
     },
     "application": {
       "max_file_size_kb": 5120,
-      "allowed_mime_types": "image/jpeg,image/png,application/pdf"
+      "allowed_mime_types": "image/jpeg,image/png"
     }
   }
 }
@@ -856,7 +856,7 @@ All routes prefixed `/aics`. Role middleware: `aics_staff` only.
         "is_mandatory": true,
         "is_resubmission": false,
         "resubmission_number": 0,
-        "mime_type": "application/pdf",
+        "mime_type": "image/jpeg",
         "uploaded_at": "2024-06-01T08:00:00Z",
         "view_url_endpoint": "/aics/applications/{id}/documents/{docId}/url"
       }
@@ -1027,7 +1027,7 @@ All routes prefixed `/mswdo`. Role middleware: `mswdo` only.
 
 **Request:**
 ```
-social_case_study   (file, required, mimes:jpg,jpeg,png,pdf, max: system_settings.max_file_size_kb)
+social_case_study   (file, required, mimes:jpg,jpeg,png, max: system_settings.max_file_size_kb)
 remarks             (string, nullable, max:1000)
 ```
 
@@ -1038,7 +1038,7 @@ remarks             (string, nullable, max:1000)
 ```json
 {
   "success": true,
-  "message": "Application approved. Social case study uploaded. Forwarded to AICS Staff for assistance coding.",
+  "message": "Application approved. Social case study captured. Forwarded to AICS Staff for assistance coding.",
   "data": { "id": "uuid", "status": "assistance_coding" }
 }
 ```
@@ -1060,7 +1060,7 @@ Same request/validation as `POST /aics/applications/{id}/return` but application
 
 **Request:**
 ```
-voucher_file          (file, required, mimes:jpg,jpeg,png,pdf)
+voucher_file          (file, required, mimes:jpg,jpeg,png)
 adjustment_remarks    (string, nullable, max:1000)
 ```
 

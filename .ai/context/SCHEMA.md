@@ -239,7 +239,7 @@ Core table. One row represents one AICS application.
 ---
 
 ### `application_documents`
-Stores uploaded supporting documents per application, including resubmissions.
+Stores captured supporting document images per application, including resubmissions.
 
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
@@ -283,7 +283,7 @@ Immutable audit trail of every review action taken on an application across all 
 ---
 
 ### `social_case_studies`
-Stores the social case study document uploaded by MSWDO. One per application.
+Stores the social case study document captured by MSWDO via DocumentScanner. One per application.
 
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
@@ -294,7 +294,7 @@ Stores the social case study document uploaded by MSWDO. One per application.
 | `file_path` | `text` | NOT NULL | Laravel storage path |
 | `file_size` | `int unsigned` | NOT NULL | Bytes |
 | `mime_type` | `varchar(100)` | NOT NULL | |
-| `created_at` | `timestamp` | NULLABLE | Conduct/upload timestamp |
+| `created_at` | `timestamp` | NULLABLE | Conduct/capture timestamp |
 | `updated_at` | `timestamp` | NULLABLE | |
 
 **Indexes:** `application_id`, `conducted_by`

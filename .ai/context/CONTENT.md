@@ -16,7 +16,7 @@ This document defines every panel, page, and content element for each actor role
 |---|---|---|
 | Applicant | Public Website | Submit, track, resubmit |
 | AICS Staff | AICS Staff Panel | Screen applications, create assistance codes |
-| MSWDO | MSWDO Panel | Review applications, upload social case study, create vouchers |
+| MSWDO | MSWDO Panel | Review applications, capture social case study (DocumentScanner), create vouchers |
 | Accountant | Accountant Panel | Check vouchers, check budget |
 | Treasurer | Treasurer Panel | Acknowledge vouchers, manage cheque status |
 | Mayor's Office Staff | Mayor's Office Panel | View only — no workflow actions |
@@ -82,15 +82,16 @@ No login required. Accessible by any member of the public.
 | Date of Birth | `beneficiary_dob` | Date picker |
 | Address | `beneficiary_address` | Textarea |
 
-**Step 3 — Upload Supporting Documents**
+**Step 3 — Capture Supporting Documents**
 - Lists all required documents for the selected category.
-- Each document has a file upload field.
-- Mandatory documents (`is_mandatory = 1`) must be uploaded before proceeding.
-- Accepted file types: image (JPG, PNG) and PDF.
+- Each document has a DocumentScanner component (camera capture with guide overlay; enhancement pipeline runs automatically on capture).
+- Mandatory documents (`is_mandatory = 1`) must be captured before proceeding.
+- Accepted file types: image (JPG, PNG) only — camera captures as JPEG; fallback file input accepts JPG, PNG only.
 - File size limit enforced (configurable via `system_settings`).
+- If camera is unavailable, a fallback file input (JPG, PNG) is shown as a secondary option.
 
 **Step 4 — Summary & Confirmation**
-- Displays a read-only summary of all filled fields and uploaded documents.
+- Displays a read-only summary of all filled fields and captured documents.
 - Applicant confirms accuracy before final submission.
 - Submit button triggers application creation.
 
@@ -131,7 +132,7 @@ No login required. Accessible by any member of the public.
 - Visible only when `applications.status = 'returned_to_applicant'`.
 - Displays `applications.resubmission_remarks` as a notice to the applicant.
 - Shows only the documents flagged in the latest `reviews.resubmission_docs_required` (JSON array of `required_documents.id`).
-- Each flagged document has a file upload field.
+- Each flagged document has a DocumentScanner component for re-capture (camera primary; fallback file input secondary).
 - Submit resubmission button:
   - Saves new documents to `application_documents` with `is_resubmission = 1` and incremented `resubmission_number`.
   - Resets `applications.status` to the appropriate review stage.
@@ -401,7 +402,7 @@ No login required. Accessible by any member of the public.
 
 Left/Main Panel:
 - **Application Information** — all claimant and beneficiary fields from `applications`.
-- **Supporting Documents** — list of uploaded documents from `application_documents` joined with `required_documents.doc_name`; each document has an inline viewer (image/PDF).
+- **Supporting Documents** — list of captured documents from `application_documents` joined with `required_documents.doc_name`; each document has an inline viewer (image).
 
 Right Panel — Review Trail:
 - All entries from `reviews` where `application_id` matches, ordered by `created_at` DESC.
@@ -586,13 +587,14 @@ Same structure as Admin Account Settings (Section 2.6). Scoped to the logged-in 
 
 Left/Main Panel:
 - **Application Information** — all claimant and beneficiary fields.
-- **Supporting Documents** — inline document viewer per uploaded file.
+- **Supporting Documents** — inline document viewer per captured file.
 
 Right Panel — Review Trail.
 
 Decision Flow:
-- **Next Button** → proceeds to Social Case Study Upload step:
-  - Upload field for social case study file (image/PDF).
+- **Next Button** → proceeds to Social Case Study Capture step:
+  - DocumentScanner component for social case study (MSWDO scans the printed physical SCS; camera primary; fallback file input secondary).
+  - Accepted types: JPG, PNG only (PDF not accepted).
   - On Submit:
     - Inserts row into `social_case_studies` (`application_id`, `conducted_by = auth()->user()->id`, file fields).
     - Sets `applications.status = 'assistance_coding'`.
@@ -677,8 +679,9 @@ Left/Main Panel:
 
 Right Panel — Review Trail.
 
-*Voucher Creation Page — Step 2 (Voucher Upload):*
-- Upload field for the voucher file (image/PDF).
+*Voucher Creation Page — Step 2 (Voucher Capture):*
+- DocumentScanner component for the voucher document (MSWDO scans the physical voucher; camera primary; fallback file input secondary).
+- Accepted types: JPG, PNG only (PDF not accepted).
 - Adjustment remarks textarea (optional, saved to `vouchers.adjustment_remarks`).
 - **Submit Button:**
   - Inserts row into `vouchers` (`application_id`, `assistance_code_id`, `prepared_by = auth()->user()->id`, file fields, `version = 1`).
@@ -1107,7 +1110,7 @@ Same structure as Admin Account Settings (Section 2.6). Scoped to the logged-in 
 | `screening` | Under Screening |
 | `returned_to_applicant` | Returned — Resubmission Needed |
 | `mswdo_review` | Under MSWDO Review |
-| `social_case_study_uploaded` | Social Case Study Uploaded |
+| `social_case_study_uploaded` | Social Case Study Captured |
 | `assistance_coding` | Pending Assistance Coding |
 | `voucher_creation` | Pending Voucher Creation |
 | `voucher_checking` | Voucher Under Review |

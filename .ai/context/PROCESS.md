@@ -38,10 +38,11 @@
 ## Phase 0 — Project Setup
 
 ### 0.1 Repository
-- [ ] Create Git repository
-- [ ] Add `.gitignore` (per folder structure spec)
-- [ ] Create `main` branch (production) and `dev` branch (active development)
-- [ ] Set branch protection on `main`
+- [x] Create Git repository: `git init`
+- [x] Add `.gitignore` — default Laravel + `/sakai` (template download)
+- [x] Create `main` branch (production) and `dev` branch (active development)
+- [x] Push `main` + `dev` to GitHub (`https://github.com/jnpl-dev/ALALAY.git`) — PAT auth
+- [ ] Set branch protection on `main` (requires GitHub branch protection rules)
 
 ### 0.2 Laravel Project
 - [x] Create Laravel 12 project: `composer create-project laravel/laravel alalay`
@@ -72,10 +73,12 @@
 - [x] Create `postcss.config.js` for Tailwind v3
 - [x] Create root Blade template `resources/views/app.blade.php` with `@inertia` directive
 - [x] Verify: `php artisan serve` + `npm run dev` — app loads in browser
+- [x] Note: Camera (getUserMedia) testing on phone requires HTTPS — use `ngrok http 8000` during development; open ngrok HTTPS URL on phone browser. Desktop localhost works without ngrok (localhost is treated as a secure context).
+- [x] Configure `TrustProxies` in `bootstrap/app.php` (`trustProxies(at: '*')`) — ngrok sends `X-Forwarded-Proto: https`; without it Laravel generates `http://` asset URLs that mobile browsers block as mixed content
 
 ### 0.5 Create Folder Structure
 - [x] Create `.ai/` directory at project root
-- [ ] Copy all context documents into `.ai/context/`
+- [x] Copy context documents into `.ai/context/` (10 files: USER_STORY, SCHEMA, CONTENT, NPC_SECURITY_GUIDELINE, TECH_STACK, PROCESS, API_CONTRACTS, CATDOCU_SEEDER, FOLDER_STRUCTURE, DEPLOYMENT_GUIDE)
 - [x] Create `.ai/skills/backend/` and `.ai/skills/frontend/` directories
 - [x] Create `app/Services/` directory
 - [x] Create `app/Jobs/` directory
@@ -217,17 +220,17 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 3.1 Public Controllers
 - [ ] `Public/CategoryController@index` — renders `Public/Apply.vue` with categories + required docs
-- [ ] `Public/ApplicationController@store` — handles application submission + file uploads; generates reference code; dispatches SMS; redirects with success flash
+- [ ] `Public/ApplicationController@store` — handles application submission + document uploads (via DocumentScanner); generates reference code; dispatches SMS; redirects with success flash
 - [ ] `Public/ApplicationController@track` — renders `Public/Track.vue`
 - [ ] `Public/ApplicationController@show` — returns application data + review trail for tracking
 - [ ] `Public/ApplicationController@resubmit` — handles document resubmission; dispatches SMS
 
 ### 3.2 Auth Controllers
-- [ ] `Auth/LoginController` — login (email + password → OTP challenge)
+- [x] `Auth/LoginController` — login (email + password → OTP challenge)
 - [x] `Auth/OtpChallengeController` — OTP verify + resend
 - [x] `Auth/PasswordResetController` — forgot + reset password (via Fortify)
-- [ ] `AupController@show` — renders `Auth/AcceptableUsePolicy.vue`
-- [ ] `AupController@accept` — records `acceptable_use_policy_accepted_at`; redirects to role dashboard
+- [x] `AupController@show` — renders `Auth/AcceptableUsePolicy.vue`
+- [x] `AupController@accept` — records `acceptable_use_policy_accepted_at`; redirects to role dashboard
 
 ### 3.3 Shared Controllers
 - [ ] `Shared/AccountController@edit` — renders `*/AccountSettings.vue` with user data
@@ -236,55 +239,55 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 ### 3.4 Admin Controllers
 - [ ] `Admin/DashboardController@index` — KPIs + tables
 - [ ] `Admin/AnalyticsController@index` — charts data with date filter
-- [ ] `Admin/UserController` — full CRUD (index, create, store, edit, update, toggleStatus, revokeSessions)
-- [ ] `Admin/AuditLogController@index` — paginated + filterable + CSV export
-- [ ] `Admin/SystemSettingController` — index + update
-- [ ] `Admin/AssistanceCategoryController` — full CRUD + toggle active
-- [ ] `Admin/RequiredDocumentController` — full CRUD per category + toggle
-- [ ] `Admin/AssistanceCodeReferenceController` — full CRUD + toggle
+- [x] `Admin/UserController` — full CRUD (index, create, store, edit, update, toggleStatus, revokeSessions) — stub methods exist
+- [x] `Admin/AuditLogController@index` — paginated + filterable + CSV export — stub exists
+- [x] `Admin/SystemSettingController` — index + update — stub exists
+- [x] `Admin/AssistanceCategoryController` — full CRUD + toggle active — stub exists
+- [x] `Admin/RequiredDocumentController` — full CRUD per category + toggle — stub exists
+- [x] `Admin/AssistanceCodeReferenceController` — full CRUD + toggle — stub exists
 
 ### 3.5 AICS Staff Controllers
 - [ ] `Aics/DashboardController@index`
 - [ ] `Aics/AnalyticsController@index`
-- [ ] `Aics/ApplicationController@index` — tabbed by status prop
-- [ ] `Aics/ApplicationController@show` — full application + documents + review trail
-- [ ] `Aics/ApplicationController@documentUrl` — returns signed URL for document viewer
-- [ ] `Aics/ApplicationController@approve` — approves; writes review; dispatches SMS; redirects
-- [ ] `Aics/ApplicationController@return` — returns; writes review; dispatches SMS; redirects
-- [ ] `Aics/AssistanceCodeController@index`
-- [ ] `Aics/AssistanceCodeController@show` — application + social case study signed URL + review trail
-- [ ] `Aics/AssistanceCodeController@store` — saves assistance code; updates status; redirects
+- [x] `Aics/ApplicationController@index` — tabbed by status prop — stub exists
+- [x] `Aics/ApplicationController@show` — full application + documents + review trail — stub exists
+- [x] `Aics/ApplicationController@documentUrl` — returns signed URL for document viewer — stub exists
+- [x] `Aics/ApplicationController@approve` — approves; writes review; dispatches SMS; redirects — stub exists
+- [x] `Aics/ApplicationController@return` — returns; writes review; dispatches SMS; redirects — stub exists
+- [x] `Aics/AssistanceCodeController@index` — stub exists
+- [x] `Aics/AssistanceCodeController@show` — application + social case study signed URL + review trail — stub exists
+- [x] `Aics/AssistanceCodeController@store` — saves assistance code; updates status; redirects — stub exists
 
 ### 3.6 MSWDO Controllers
 - [ ] `Mswdo/DashboardController@index`
 - [ ] `Mswdo/AnalyticsController@index`
-- [ ] `Mswdo/ApplicationController@index`
-- [ ] `Mswdo/ApplicationController@show`
-- [ ] `Mswdo/ApplicationController@approve` — uploads social case study; writes review; dispatches SMS
-- [ ] `Mswdo/ApplicationController@return`
-- [ ] `Mswdo/VoucherController@index`
-- [ ] `Mswdo/VoucherController@show` — application + SCS + assistance code + review trail
-- [ ] `Mswdo/VoucherController@store` — uploads voucher file; updates status; redirects
+- [x] `Mswdo/ApplicationController@index` — stub exists
+- [x] `Mswdo/ApplicationController@show` — stub exists
+- [x] `Mswdo/ApplicationController@approve` — captures social case study (via DocumentScanner); writes review; dispatches SMS — stub exists
+- [x] `Mswdo/ApplicationController@return` — stub exists
+- [x] `Mswdo/VoucherController@index` — stub exists
+- [x] `Mswdo/VoucherController@show` — application + SCS + assistance code + review trail — stub exists
+- [x] `Mswdo/VoucherController@store` — captures voucher (via DocumentScanner); updates status; redirects — stub exists
 
 ### 3.7 Accountant Controllers
 - [ ] `Accountant/DashboardController@index`
 - [ ] `Accountant/AnalyticsController@index`
-- [ ] `Accountant/VoucherController@index`
-- [ ] `Accountant/VoucherController@show`
-- [ ] `Accountant/VoucherController@approve`
-- [ ] `Accountant/VoucherController@return`
-- [ ] `Accountant/BudgetController@index`
-- [ ] `Accountant/BudgetController@show`
-- [ ] `Accountant/BudgetController@markReady` — dispatches cheque claiming SMS
-- [ ] `Accountant/BudgetController@hold`
-- [ ] `Accountant/BudgetController@reEvaluate`
+- [x] `Accountant/VoucherController@index` — stub exists
+- [x] `Accountant/VoucherController@show` — stub exists
+- [x] `Accountant/VoucherController@approve` — stub exists
+- [x] `Accountant/VoucherController@return` — stub exists
+- [x] `Accountant/BudgetController@index` — stub exists
+- [x] `Accountant/BudgetController@show` — stub exists
+- [x] `Accountant/BudgetController@markReady` — dispatches cheque claiming SMS — stub exists
+- [x] `Accountant/BudgetController@hold` — stub exists
+- [x] `Accountant/BudgetController@reEvaluate` — stub exists
 
 ### 3.8 Treasurer Controllers
 - [ ] `Treasurer/DashboardController@index`
 - [ ] `Treasurer/AnalyticsController@index`
-- [ ] `Treasurer/ChequeController@index`
-- [ ] `Treasurer/ChequeController@show`
-- [ ] `Treasurer/ChequeController@acknowledge`
+- [x] `Treasurer/ChequeController@index` — stub exists
+- [x] `Treasurer/ChequeController@show` — stub exists
+- [x] `Treasurer/ChequeController@acknowledge` — stub exists
 
 ### 3.9 Mayor's Office Controllers
 - [ ] `MayorsOffice/DashboardController@index` — consolidated KPIs
@@ -295,37 +298,40 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 ## Phase 4 — Frontend (Vue 3 + Inertia Pages)
 
 ### 4.1 Foundation
-- [ ] Configure `HandleInertiaRequests` shared props — verify `$page.props.auth.user` and `$page.props.flash` available in all Vue pages
+- [x] Configure `HandleInertiaRequests` shared props — shares `auth.user`, `flash`, `ziggy` (Ziggy routes available via `route()` in Vue)
 - [ ] Create `useAuth` composable — reads from `$page.props.auth`
 - [ ] Create `useToast` composable — PrimeVue Toast wrapper
 - [ ] Create `useConfirm` composable — PrimeVue ConfirmDialog wrapper
 - [ ] Create `useFileViewer` composable — fetches signed URL; opens DocumentViewer
+- [x] Create `useDocumentScanner` composable — camera access, frame capture, enhancement pipeline (downscale → grayscale → contrast stretch → adaptive threshold → JPEG export)
 - [ ] Create `useStatusLabel` composable — status enum → `{ label, severity }`
 - [ ] Create `Utils/statusLabels.js` — full status → display label map
 - [ ] Create `Utils/formatDate.js` — dayjs PST formatter
 - [ ] Create `Utils/formatCurrency.js` — PHP peso formatter
 - [ ] Create `Utils/constants.js` — status arrays, role arrays
 - [ ] Create flash message handling — read `$page.props.flash` on page load; show PrimeVue Toast
-- [ ] Create all Layout components (PublicLayout, AuthLayout, AdminLayout, AicsLayout, etc.)
-- [ ] Verify Ziggy `route()` helper available in Vue: `import { route } from 'ziggy-js'`
+- [x] Create `AppLayout` (Sakai persistent layout) — all 8 panel pages use `defineOptions({ layout: AppLayout })` for true SPA navigation (layout stays mounted, only content swaps)
+- [ ] Create admin-specific, auth-specific, public-specific Layout components as separate wrappers
+- [x] Verify Ziggy `route()` helper available in Vue: `import { route } from 'ziggy-js'`
 
 ### 4.2 Auth Pages
-- [ ] `Auth/Login.vue` — email + password + `useForm()`; error display per field
+- [x] `Auth/Login.vue` — email + password + `useForm()`; error display per field
 - [x] `Auth/EmailOtpChallenge.vue` — 6-digit OTP input via InputOtp + resend button + `useForm()`
-- [ ] `Auth/ForgotPassword.vue`
-- [ ] `Auth/ResetPassword.vue`
-- [ ] `Auth/AcceptableUsePolicy.vue` — AUP text + acknowledge button + `useForm()`
+- [x] `Auth/ForgotPassword.vue` — email input
+- [x] `Auth/ResetPassword.vue` — new password form
+- [x] `Auth/AcceptableUsePolicy.vue` — AUP text + acknowledge button + `useForm()`
+- [x] `Auth/AccountSettings.vue` — name + email form with save (persistent layout)
 - [x] Test full auth flow: login → OTP → AUP → dashboard
 
 ### 4.3 Public Pages
-- [ ] `Public/Apply.vue` — multi-step form:
+- [x] `Public/Apply.vue` — multi-step form (placeholder stub):
   - [ ] Step 1: Category selection (card grid)
   - [ ] Step 2: Claimant + beneficiary fields with server error display
-  - [ ] Step 3: Document uploads per required document
+  - [ ] Step 3: Document capture via DocumentScanner per required document (one DocumentScanner per document; fallback file input shown when camera unavailable)
   - [ ] Step 4: Summary confirmation
   - [ ] Step 5: Success — display reference code
   - [ ] Uses `useForm()` for submission
-- [ ] `Public/Track.vue` — reference code input + application status + review trail + resubmission section
+- [x] `Public/Track.vue` — reference code input + application status + review trail (placeholder stub)
 
 ### 4.4 Shared Components
 - [ ] `Components/Common/AppKpiCard.vue` — props: `title`, `value`, `icon`, `color`
@@ -338,22 +344,22 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [ ] `Components/Application/ApplicationInfo.vue` — props: `application`; claimant + beneficiary display
 - [ ] `Components/Application/DocumentList.vue` — props: `documents`, `signedUrlRoute`
 - [ ] `Components/Application/DocumentViewer.vue` — PDF/image inline viewer
+- [x] `Components/Application/DocumentScanner.vue` — camera capture with guide overlay (SVG mask), enhancement pipeline (5-step: downscale 1200px → grayscale → contrast stretch → adaptive threshold 40×10 → JPEG 0.88), preview/recapture/confirm, fallback file input `image/jpeg,image/png` only. Zero PrimeVue dependency — pure Tailwind + canvas JS. Works in both public (Tailwind-only) and dashboard (PrimeVue) pages.
 - [ ] `Components/Application/ReturnModal.vue` — props: `requiredDocuments`; emits: `confirmed`
 - [ ] `Components/Charts/LineChart.vue`, `BarChart.vue`, `DonutChart.vue`
 
 ### 4.5 Admin Panel Pages
-- [ ] `Admin/Dashboard.vue` — KPI cards + recent/unusual activity tables + system status
-- [ ] `Admin/Analytics.vue` — date filter + all charts
+- [x] `Admin/Dashboard.vue` — KPI cards + recent/unusual activity tables + system status (persistent layout via `defineOptions`)
+- [x] `Admin/Analytics.vue` — 4 stat cards (users, active, inactive, apps) + system overview + activity (persistent layout)
 - [ ] `Admin/Users/Index.vue` — PrimeVue DataTable + search + filter + Add User button
 - [ ] `Admin/Users/Create.vue` — user form + `useForm()`
 - [ ] `Admin/Users/Edit.vue` — pre-populated user form + toggle status + revoke sessions
 - [ ] `Admin/AuditLogs.vue` — filterable table + export
 - [ ] `Admin/SystemSettings.vue` — grouped settings form sections
-- [ ] `Admin/AccountSettings.vue`
 
 ### 4.6 AICS Staff Panel Pages
 - [ ] `Aics/Dashboard.vue`
-- [ ] `Aics/Analytics.vue`
+- [x] `Aics/Analytics.vue` — 4 stat cards (apps, pending, approved, codes) + trends + recent (persistent layout)
 - [ ] `Aics/Applications/Index.vue` — PrimeVue TabView (Pending/Screened/Returned) + DataTable per tab
 - [ ] `Aics/Applications/Review.vue`
   - [ ] ApplicationInfo component
@@ -368,43 +374,38 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
   - [ ] ReviewTrail right panel
   - [ ] Assistance code type dropdown (auto-fills amount)
   - [ ] Amount field + submit button
-- [ ] `Aics/AccountSettings.vue`
 
 ### 4.7 MSWDO Panel Pages
 - [ ] `Mswdo/Dashboard.vue`
-- [ ] `Mswdo/Analytics.vue`
+- [x] `Mswdo/Analytics.vue` — 4 stat cards (apps, validated, returned, vouchers) + validation + pending (persistent layout)
 - [ ] `Mswdo/Applications/Index.vue` — TabView (Screened/Approved/Returned)
 - [ ] `Mswdo/Applications/Review.vue`
   - [ ] ApplicationInfo + DocumentList + DocumentViewer
   - [ ] ReviewTrail right panel
-  - [ ] Next button → social case study upload step → submit
+  - [ ] Next button → social case study capture step (via DocumentScanner — MSWDO scans the printed SCS) → submit
   - [ ] Return button → ReturnModal
 - [ ] `Mswdo/Vouchers/Index.vue` — TabView (Pending/Created)
 - [ ] `Mswdo/Vouchers/Create.vue`
   - [ ] Step 1: Application info + SCS viewer + assistance code details + ReviewTrail
-  - [ ] Step 2: Voucher file upload + adjustment remarks + submit
-- [ ] `Mswdo/AccountSettings.vue`
+  - [ ] Step 2: Voucher document capture (via DocumentScanner — MSWDO scans the physical voucher) + adjustment remarks + submit
 
 ### 4.8 Accountant Panel Pages
 - [ ] `Accountant/Dashboard.vue`
-- [ ] `Accountant/Analytics.vue`
+- [x] `Accountant/Analytics.vue` — 4 stat cards (vouchers, approved, budget PHP, disbursed PHP) + budget + transactions (persistent layout)
 - [ ] `Accountant/Vouchers/Index.vue` — TabView (Pending/Approved/Returned)
 - [ ] `Accountant/Vouchers/Review.vue` — voucher viewer + summary + ReviewTrail + approve/return
 - [ ] `Accountant/Budget/Index.vue` — TabView (Pending/Cheque Ready/On Hold)
 - [ ] `Accountant/Budget/Check.vue` — voucher + application summary + ReviewTrail + mark ready/hold
-- [ ] `Accountant/AccountSettings.vue`
 
 ### 4.9 Treasurer Panel Pages
 - [ ] `Treasurer/Dashboard.vue`
-- [ ] `Treasurer/Analytics.vue`
+- [x] `Treasurer/Analytics.vue` — 4 stat cards (cheques, acknowledged, total PHP, pending) + disbursement + recent (persistent layout)
 - [ ] `Treasurer/Cheques/Index.vue` — TabView (Pending/Ready/On Hold)
 - [ ] `Treasurer/Cheques/Review.vue` — voucher viewer + summary + ReviewTrail + acknowledge
-- [ ] `Treasurer/AccountSettings.vue`
 
 ### 4.10 Mayor's Office Panel Pages
 - [ ] `MayorsOffice/Dashboard.vue` — consolidated KPIs + activity table + category table
-- [ ] `MayorsOffice/Analytics.vue` — consolidated charts
-- [ ] `MayorsOffice/AccountSettings.vue`
+- [x] `MayorsOffice/Analytics.vue` — 4 stat cards (apps, approved, disbursed PHP, beneficiaries) + overview + reports (persistent layout)
 
 ---
 
@@ -415,8 +416,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [ ] Track application (Track page) → verify status `submitted`
 - [ ] AICS Staff approve → verify status `mswdo_review` + SMS + review trail entry
 - [ ] AICS Staff return → verify applicant sees return notice + SMS
-- [ ] Applicant resubmits → verify new documents uploaded with `is_resubmission = 1`
-- [ ] MSWDO approve + upload SCS → verify status `assistance_coding` + SMS
+- [ ] Applicant resubmits → verify new documents captured via DocumentScanner with `is_resubmission = 1`
+- [ ] MSWDO approve + capture SCS (via DocumentScanner) → verify status `assistance_coding` + SMS
 - [ ] AICS Staff create assistance code → verify status `voucher_creation`
 - [ ] MSWDO create voucher → verify status `voucher_checking`
 - [ ] Accountant approve voucher → verify status `with_treasurer`
@@ -526,7 +527,7 @@ Follow `17_deployment_guide.md`. Summary:
 - [ ] Cron job registered for Laravel Scheduler
 - [ ] Backup script deployed
 - [ ] Single Nginx block configured (one domain, one SSL)
-- [ ] Smoke test: app loads over HTTPS, login works, file upload works, SMS delivered
+- [ ] Smoke test: app loads over HTTPS, login works, document capture (DocumentScanner) works, SMS delivered
 
 ---
 
@@ -534,7 +535,7 @@ Follow `17_deployment_guide.md`. Summary:
 
 - [ ] Train Admin: User Management, Audit Logs, System Settings, Session Revocation
 - [ ] Train AICS Staff: Screening, walk-in encoding, assistance coding
-- [ ] Train MSWDO: Review, SCS upload, voucher creation
+- [ ] Train MSWDO: Review, SCS capture (DocumentScanner), voucher creation
 - [ ] Train Accountant: Voucher review, budget checking
 - [ ] Train Treasurer: Voucher acknowledgment
 - [ ] Document server credentials securely (not in Git)
