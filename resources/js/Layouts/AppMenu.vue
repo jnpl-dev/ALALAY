@@ -31,7 +31,6 @@ const model = computed(() => {
     accountant: [
       { label: 'Analytics', icon: 'pi pi-fw pi-chart-bar', to: route('accountant.analytics') },
       { label: 'Vouchers', icon: 'pi pi-fw pi-receipt', to: route('accountant.vouchers.index') },
-      { label: 'Budget', icon: 'pi pi-fw pi-wallet', to: route('accountant.budget.index') },
     ],
     treasurer: [
       { label: 'Analytics', icon: 'pi pi-fw pi-chart-bar', to: route('treasurer.analytics') },

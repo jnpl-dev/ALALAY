@@ -3,7 +3,6 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
 
@@ -30,7 +29,7 @@ class HandleInertiaRequests extends Middleware
                     'email' => $request->user()->email,
                     'role' => $request->user()->role,
                     'profile_picture_url' => $request->user()->profile_picture_path
-                        ? Storage::url($request->user()->profile_picture_path)
+                        ? route('account.profile-picture')
                         : null,
                     'aup_accepted' => $request->user()->acceptable_use_policy_accepted_at !== null,
                 ] : null,

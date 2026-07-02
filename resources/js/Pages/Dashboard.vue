@@ -6,6 +6,7 @@ defineOptions({ layout: AppLayout })
 
 const page = usePage()
 const user = page.props.auth?.user
+const accountUrl = route('account.edit')
 </script>
 
 <template>
@@ -88,7 +89,7 @@ const user = page.props.auth?.user
         <div class="card">
           <div class="font-semibold text-xl mb-4">Quick Links</div>
           <div class="flex flex-wrap gap-3">
-            <button class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium cursor-pointer border-none" style="background-color: var(--p-primary-color); color: var(--p-primary-contrast-color);" @click="router.get(route('account.edit'))">
+            <button class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium cursor-pointer border-none" style="background-color: var(--p-primary-color); color: var(--p-primary-contrast-color);" @click="router.get(accountUrl)">
               <i class="pi pi-cog"></i>
               <span>Account Settings</span>
             </button>

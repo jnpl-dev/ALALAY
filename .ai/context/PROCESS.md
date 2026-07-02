@@ -233,8 +233,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `AupController@accept` — records `acceptable_use_policy_accepted_at`; redirects to role dashboard
 
 ### 3.3 Shared Controllers
-- [ ] `Shared/AccountController@edit` — renders `*/AccountSettings.vue` with user data
-- [ ] `Shared/AccountController@update` — handles profile + password + profile picture update
+- [x] `Shared/AccountController@edit` — renders `Auth/AccountSettings.vue` with user data
+- [x] `Shared/AccountController@update` — handles profile + password + profile picture update (uploads to Supabase S3 bucket; avatar display via proxy endpoint → signed URL redirect — ON HOLD: browser shows initial letter instead of image)
 
 ### 3.4 Admin Controllers
 - [ ] `Admin/DashboardController@index` — KPIs + tables

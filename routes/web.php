@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\OtpChallengeController;
 use App\Http\Controllers\Public\ApplicationController;
 use App\Http\Controllers\Public\CategoryController;
+use App\Http\Controllers\Shared\AccountController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -46,12 +47,9 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
     })->name('dashboard');
 
     // Account settings
-    Route::get('/account', function () {
-        return Inertia::render('Auth/AccountSettings');
-    })->name('account.edit');
-    Route::put('/account', function () {
-        //
-    })->name('account.update');
+    Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
+    Route::post('/account', [AccountController::class, 'update'])->name('account.update');
+    Route::get('/account/profile-picture', [AccountController::class, 'profilePicture'])->name('account.profile-picture');
 
     // Admin panel
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
