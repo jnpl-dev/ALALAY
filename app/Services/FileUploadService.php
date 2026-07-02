@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class FileUploadService
 {
@@ -18,8 +20,18 @@ class FileUploadService
         $maxSizeKb = $maxSizeKb ?? (int) (\App\Models\SystemSetting::byKey('max_file_size_kb')->first()?->setting_value ?? 5120);
         $allowedMimes = $allowedMimes ?? explode(',', \App\Models\SystemSetting::byKey('allowed_mime_types')->first()?->setting_value ?? 'image/jpeg,image/png');
 
-        abort_if($file->getSize() > $maxSizeKb * 1024, 413, 'File exceeds maximum size.');
-        abort_if(!in_array($file->getMimeType(), $allowedMimes), 415, 'File type not allowed.');
+        if ($file->getSize() > $maxSizeKb * 1024) {
+            throw new HttpException(413, 'File exceeds maximum size.');
+        }
+
+        if (!in_array($file->getMimeType(), $allowedMimes)) {
+            Log::warning('FileUploadService: rejected file type', [
+                'mime' => $file->getMimeType(),
+                'allowed' => $allowedMimes,
+                'original_name' => $file->getClientOriginalName(),
+            ]);
+            throw new HttpException(415, 'File type not allowed. Allowed: ' . implode(', ', $allowedMimes));
+        }
 
         $path = "{$table}/{$entityId}/" . $file->hashName();
 

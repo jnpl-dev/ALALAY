@@ -30,6 +30,7 @@ const {
 const videoRef = ref(null)
 const fileInputRef = ref(null)
 const showFallback = ref(false)
+const confirmed = ref(false)
 
 setVideoElement(videoRef.value)
 
@@ -47,10 +48,12 @@ const handleUseThis = () => {
     }
     emit('update:modelValue', file)
     emit('captured', file)
+    confirmed.value = true
   }
 }
 
 const handleRecapture = () => {
+  confirmed.value = false
   clearCapture()
   retake()
 }
@@ -78,6 +81,7 @@ onBeforeUnmount(() => {
 })
 
 const handleClear = () => {
+  confirmed.value = false
   clearCapture()
   stopCamera()
   isScanning.value = false
@@ -111,12 +115,22 @@ const handleClear = () => {
       </div>
       <div class="flex gap-2 p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
         <button
+          v-if="!confirmed"
           @click="handleUseThis"
           class="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white border-none cursor-pointer"
           style="background-color: var(--p-primary-color, #3b82f6)"
         >
           Use This
         </button>
+        <div
+          v-else
+          class="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-medium"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+          </svg>
+          Document Captured
+        </div>
         <button
           @click="handleRecapture"
           class="px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 cursor-pointer"

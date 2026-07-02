@@ -3,6 +3,8 @@
 use App\Http\Controllers\Auth\AupController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\OtpChallengeController;
+use App\Http\Controllers\Public\ApplicationController;
+use App\Http\Controllers\Public\CategoryController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -11,13 +13,12 @@ Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('home');
 
-Route::get('/apply', function () {
-    return Inertia::render('Apply');
-})->name('apply');
+Route::get('/apply', [CategoryController::class, 'index'])->name('apply');
+Route::post('/apply', [ApplicationController::class, 'store']);
 
-Route::get('/track', function () {
-    return Inertia::render('Track');
-})->name('track');
+Route::get('/track', [ApplicationController::class, 'track'])->name('track');
+Route::get('/track/{referenceCode}', [ApplicationController::class, 'show'])->name('track.show');
+Route::post('/track/{referenceCode}/resubmit', [ApplicationController::class, 'resubmit'])->name('track.resubmit');
 
 // Auth routes (guest only)
 Route::middleware('guest')->group(function () {

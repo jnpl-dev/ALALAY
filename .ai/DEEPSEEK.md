@@ -159,7 +159,7 @@ database/seeders/            — AdminSeeder, AssistanceCategorySeeder, etc.
 Submission → AICS Screening → MSWDO Review (+ Social Case Study upload)
 → Assistance Coding (AICS Staff) → Voucher Creation (MSWDO)
 → Voucher Checking (Accountant) → Treasurer Acknowledgment
-→ Budget Checking (Accountant) → Cheque Ready / On Hold → Claimed
+→ Budget Checking (Treasurer) → Cheque Ready / On Hold → Claimed
 
 Every stage transition must:
 1. Update applications.status to the new status value

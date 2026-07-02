@@ -219,11 +219,11 @@ All controllers return `Inertia::render('Path/To/Page', [...props])` or redirect
 Read `.ai/context/06_inertia_controller_props.md` before building each controller.
 
 ### 3.1 Public Controllers
-- [ ] `Public/CategoryController@index` — renders `Public/Apply.vue` with categories + required docs
-- [ ] `Public/ApplicationController@store` — handles application submission + document uploads (via DocumentScanner); generates reference code; dispatches SMS; redirects with success flash
-- [ ] `Public/ApplicationController@track` — renders `Public/Track.vue`
-- [ ] `Public/ApplicationController@show` — returns application data + review trail for tracking
-- [ ] `Public/ApplicationController@resubmit` — handles document resubmission; dispatches SMS
+- [x] `Public/CategoryController@index` — renders `Public/Apply.vue` with categories + required docs
+- [x] `Public/ApplicationController@store` — handles application submission + document uploads (via DocumentScanner); generates reference code; dispatches SMS; redirects with success flash
+- [x] `Public/ApplicationController@track` — renders `Public/Track.vue`
+- [x] `Public/ApplicationController@show` — returns application data + review trail for tracking
+- [x] `Public/ApplicationController@resubmit` — handles document resubmission; dispatches SMS
 
 ### 3.2 Auth Controllers
 - [x] `Auth/LoginController` — login (email + password → OTP challenge)
