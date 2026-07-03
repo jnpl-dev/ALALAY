@@ -98,6 +98,10 @@ Every controller method that changes data must:
 - Use PrimeVue components for all UI (DataTable, Dialog, Button, Toast,
   InputText, etc.) — never rebuild something PrimeVue already provides
 - Use the route() helper from Ziggy for all links — never hardcode a URL
+- All pages MUST follow Sakai template conventions: use `class="card"`
+  (never add extra padding like `p-6`), `<hr class="border-surface">`
+  for separators (never `<Divider />`), `text-muted-color` for muted text
+  (never `text-gray-500`), and `grid grid-cols-12 gap-8` as the page wrapper
 
 ### Application Status Values
 Only ever use these exact strings — never invent new ones:

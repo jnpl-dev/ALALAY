@@ -4,6 +4,13 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 
 defineOptions({ layout: AppLayout })
 
+defineProps({
+  totalApplications: { type: Number, default: 0 },
+  pendingApplications: { type: Number, default: 0 },
+  approvedThisMonth: { type: Number, default: 0 },
+  recentActivity: { type: Array, default: () => [] },
+})
+
 const page = usePage()
 const user = page.props.auth?.user
 const accountUrl = route('account.edit')
@@ -18,7 +25,7 @@ const accountUrl = route('account.edit')
           <div class="flex justify-between mb-4">
             <div>
               <span class="block text-muted-color font-medium mb-4">Applications</span>
-              <div class="text-surface-900 font-medium text-xl">0</div>
+              <div class="text-surface-900 font-medium text-xl">{{ totalApplications }}</div>
             </div>
             <div class="flex items-center justify-center bg-blue-100 dark:bg-blue-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
               <i class="pi pi-file text-blue-500 text-xl!"></i>
@@ -34,7 +41,7 @@ const accountUrl = route('account.edit')
           <div class="flex justify-between mb-4">
             <div>
               <span class="block text-muted-color font-medium mb-4">Pending</span>
-              <div class="text-surface-900 font-medium text-xl">0</div>
+              <div class="text-surface-900 font-medium text-xl">{{ pendingApplications }}</div>
             </div>
             <div class="flex items-center justify-center bg-orange-100 dark:bg-orange-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
               <i class="pi pi-clock text-orange-500 text-xl!"></i>
@@ -50,7 +57,7 @@ const accountUrl = route('account.edit')
           <div class="flex justify-between mb-4">
             <div>
               <span class="block text-muted-color font-medium mb-4">Approved</span>
-              <div class="text-surface-900 font-medium text-xl">0</div>
+              <div class="text-surface-900 font-medium text-xl">{{ approvedThisMonth }}</div>
             </div>
             <div class="flex items-center justify-center bg-green-100 dark:bg-green-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
               <i class="pi pi-check-circle text-green-500 text-xl!"></i>
@@ -80,7 +87,18 @@ const accountUrl = route('account.edit')
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Recent Activity</div>
-          <div class="flex flex-col items-center justify-center py-8 text-muted-color">
+          <ul v-if="recentActivity.length" class="p-0 mx-0 mt-0 mb-6 list-none">
+            <li v-for="entry in recentActivity" :key="entry.id" class="flex items-center py-2 border-b border-surface">
+              <div class="w-12 h-12 flex items-center justify-center bg-blue-100 dark:bg-blue-400/10 rounded-full mr-4 shrink-0">
+                <i class="pi pi-history text-xl! text-blue-500"></i>
+              </div>
+              <span class="text-surface-900 leading-normal">
+                {{ entry.user_name }}
+                <span class="text-surface-700"> &middot; {{ entry.action }} / {{ entry.module }}</span>
+              </span>
+            </li>
+          </ul>
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
             <i class="pi pi-inbox text-4xl mb-3" style="color: var(--text-color-secondary);"></i>
             <span>No recent activity</span>
           </div>

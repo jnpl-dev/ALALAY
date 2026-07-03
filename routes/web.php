@@ -1,8 +1,17 @@
 <?php
 
+use App\Http\Controllers\Admin\AnalyticsController;
+use App\Http\Controllers\Admin\AssistanceCategoryController;
+use App\Http\Controllers\Admin\AssistanceCodeReferenceController;
+use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\RequiredDocumentController;
+use App\Http\Controllers\Admin\SystemSettingController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\AupController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\OtpChallengeController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Public\ApplicationController;
 use App\Http\Controllers\Public\CategoryController;
 use App\Http\Controllers\Shared\AccountController;
@@ -42,9 +51,7 @@ Route::middleware('auth')->group(function () {
 
 // Authenticated + AUP accepted routes
 Route::middleware(['auth', 'aup.accepted'])->group(function () {
-    Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Account settings
     Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
@@ -53,22 +60,19 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
 
     // Admin panel
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
-        Route::get('/dashboard', function () {
-            return Inertia::render('Dashboard');
-        })->name('dashboard');
-        Route::get('/analytics', function () {
-            return Inertia::render('Admin/Analytics');
-        })->name('analytics');
-        Route::resource('users', \App\Http\Controllers\Admin\UserController::class);
-        Route::patch('/users/{user}/toggle-status', [\App\Http\Controllers\Admin\UserController::class, 'toggleStatus'])->name('users.toggle-status');
-        Route::delete('/users/{user}/sessions', [\App\Http\Controllers\Admin\UserController::class, 'revokeSessions'])->name('users.revoke-sessions');
-        Route::get('/audit-logs', [\App\Http\Controllers\Admin\AuditLogController::class, 'index'])->name('audit-logs');
-        Route::get('/audit-logs/export', [\App\Http\Controllers\Admin\AuditLogController::class, 'export'])->name('audit-logs.export');
-        Route::get('/settings', [\App\Http\Controllers\Admin\SystemSettingController::class, 'index'])->name('settings');
-        Route::put('/settings', [\App\Http\Controllers\Admin\SystemSettingController::class, 'update'])->name('settings.update');
-        Route::resource('assistance-categories', \App\Http\Controllers\Admin\AssistanceCategoryController::class);
-        Route::resource('required-documents', \App\Http\Controllers\Admin\RequiredDocumentController::class);
-        Route::resource('assistance-code-references', \App\Http\Controllers\Admin\AssistanceCodeReferenceController::class);
+        Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics');
+        Route::resource('users', UserController::class)->except(['show']);
+        Route::patch('/users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
+        Route::delete('/users/{user}/sessions', [UserController::class, 'revokeSessions'])->name('users.revoke-sessions');
+        Route::get('/users/{user}/profile-picture', [UserController::class, 'profilePicture'])->name('users.profile-picture');
+        Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs');
+        Route::get('/audit-logs/export', [AuditLogController::class, 'export'])->name('audit-logs.export');
+        Route::get('/settings', [SystemSettingController::class, 'index'])->name('settings');
+        Route::put('/settings', [SystemSettingController::class, 'update'])->name('settings.update');
+        Route::resource('assistance-categories', AssistanceCategoryController::class);
+        Route::resource('required-documents', RequiredDocumentController::class);
+        Route::resource('assistance-code-references', AssistanceCodeReferenceController::class);
     });
 
     // AICS Staff panel

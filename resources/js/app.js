@@ -7,6 +7,7 @@ import Aura from '@primeuix/themes/aura'
 import ToastService from 'primevue/toastservice'
 import ConfirmationService from 'primevue/confirmationservice'
 import StyleClass from 'primevue/styleclass'
+import Tooltip from 'primevue/tooltip'
 import 'primeicons/primeicons.css'
 import '../css/app.css'
 import './layout/scss/styles.scss'
@@ -32,6 +33,7 @@ createInertiaApp({
       .use(ToastService)
       .use(ConfirmationService)
       .directive('styleclass', StyleClass)
+      .directive('tooltip', Tooltip)
       .component('Link', Link)
       .component('Head', Head)
       .mount(el)

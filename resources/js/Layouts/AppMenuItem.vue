@@ -1,9 +1,10 @@
 <script setup>
 import { useLayout } from './composables/layout'
 import { computed } from 'vue'
-import { Link } from '@inertiajs/vue3'
+import { Link, usePage } from '@inertiajs/vue3'
 
 const { layoutState, isDesktop } = useLayout()
+const page = usePage()
 
 const props = defineProps({
   item: {
@@ -21,6 +22,12 @@ const props = defineProps({
 })
 
 const fullPath = computed(() => (props.item.path ? (props.parentPath ? props.parentPath + props.item.path : props.item.path) : null))
+
+const isActiveRoute = computed(() => {
+  if (!props.item.to) return false
+  const currentPath = page.url.split('?')[0]
+  return currentPath === props.item.to || currentPath.startsWith(props.item.to + '/')
+})
 
 const isActive = computed(() => {
   return props.item.path ? layoutState.activePath?.startsWith(fullPath.value) : layoutState.activePath === props.item.to
@@ -60,12 +67,12 @@ const onMouseEnter = () => {
 <template>
   <li :class="{ 'layout-root-menuitem': root, 'active-menuitem': isActive }">
     <div v-if="root && item.visible !== false" class="layout-menuitem-root-text">{{ item.label }}</div>
-    <a v-if="(!item.to || item.items) && item.visible !== false" :href="item.url" @click="itemClick($event, item)" :class="item.class" :target="item.target" tabindex="0" @mouseenter="onMouseEnter">
+    <a v-if="(!item.to || item.items) && item.visible !== false" :href="item.url" @click="itemClick($event, item)" :class="[item.class, { 'active-route': isActiveRoute }]" :target="item.target" tabindex="0" @mouseenter="onMouseEnter">
       <i :class="item.icon" class="layout-menuitem-icon" />
       <span class="layout-menuitem-text">{{ item.label }}</span>
       <i class="pi pi-fw pi-angle-down layout-submenu-toggler" v-if="item.items" />
     </a>
-    <Link v-if="item.to && !item.items && item.visible !== false" @click="itemClick($event, item)" :class="item.class" tabindex="0" :href="item.to" @mouseenter="onMouseEnter">
+    <Link v-if="item.to && !item.items && item.visible !== false" @click="itemClick($event, item)" :class="[item.class, { 'active-route': isActiveRoute }]" tabindex="0" :href="item.to" @mouseenter="onMouseEnter">
       <i :class="item.icon" class="layout-menuitem-icon" />
       <span class="layout-menuitem-text">{{ item.label }}</span>
       <i class="pi pi-fw pi-angle-down layout-submenu-toggler" v-if="item.items" />

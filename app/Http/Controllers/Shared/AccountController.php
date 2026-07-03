@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Shared;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Shared\UpdateAccountRequest;
+use App\Services\FileUploadService;
+use App\Services\SignedUrlService;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -30,14 +32,12 @@ class AccountController extends Controller
                 Storage::disk('supabase')->delete($user->profile_picture_path);
             }
 
-            $file = $request->file('profile_picture');
-            $path = 'profile_pictures/' . $user->id . '/' . $file->hashName();
-            Storage::disk('supabase')->put($path, file_get_contents($file->getRealPath()));
+            $result = (new FileUploadService)->upload($request->file('profile_picture'), 'profile_pictures', $user->id);
 
-            $data['profile_picture_name'] = $file->getClientOriginalName();
-            $data['profile_picture_path'] = $path;
-            $data['profile_picture_size'] = $file->getSize();
-            $data['profile_picture_mime_type'] = $file->getMimeType();
+            $data['profile_picture_name'] = $result['file_name'];
+            $data['profile_picture_path'] = $result['file_path'];
+            $data['profile_picture_size'] = $result['file_size'];
+            $data['profile_picture_mime_type'] = $result['mime_type'];
         }
 
         $user->update($data);
@@ -53,10 +53,11 @@ class AccountController extends Controller
             abort(404);
         }
 
-        $url = Storage::disk('supabase')->temporaryUrl(
-            $user->profile_picture_path,
-            now()->addMinutes(5)
-        );
+        $url = (new SignedUrlService)->generate($user->profile_picture_path, 5);
+
+        if (!$url) {
+            abort(404);
+        }
 
         return Redirect::away($url);
     }

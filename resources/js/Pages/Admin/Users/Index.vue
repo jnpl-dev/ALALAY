@@ -1,0 +1,256 @@
+<script setup>
+import { Head, router } from '@inertiajs/vue3'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import Button from 'primevue/button'
+import Avatar from 'primevue/avatar'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
+import InputText from 'primevue/inputtext'
+import Select from 'primevue/select'
+import Tag from 'primevue/tag'
+import Paginator from 'primevue/paginator'
+import Popover from 'primevue/popover'
+import ConfirmDialog from 'primevue/confirmdialog'
+import { useToast } from 'primevue/usetoast'
+import { useConfirm } from 'primevue/useconfirm'
+import { ref, toRaw } from 'vue'
+
+defineOptions({ layout: AppLayout })
+
+const props = defineProps({
+  users: { type: Object, required: true },
+  filters: { type: Object, default: () => ({}) },
+})
+
+const toast = useToast()
+const confirm = useConfirm()
+const selectedUser = ref(null)
+const op = ref(null)
+
+const toggleActions = (event, user) => {
+  selectedUser.value = user
+  op.value.toggle(event)
+}
+
+const goToCreate = () => {
+  router.get(window.route('admin.users.create'))
+}
+
+const goToEdit = (user) => {
+  router.get(window.route('admin.users.edit', user.id))
+}
+
+const roleSeverity = (role) => ({
+  admin: 'danger',
+  aics_staff: 'info',
+  mswdo: 'success',
+  accountant: 'warn',
+  treasurer: 'contrast',
+  mayors_office: 'info',
+}[role] || 'info')
+
+const roleLabel = (role) => ({
+  admin: 'Admin',
+  aics_staff: 'AICS',
+  mswdo: 'MSWDO',
+  accountant: 'Accountant',
+  treasurer: 'Treasurer',
+  mayors_office: "Mayor's Office",
+}[role] || role)
+
+const statusSeverity = (status) => status === 'active' ? 'success' : 'danger'
+
+const initials = (user) => {
+  const first = (user.first_name || '')[0] || ''
+  const last = (user.last_name || '')[0] || ''
+  return (first + last).toUpperCase()
+}
+
+const profilePictureUrl = (user) => {
+  return user.profile_picture_path ? window.route('admin.users.profile-picture', user.id) : null
+}
+
+const search = ref(props.filters.search || '')
+const role = ref(props.filters.role || '')
+const status = ref(props.filters.status || '')
+
+const applyFilters = () => {
+  router.get(window.route('admin.users.index'), {
+    search: search.value,
+    role: role.value,
+    status: status.value,
+  }, { replace: true })
+}
+
+const roleOptions = [
+  { label: 'All Roles', value: '' },
+  { label: 'Admin', value: 'admin' },
+  { label: 'AICS Staff', value: 'aics_staff' },
+  { label: 'MSWDO', value: 'mswdo' },
+  { label: 'Accountant', value: 'accountant' },
+  { label: 'Treasurer', value: 'treasurer' },
+  { label: "Mayor's Office", value: 'mayors_office' },
+]
+
+const statusOptions = [
+  { label: 'All Status', value: '' },
+  { label: 'Active', value: 'active' },
+  { label: 'Inactive', value: 'inactive' },
+]
+
+const confirmDelete = (user) => {
+  confirm.require({
+    message: `Delete user "${user.full_name}"? This cannot be undone.`,
+    header: 'Confirm Delete',
+    icon: 'pi pi-exclamation-triangle',
+    rejectLabel: 'Cancel',
+    acceptLabel: 'Delete',
+    rejectClass: 'p-button-outlined',
+    acceptClass: 'p-button-danger',
+    accept: () => {
+      router.delete(window.route('admin.users.destroy', user.id), {
+        onSuccess: () => toast.add({ severity: 'success', summary: 'User deleted', life: 3000 }),
+        onError: () => toast.add({ severity: 'error', summary: 'Delete failed', life: 3000 }),
+      })
+    },
+  })
+}
+
+const confirmToggleStatus = (user) => {
+  const action = user.status === 'active' ? 'deactivate' : 'activate'
+  confirm.require({
+    message: `${action} user "${user.full_name}"?`,
+    header: 'Confirm Status Change',
+    icon: 'pi pi-exclamation-triangle',
+    rejectLabel: 'Cancel',
+    acceptLabel: action.charAt(0).toUpperCase() + action.slice(1),
+    rejectClass: 'p-button-outlined',
+    acceptClass: user.status === 'active' ? 'p-button-warning' : 'p-button-success',
+    accept: () => {
+      router.patch(window.route('admin.users.toggle-status', user.id), {}, {
+        onSuccess: () => toast.add({ severity: 'success', summary: 'Status updated', life: 3000 }),
+        onError: () => toast.add({ severity: 'error', summary: 'Status update failed', life: 3000 }),
+      })
+    },
+  })
+}
+
+const confirmRevokeSessions = (user) => {
+  confirm.require({
+    message: `Revoke all sessions for "${user.full_name}"? They will be logged out of all devices.`,
+    header: 'Confirm Revoke Sessions',
+    icon: 'pi pi-exclamation-triangle',
+    rejectLabel: 'Cancel',
+    acceptLabel: 'Revoke',
+    rejectClass: 'p-button-outlined',
+    acceptClass: 'p-button-danger',
+    accept: () => {
+      router.delete(window.route('admin.users.revoke-sessions', user.id), {
+        onSuccess: () => toast.add({ severity: 'success', summary: 'Sessions revoked', life: 3000 }),
+        onError: () => toast.add({ severity: 'error', summary: 'Revoke failed', life: 3000 }),
+      })
+    },
+  })
+}
+
+const onPage = (event) => {
+  router.get(window.route('admin.users.index'), {
+    search: search.value,
+    role: role.value,
+    status: status.value,
+    page: event.page + 1,
+  }, { preserveState: true, replace: true })
+}
+</script>
+
+<template>
+  <Head title="Users" />
+
+  <div class="grid grid-cols-12 gap-8">
+    <div class="col-span-12">
+      <div class="card">
+        <div class="flex items-center justify-between mb-6">
+          <div class="font-semibold text-xl">Users</div>
+          <Button label="Add User" icon="pi pi-plus" @click="goToCreate" />
+        </div>
+
+        <div class="flex flex-wrap gap-4 mb-6">
+          <div class="flex-1 min-w-48">
+            <InputText v-model="search" placeholder="Search name or email..." class="w-full"
+              @keyup.enter="applyFilters" />
+          </div>
+          <div class="w-48">
+            <Select v-model="role" :options="roleOptions" option-label="label" option-value="value" placeholder="All Roles" class="w-full" @change="applyFilters" />
+          </div>
+          <div class="w-48">
+            <Select v-model="status" :options="statusOptions" option-label="label" option-value="value" placeholder="All Status" class="w-full" @change="applyFilters" />
+          </div>
+        </div>
+
+        <DataTable :value="toRaw(props.users.data)" striped-rows class="w-full">
+          <Column style="width: 4rem">
+            <template #body="{ data }">
+              <Avatar :image="profilePictureUrl(data)" :label="initials(data)" class="font-semibold" size="large" shape="circle" />
+            </template>
+          </Column>
+          <Column field="full_name" header="Name" sortable />
+          <Column field="email" header="Email" sortable />
+          <Column field="role" header="Role" sortable>
+            <template #body="{ data }">
+              <Tag :value="roleLabel(data.role)" :severity="roleSeverity(data.role)" />
+            </template>
+          </Column>
+          <Column field="status" header="Status" sortable>
+            <template #body="{ data }">
+              <Tag :value="data.status" :severity="statusSeverity(data.status)" />
+            </template>
+          </Column>
+          <Column field="created_at" header="Created" sortable>
+            <template #body="{ data }">
+              {{ new Date(data.created_at).toLocaleDateString() }}
+            </template>
+          </Column>
+          <Column header="Actions" style="min-width: 8rem">
+            <template #body="{ data }">
+              <Button icon="pi pi-ellipsis-h" severity="secondary" text rounded
+                @click="toggleActions($event, data)" />
+            </template>
+          </Column>
+        </DataTable>
+
+        <Paginator :first="(props.users.current_page - 1) * props.users.per_page" :rows="props.users.per_page"
+          :total-records="props.users.total" @page="onPage"
+          template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink" class="mt-4" />
+
+        <Popover ref="op">
+          <div class="flex flex-col gap-1 min-w-40">
+            <button @click="goToEdit(selectedUser)"
+              class="flex items-center gap-3 px-3 py-2 text-sm text-blue-600 w-full text-left hover:bg-blue-50 dark:hover:bg-blue-950 rounded transition-colors cursor-pointer border-none bg-transparent">
+              <i class="pi pi-pencil"></i>
+              Edit
+            </button>
+            <button @click="confirmToggleStatus(selectedUser)"
+              class="flex items-center gap-3 px-3 py-2 text-sm w-full text-left rounded transition-colors cursor-pointer border-none bg-transparent"
+              :class="selectedUser?.status === 'active'
+                ? 'text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950'
+                : 'text-green-600 hover:bg-green-50 dark:hover:bg-green-950'">
+              <i :class="selectedUser?.status === 'active' ? 'pi pi-ban' : 'pi pi-check'"></i>
+              {{ selectedUser?.status === 'active' ? 'Deactivate' : 'Activate' }}
+            </button>
+            <button @click="confirmDelete(selectedUser)"
+              class="flex items-center gap-3 px-3 py-2 text-sm text-red-600 w-full text-left hover:bg-red-50 dark:hover:bg-red-950 rounded transition-colors cursor-pointer border-none bg-transparent">
+              <i class="pi pi-trash"></i>
+              Delete
+            </button>
+            <button @click="confirmRevokeSessions(selectedUser)"
+              class="flex items-center gap-3 px-3 py-2 text-sm text-color w-full text-left hover:bg-surface-100 dark:hover:bg-surface-700 rounded transition-colors cursor-pointer border-none bg-transparent">
+              <i class="pi pi-sign-out"></i>
+              Revoke Sessions
+            </button>
+          </div>
+        </Popover>
+        <ConfirmDialog />
+      </div>
+    </div>
+  </div>
+</template>

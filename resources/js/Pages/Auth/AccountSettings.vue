@@ -1,10 +1,9 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { Head, usePage, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
-import Divider from 'primevue/divider'
 import FileUpload from 'primevue/fileupload'
 import Avatar from 'primevue/avatar'
 import { useToast } from 'primevue/usetoast'
@@ -13,6 +12,7 @@ defineOptions({ layout: AppLayout })
 
 const user = computed(() => usePage().props.auth?.user)
 const toast = useToast()
+const isEditing = ref(false)
 
 const form = useForm({
   first_name: user.value?.first_name || '',
@@ -31,6 +31,7 @@ const submit = () => {
     preserveScroll: true,
     onSuccess: () => {
       form.reset('current_password', 'password', 'password_confirmation', 'profile_picture')
+      isEditing.value = false
       toast.add({ severity: 'success', summary: 'Account updated', life: 3000 })
     },
     onError: () => {
@@ -39,8 +40,24 @@ const submit = () => {
   })
 }
 
+const cancelEdit = () => {
+  form.reset()
+  form.clearErrors()
+  isEditing.value = false
+}
+
+const handleButtonClick = () => {
+  if (!isEditing.value) {
+    isEditing.value = true
+  } else {
+    submit()
+  }
+}
+
 const onProfilePictureSelect = (event) => {
-  form.profile_picture = event.files[0]
+  if (isEditing.value) {
+    form.profile_picture = event.files[0]
+  }
 }
 
 const profilePictureUrl = computed(() => {
@@ -55,11 +72,11 @@ const profilePictureUrl = computed(() => {
   <Head title="Account Settings" />
 
   <div class="grid grid-cols-12 gap-8">
-    <div class="col-span-12 lg:col-span-8 xl:col-span-6">
-      <div class="card p-6">
-        <div class="font-semibold text-xl mb-6">Account Settings</div>
+    <div class="col-span-12">
+      <div class="card">
+        <div class="font-semibold text-xl mb-4">Account Settings</div>
 
-        <form @submit.prevent="submit" class="flex flex-col gap-6">
+        <form @submit.prevent="handleButtonClick">
           <div class="flex items-center gap-6 mb-2">
             <Avatar :image="profilePictureUrl" :label="user?.first_name?.charAt(0)" size="xlarge" shape="circle" class="shrink-0" />
             <div>
@@ -69,70 +86,86 @@ const profilePictureUrl = computed(() => {
                 :maxFileSize="2048000"
                 chooseLabel="Change Photo"
                 class="p-button-sm"
+                :disabled="!isEditing"
                 @select="onProfilePictureSelect"
               />
-              <p class="text-xs text-gray-500 mt-1">JPEG or PNG. Max 2MB.</p>
+              <p class="text-xs text-muted-color mt-1">JPEG or PNG. Max 2MB.</p>
               <p v-if="form.errors.profile_picture" class="text-xs text-red-500 mt-1">{{ form.errors.profile_picture }}</p>
             </div>
           </div>
 
-          <Divider />
+          <hr class="border-surface my-6">
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-              <label for="first_name" class="block font-medium mb-2">First Name <span class="text-red-500">*</span></label>
-              <InputText id="first_name" v-model="form.first_name" class="w-full" :invalid="!!form.errors.first_name" />
+              <label for="first_name" class="block text-muted-color font-medium mb-2">First Name <span class="text-red-500">*</span></label>
+              <InputText id="first_name" v-model="form.first_name" class="w-full" :invalid="!!form.errors.first_name" :disabled="!isEditing" />
               <p v-if="form.errors.first_name" class="text-xs text-red-500 mt-1">{{ form.errors.first_name }}</p>
             </div>
             <div>
-              <label for="last_name" class="block font-medium mb-2">Last Name <span class="text-red-500">*</span></label>
-              <InputText id="last_name" v-model="form.last_name" class="w-full" :invalid="!!form.errors.last_name" />
+              <label for="last_name" class="block text-muted-color font-medium mb-2">Last Name <span class="text-red-500">*</span></label>
+              <InputText id="last_name" v-model="form.last_name" class="w-full" :invalid="!!form.errors.last_name" :disabled="!isEditing" />
               <p v-if="form.errors.last_name" class="text-xs text-red-500 mt-1">{{ form.errors.last_name }}</p>
             </div>
             <div>
-              <label for="middle_name" class="block font-medium mb-2">Middle Name</label>
-              <InputText id="middle_name" v-model="form.middle_name" class="w-full" />
+              <label for="middle_name" class="block text-muted-color font-medium mb-2">Middle Name</label>
+              <InputText id="middle_name" v-model="form.middle_name" class="w-full" :disabled="!isEditing" />
             </div>
             <div>
-              <label for="name_extension" class="block font-medium mb-2">Name Extension</label>
-              <InputText id="name_extension" v-model="form.name_extension" class="w-full" placeholder="e.g. Jr., III" />
+              <label for="name_extension" class="block text-muted-color font-medium mb-2">Name Extension</label>
+              <InputText id="name_extension" v-model="form.name_extension" class="w-full" placeholder="e.g. Jr., III" :disabled="!isEditing" />
             </div>
           </div>
 
+          <hr class="border-surface my-6">
+
           <div>
-            <label for="email" class="block font-medium mb-2">Email <span class="text-red-500">*</span></label>
-            <InputText id="email" v-model="form.email" type="email" class="w-full" :invalid="!!form.errors.email" />
+            <label for="email" class="block text-muted-color font-medium mb-2">Email <span class="text-red-500">*</span></label>
+            <InputText id="email" v-model="form.email" type="email" class="w-full" :invalid="!!form.errors.email" :disabled="!isEditing" />
             <p v-if="form.errors.email" class="text-xs text-red-500 mt-1">{{ form.errors.email }}</p>
           </div>
 
-          <Divider />
+          <hr class="border-surface my-6">
 
           <div>
-            <p class="font-medium mb-4">Change Password <span class="text-sm font-normal text-gray-500">(optional)</span></p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <p class="font-medium mb-4">Change Password <span class="text-sm font-normal text-muted-color">(optional)</span></p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div>
-                <label for="current_password" class="block font-medium mb-2">Current Password</label>
-                <InputText id="current_password" v-model="form.current_password" type="password" class="w-full" :invalid="!!form.errors.current_password" />
+                <label for="current_password" class="block text-muted-color font-medium mb-2">Current Password</label>
+                <InputText id="current_password" v-model="form.current_password" type="password" class="w-full" :invalid="!!form.errors.current_password" :disabled="!isEditing" />
                 <p v-if="form.errors.current_password" class="text-xs text-red-500 mt-1">{{ form.errors.current_password }}</p>
               </div>
               <div></div>
               <div>
-                <label for="password" class="block font-medium mb-2">New Password</label>
-                <InputText id="password" v-model="form.password" type="password" class="w-full" :invalid="!!form.errors.password" />
+                <label for="password" class="block text-muted-color font-medium mb-2">New Password</label>
+                <InputText id="password" v-model="form.password" type="password" class="w-full" :invalid="!!form.errors.password" :disabled="!isEditing" />
                 <p v-if="form.errors.password" class="text-xs text-red-500 mt-1">{{ form.errors.password }}</p>
               </div>
               <div>
-                <label for="password_confirmation" class="block font-medium mb-2">Confirm New Password</label>
-                <InputText id="password_confirmation" v-model="form.password_confirmation" type="password" class="w-full" :invalid="!!form.errors.password_confirmation" />
+                <label for="password_confirmation" class="block text-muted-color font-medium mb-2">Confirm New Password</label>
+                <InputText id="password_confirmation" v-model="form.password_confirmation" type="password" class="w-full" :invalid="!!form.errors.password_confirmation" :disabled="!isEditing" />
                 <p v-if="form.errors.password_confirmation" class="text-xs text-red-500 mt-1">{{ form.errors.password_confirmation }}</p>
               </div>
             </div>
           </div>
 
-          <Divider />
+          <hr class="border-surface my-6">
 
-          <div class="flex justify-end">
-            <Button type="submit" label="Save Changes" :loading="form.processing" icon="pi pi-check" />
+          <div class="flex justify-end gap-4">
+            <Button
+              v-if="isEditing"
+              type="button"
+              label="Cancel"
+              icon="pi pi-times"
+              severity="secondary"
+              @click="cancelEdit"
+            />
+            <Button
+              type="submit"
+              :label="isEditing ? 'Save Changes' : 'Edit Account'"
+              :icon="isEditing ? 'pi pi-check' : 'pi pi-pencil'"
+              :loading="form.processing"
+            />
           </div>
         </form>
       </div>
