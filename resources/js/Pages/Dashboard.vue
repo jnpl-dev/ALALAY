@@ -2,6 +2,8 @@
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { useAuth } from '@/Composables/useAuth'
+import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
+import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -21,51 +23,13 @@ const accountUrl = route('account.edit')
 
   <div class="grid grid-cols-12 gap-8">
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <div class="card mb-0">
-          <div class="flex justify-between mb-4">
-            <div>
-              <span class="block text-muted-color font-medium mb-4">Applications</span>
-              <div class="text-surface-900 font-medium text-xl">{{ totalApplications }}</div>
-            </div>
-            <div class="flex items-center justify-center bg-blue-100 dark:bg-blue-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
-              <i class="pi pi-file text-blue-500 text-xl!"></i>
-            </div>
-          </div>
-          <span class="text-primary font-medium">— </span>
-          <span class="text-muted-color">total submitted</span>
-        </div>
+        <AppKpiCard title="Applications" :value="totalApplications" icon="pi pi-file" color="info" subtitle="total submitted" />
       </div>
-
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <div class="card mb-0">
-          <div class="flex justify-between mb-4">
-            <div>
-              <span class="block text-muted-color font-medium mb-4">Pending</span>
-              <div class="text-surface-900 font-medium text-xl">{{ pendingApplications }}</div>
-            </div>
-            <div class="flex items-center justify-center bg-orange-100 dark:bg-orange-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
-              <i class="pi pi-clock text-orange-500 text-xl!"></i>
-            </div>
-          </div>
-          <span class="text-primary font-medium">— </span>
-          <span class="text-muted-color">awaiting review</span>
-        </div>
+        <AppKpiCard title="Pending" :value="pendingApplications" icon="pi pi-clock" color="warn" subtitle="awaiting review" />
       </div>
-
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <div class="card mb-0">
-          <div class="flex justify-between mb-4">
-            <div>
-              <span class="block text-muted-color font-medium mb-4">Approved</span>
-              <div class="text-surface-900 font-medium text-xl">{{ approvedThisMonth }}</div>
-            </div>
-            <div class="flex items-center justify-center bg-green-100 dark:bg-green-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
-              <i class="pi pi-check-circle text-green-500 text-xl!"></i>
-            </div>
-          </div>
-          <span class="text-primary font-medium">— </span>
-          <span class="text-muted-color">this month</span>
-        </div>
+        <AppKpiCard title="Approved" :value="approvedThisMonth" icon="pi pi-check-circle" color="success" subtitle="this month" />
       </div>
 
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
@@ -98,10 +62,7 @@ const accountUrl = route('account.edit')
               </span>
             </li>
           </ul>
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-inbox text-4xl mb-3" style="color: var(--text-color-secondary);"></i>
-            <span>No recent activity</span>
-          </div>
+          <AppEmptyState v-else icon="pi pi-inbox" message="No recent activity" />
         </div>
 
         <div class="card">

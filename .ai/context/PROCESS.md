@@ -353,34 +353,30 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 4.3 Public Pages
 
-- [x] `Public/Apply.vue` — multi-step form (PublicLayout):
-  - [ ] Step 1: Category selection (card grid)
-  - [ ] Step 2: Claimant + beneficiary fields with server error display
-  - [ ] Step 3: Document capture via DocumentScanner per required document (one DocumentScanner per document; fallback file input shown when camera unavailable)
-  - [ ] Step 4: Summary confirmation
-  - [ ] Step 5: Success — display reference code
-  - [ ] Uses `useForm()` for submission
-- [x] `Public/Track.vue` — reference code input + application status + review trail (PublicLayout)
+- [x] `Public/Apply.vue` — multi-step form (standalone Tailwind):
+  - [x] Step 1: Category selection (card grid) with required docs per category
+  - [x] Step 2: Claimant + beneficiary fields (PSGC address, server error display, same-address toggle)
+  - [x] Step 3: Document capture via DocumentScanner per required document (one DocumentScanner per document; fallback file input shown when camera unavailable)
+  - [x] Step 4: Summary confirmation (claimant, beneficiary, document thumbnails)
+  - [x] Step 5: Success — display reference code + copy button + track/apply-again links
+  - [x] Uses `useForm()` for submission + `usePsgcAddress()` for address selectors; auto-selects Nueva Ecija → General Mamerto Natividad on mount
+- [x] `Public/Track.vue` — reference code input + application status + review trail (standalone Tailwind)
 
 ### 4.4 Shared Components
 
-- [ ] `Components/Common/AppKpiCard.vue` — props: `title`, `value`, `icon`, `color`
-- [ ] `Components/Common/AppStatusBadge.vue` — props: `status`; reads from `useStatusLabel`
-- [ ] `Components/Common/AppDateFilter.vue` — emits: `filter-changed`; presets + custom range
-- [ ] `Components/Common/AppConfirmModal.vue` — wraps PrimeVue ConfirmDialog
-- [ ] `Components/Common/AppExportButton.vue` — triggers CSV download via `router.visit()`
-- [ ] `Components/Common/AppEmptyState.vue`
-- [ ] `Components/Application/ReviewTrail.vue` — props: `reviews`; chronological list
-- [ ] `Components/Application/ApplicationInfo.vue` — props: `application`; claimant + beneficiary display
-- [ ] `Components/Application/DocumentList.vue` — props: `documents`, `signedUrlRoute`
-- [ ] `Components/Application/DocumentViewer.vue` — PDF/image inline viewer
-- [x] `Components/Application/DocumentScanner.vue` — camera capture with guide overlay
-  (SVG mask), enhancement pipeline (5-step: downscale 1200px → grayscale → contrast
-  stretch → adaptive threshold 40×10 → JPEG 0.88), preview/recapture/confirm, fallback
-  file input `image/jpeg,image/png` only. Zero PrimeVue dependency — pure Tailwind +
-  canvas JS. Works in both public (Tailwind-only) and dashboard (PrimeVue) pages.
-- [ ] `Components/Application/ReturnModal.vue` — props: `requiredDocuments`; emits: `confirmed`
-- [ ] `Components/Charts/LineChart.vue`, `BarChart.vue`, `DonutChart.vue`
+- [x] `Components/Common/AppKpiCard.vue` — props: `title`, `value`, `icon`, `color`; 5 severity color maps
+- [x] `Components/Common/AppStatusBadge.vue` — props: `status`; reads from `getStatusLabel()`; 5 severity color maps
+- [x] `Components/Common/AppDateFilter.vue` — emits: `filter-changed`; 5 presets (Today → This Year) + custom range
+- [x] `Components/Common/AppConfirmModal.vue` — renders `<ConfirmDialog />`
+- [x] `Components/Common/AppExportButton.vue` — triggers CSV download via `router.visit()`
+- [x] `Components/Common/AppEmptyState.vue` — props: `icon`, `message`; named slot for children
+- [x] `Components/Application/ReviewTrail.vue` — props: `reviews`; chronological list with stage/decision/remarks/date
+- [x] `Components/Application/ApplicationInfo.vue` — props: `application`; claimant + beneficiary + reference + category display
+- [x] `Components/Application/DocumentList.vue` — props: `documents`; emits: `view`; per-doc view button
+- [x] `Components/Application/DocumentViewer.vue` — Teleported modal; props: `url`, `title`; image/iframe viewer
+- [x] `Components/Application/DocumentScanner.vue` — camera capture with guide overlay (SVG mask), enhancement pipeline (5-step: downscale 1200px → grayscale → contrast stretch → adaptive threshold 40×10 → JPEG 0.88), preview/recapture/confirm, fallback file input `image/jpeg,image/png` only. Zero PrimeVue dependency — pure Tailwind + canvas JS. Works in both public (Tailwind-only) and dashboard (PrimeVue) pages.
+- [x] `Components/Application/ReturnModal.vue` — PrimeVue Dialog; props: `visible`, `requiredDocuments`; emits: `confirmed` with remarks + document_ids
+- [x] `Components/Charts/LineChart.vue`, `BarChart.vue`, `DonutChart.vue` — presentational wrappers; table fallback until chart.js installed
 
 ### 4.5 Admin Panel Pages
 

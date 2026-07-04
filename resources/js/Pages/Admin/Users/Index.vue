@@ -10,7 +10,7 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import Paginator from 'primevue/paginator'
 import Popover from 'primevue/popover'
-import ConfirmDialog from 'primevue/confirmdialog'
+import AppConfirmModal from '@/Components/Common/AppConfirmModal.vue'
 import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
 import { formatDate } from '@/Utils/formatDate'
@@ -250,7 +250,7 @@ const onPage = (event) => {
             </button>
           </div>
         </Popover>
-        <ConfirmDialog />
+        <AppConfirmModal />
       </div>
     </div>
   </div>

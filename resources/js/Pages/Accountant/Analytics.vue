@@ -1,6 +1,8 @@
 <script setup>
 import { Head } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
+import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
 import { formatCurrency } from '@/Utils/formatCurrency'
 
 defineOptions({ layout: AppLayout })
@@ -21,67 +23,16 @@ defineProps({
   <Head title="Accountant Analytics" />
     <div class="grid grid-cols-12 gap-8">
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <div class="card mb-0">
-          <div class="flex justify-between mb-4">
-            <div>
-              <span class="block text-muted-color font-medium mb-4">Vouchers</span>
-              <div class="text-surface-900 font-medium text-xl">{{ vouchersForReview }}</div>
-            </div>
-            <div class="flex items-center justify-center bg-blue-100 dark:bg-blue-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
-              <i class="pi pi-receipt text-blue-500 text-xl!"></i>
-            </div>
-          </div>
-          <span class="text-primary font-medium">{{ approvedThisMonth }} </span>
-          <span class="text-muted-color">approved this month</span>
-        </div>
+        <AppKpiCard title="Vouchers" :value="vouchersForReview" icon="pi pi-receipt" color="info" :subtitle="approvedThisMonth + ' approved this month'" />
       </div>
-
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <div class="card mb-0">
-          <div class="flex justify-between mb-4">
-            <div>
-              <span class="block text-muted-color font-medium mb-4">Approved</span>
-              <div class="text-surface-900 font-medium text-xl">{{ approvedThisMonth }}</div>
-            </div>
-            <div class="flex items-center justify-center bg-green-100 dark:bg-green-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
-              <i class="pi pi-check-circle text-green-500 text-xl!"></i>
-            </div>
-          </div>
-          <span class="text-primary font-medium">— </span>
-          <span class="text-muted-color">this month</span>
-        </div>
+        <AppKpiCard title="Approved" :value="approvedThisMonth" icon="pi pi-check-circle" color="success" subtitle="this month" />
       </div>
-
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <div class="card mb-0">
-          <div class="flex justify-between mb-4">
-            <div>
-              <span class="block text-muted-color font-medium mb-4">Budget</span>
-              <div class="text-surface-900 font-medium text-xl">{{ formatCurrency(totalAmount) }}</div>
-            </div>
-            <div class="flex items-center justify-center bg-purple-100 dark:bg-purple-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
-              <i class="pi pi-wallet text-purple-500 text-xl!"></i>
-            </div>
-          </div>
-          <span class="text-primary font-medium">— </span>
-          <span class="text-muted-color">allocated funds</span>
-        </div>
+        <AppKpiCard title="Budget" :value="formatCurrency(totalAmount)" icon="pi pi-wallet" color="purple" subtitle="allocated funds" />
       </div>
-
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <div class="card mb-0">
-          <div class="flex justify-between mb-4">
-            <div>
-              <span class="block text-muted-color font-medium mb-4">Disbursed</span>
-              <div class="text-surface-900 font-medium text-xl">{{ formatCurrency(disbursedThisMonth) }}</div>
-            </div>
-            <div class="flex items-center justify-center bg-orange-100 dark:bg-orange-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
-              <i class="pi pi-money-bill text-orange-500 text-xl!"></i>
-            </div>
-          </div>
-          <span class="text-primary font-medium">— </span>
-          <span class="text-muted-color">total disbursed</span>
-        </div>
+        <AppKpiCard title="Disbursed" :value="formatCurrency(disbursedThisMonth)" icon="pi pi-money-bill" color="warn" subtitle="total disbursed" />
       </div>
 
       <div class="col-span-12 xl:col-span-6">
@@ -103,10 +54,7 @@ defineProps({
               </tr>
             </tbody>
           </table>
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-bar text-4xl mb-3" style="color: var(--text-color-secondary);"></i>
-            <span>Analytics data will appear here</span>
-          </div>
+          <AppEmptyState v-else icon="pi pi-chart-bar" message="Analytics data will appear here" />
         </div>
       </div>
 
@@ -131,10 +79,7 @@ defineProps({
               </tr>
             </tbody>
           </table>
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-inbox text-4xl mb-3" style="color: var(--text-color-secondary);"></i>
-            <span>No recent transactions</span>
-          </div>
+          <AppEmptyState v-else icon="pi pi-inbox" message="No recent transactions" />
         </div>
       </div>
     </div>

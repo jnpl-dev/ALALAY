@@ -1,6 +1,8 @@
 <script setup>
 import { Head } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
+import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
 import { formatCurrency } from '@/Utils/formatCurrency'
 
 defineOptions({ layout: AppLayout })
@@ -21,67 +23,16 @@ defineProps({
   <Head title="Treasurer Analytics" />
     <div class="grid grid-cols-12 gap-8">
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <div class="card mb-0">
-          <div class="flex justify-between mb-4">
-            <div>
-              <span class="block text-muted-color font-medium mb-4">Cheques</span>
-              <div class="text-surface-900 font-medium text-xl">{{ chequesForProcessing }}</div>
-            </div>
-            <div class="flex items-center justify-center bg-blue-100 dark:bg-blue-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
-              <i class="pi pi-money-bill text-blue-500 text-xl!"></i>
-            </div>
-          </div>
-          <span class="text-primary font-medium">{{ acknowledgedThisMonth }} </span>
-          <span class="text-muted-color">acknowledged this month</span>
-        </div>
+        <AppKpiCard title="Cheques" :value="chequesForProcessing" icon="pi pi-money-bill" color="info" :subtitle="acknowledgedThisMonth + ' acknowledged this month'" />
       </div>
-
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <div class="card mb-0">
-          <div class="flex justify-between mb-4">
-            <div>
-              <span class="block text-muted-color font-medium mb-4">Acknowledged</span>
-              <div class="text-surface-900 font-medium text-xl">{{ acknowledgedThisMonth }}</div>
-            </div>
-            <div class="flex items-center justify-center bg-green-100 dark:bg-green-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
-              <i class="pi pi-check-circle text-green-500 text-xl!"></i>
-            </div>
-          </div>
-          <span class="text-primary font-medium">— </span>
-          <span class="text-muted-color">this month</span>
-        </div>
+        <AppKpiCard title="Acknowledged" :value="acknowledgedThisMonth" icon="pi pi-check-circle" color="success" subtitle="this month" />
       </div>
-
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <div class="card mb-0">
-          <div class="flex justify-between mb-4">
-            <div>
-              <span class="block text-muted-color font-medium mb-4">Total Amount</span>
-              <div class="text-surface-900 font-medium text-xl">{{ formatCurrency(totalAmount) }}</div>
-            </div>
-            <div class="flex items-center justify-center bg-purple-100 dark:bg-purple-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
-              <i class="pi pi-calculator text-purple-500 text-xl!"></i>
-            </div>
-          </div>
-          <span class="text-primary font-medium">— </span>
-          <span class="text-muted-color">total value</span>
-        </div>
+        <AppKpiCard title="Total Amount" :value="formatCurrency(totalAmount)" icon="pi pi-calculator" color="purple" subtitle="total value" />
       </div>
-
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <div class="card mb-0">
-          <div class="flex justify-between mb-4">
-            <div>
-              <span class="block text-muted-color font-medium mb-4">Pending</span>
-              <div class="text-surface-900 font-medium text-xl">{{ pendingCheques }}</div>
-            </div>
-            <div class="flex items-center justify-center bg-orange-100 dark:bg-orange-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
-              <i class="pi pi-clock text-orange-500 text-xl!"></i>
-            </div>
-          </div>
-          <span class="text-primary font-medium">— </span>
-          <span class="text-muted-color">not yet acknowledged</span>
-        </div>
+        <AppKpiCard title="Pending" :value="pendingCheques" icon="pi pi-clock" color="warn" subtitle="not yet acknowledged" />
       </div>
 
       <div class="col-span-12 xl:col-span-6">
@@ -103,10 +54,7 @@ defineProps({
               </tr>
             </tbody>
           </table>
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-bar text-4xl mb-3" style="color: var(--text-color-secondary);"></i>
-            <span>Analytics data will appear here</span>
-          </div>
+          <AppEmptyState v-else icon="pi pi-chart-bar" message="Analytics data will appear here" />
         </div>
       </div>
 
@@ -131,10 +79,7 @@ defineProps({
               </tr>
             </tbody>
           </table>
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-inbox text-4xl mb-3" style="color: var(--text-color-secondary);"></i>
-            <span>No recent cheques</span>
-          </div>
+          <AppEmptyState v-else icon="pi pi-inbox" message="No recent cheques" />
         </div>
       </div>
     </div>
