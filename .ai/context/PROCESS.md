@@ -268,8 +268,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 3.5 AICS Staff Controllers
 
-- [ ] `Aics/DashboardController@index`
-- [ ] `Aics/AnalyticsController@index`
+- [x] `Aics/DashboardController@index`
+- [x] `Aics/AnalyticsController@index`
 - [x] `Aics/ApplicationController@index` — tabbed by status prop — stub exists
 - [x] `Aics/ApplicationController@show` — full application + documents + review trail — stub exists
 - [x] `Aics/ApplicationController@documentUrl` — returns signed URL for document viewer — stub exists
@@ -281,8 +281,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 3.6 MSWDO Controllers
 
-- [ ] `Mswdo/DashboardController@index`
-- [ ] `Mswdo/AnalyticsController@index`
+- [x] `Mswdo/DashboardController@index`
+- [x] `Mswdo/AnalyticsController@index`
 - [x] `Mswdo/ApplicationController@index` — stub exists
 - [x] `Mswdo/ApplicationController@show` — stub exists
 - [x] `Mswdo/ApplicationController@approve` — captures social case study (via DocumentScanner); writes review; dispatches SMS — stub exists
@@ -293,8 +293,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 3.7 Accountant Controllers
 
-- [ ] `Accountant/DashboardController@index`
-- [ ] `Accountant/AnalyticsController@index`
+- [x] `Accountant/DashboardController@index`
+- [x] `Accountant/AnalyticsController@index`
 - [x] `Accountant/VoucherController@index` — stub exists
 - [x] `Accountant/VoucherController@show` — stub exists
 - [x] `Accountant/VoucherController@approve` — stub exists
@@ -302,8 +302,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 3.8 Treasurer Controllers
 
-- [ ] `Treasurer/DashboardController@index`
-- [ ] `Treasurer/AnalyticsController@index`
+- [x] `Treasurer/DashboardController@index`
+- [x] `Treasurer/AnalyticsController@index`
 - [x] `Treasurer/ChequeController@index` — stub exists
 - [x] `Treasurer/ChequeController@show` — stub exists
 - [x] `Treasurer/ChequeController@acknowledge` — stub exists
@@ -315,8 +315,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 3.9 Mayor's Office Controllers
 
-- [ ] `MayorsOffice/DashboardController@index` — consolidated KPIs
-- [ ] `MayorsOffice/AnalyticsController@index` — consolidated charts
+- [x] `MayorsOffice/DashboardController@index` — consolidated KPIs
+- [x] `MayorsOffice/AnalyticsController@index` — consolidated charts
 
 ---
 

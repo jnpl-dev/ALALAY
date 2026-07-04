@@ -15,6 +15,20 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Public\ApplicationController;
 use App\Http\Controllers\Public\CategoryController;
 use App\Http\Controllers\Shared\AccountController;
+use App\Http\Controllers\Aics\AnalyticsController as AicsAnalyticsController;
+use App\Http\Controllers\Aics\ApplicationController as AicsApplicationController;
+use App\Http\Controllers\Aics\AssistanceCodeController;
+use App\Http\Controllers\Aics\DashboardController as AicsDashboardController;
+use App\Http\Controllers\Mswdo\AnalyticsController as MswdoAnalyticsController;
+use App\Http\Controllers\Mswdo\ApplicationController as MswdoApplicationController;
+use App\Http\Controllers\Mswdo\DashboardController as MswdoDashboardController;
+use App\Http\Controllers\Mswdo\VoucherController as MswdoVoucherController;
+use App\Http\Controllers\Accountant\DashboardController as AccountantDashboardController;
+use App\Http\Controllers\Accountant\AnalyticsController as AccountantAnalyticsController;
+use App\Http\Controllers\Treasurer\DashboardController as TreasurerDashboardController;
+use App\Http\Controllers\Treasurer\AnalyticsController as TreasurerAnalyticsController;
+use App\Http\Controllers\MayorsOffice\DashboardController as MayorsOfficeDashboardController;
+use App\Http\Controllers\MayorsOffice\AnalyticsController as MayorsOfficeAnalyticsController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -77,47 +91,35 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
 
     // AICS Staff panel
     Route::middleware('role:aics_staff')->prefix('aics')->name('aics.')->group(function () {
-        Route::get('/dashboard', function () {
-            return Inertia::render('Dashboard');
-        })->name('dashboard');
-        Route::get('/analytics', function () {
-            return Inertia::render('Aics/Analytics');
-        })->name('analytics');
-        Route::get('/applications', [\App\Http\Controllers\Aics\ApplicationController::class, 'index'])->name('applications.index');
-        Route::get('/applications/{application}', [\App\Http\Controllers\Aics\ApplicationController::class, 'show'])->name('applications.show');
-        Route::get('/applications/{application}/documents/{document}/url', [\App\Http\Controllers\Aics\ApplicationController::class, 'documentUrl'])->name('applications.document-url');
-        Route::post('/applications/{application}/approve', [\App\Http\Controllers\Aics\ApplicationController::class, 'approve'])->name('applications.approve');
-        Route::post('/applications/{application}/return', [\App\Http\Controllers\Aics\ApplicationController::class, 'return'])->name('applications.return');
-        Route::get('/assistance-codes', [\App\Http\Controllers\Aics\AssistanceCodeController::class, 'index'])->name('assistance-codes.index');
-        Route::get('/assistance-codes/{application}', [\App\Http\Controllers\Aics\AssistanceCodeController::class, 'show'])->name('assistance-codes.show');
-        Route::post('/assistance-codes/{application}/code', [\App\Http\Controllers\Aics\AssistanceCodeController::class, 'store'])->name('assistance-codes.store');
+        Route::get('/dashboard', [AicsDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/analytics', [AicsAnalyticsController::class, 'index'])->name('analytics');
+        Route::get('/applications', [AicsApplicationController::class, 'index'])->name('applications.index');
+        Route::get('/applications/{application}', [AicsApplicationController::class, 'show'])->name('applications.show');
+        Route::get('/applications/{application}/documents/{document}/url', [AicsApplicationController::class, 'documentUrl'])->name('applications.document-url');
+        Route::post('/applications/{application}/approve', [AicsApplicationController::class, 'approve'])->name('applications.approve');
+        Route::post('/applications/{application}/return', [AicsApplicationController::class, 'return'])->name('applications.return');
+        Route::get('/assistance-codes', [AssistanceCodeController::class, 'index'])->name('assistance-codes.index');
+        Route::get('/assistance-codes/{application}', [AssistanceCodeController::class, 'show'])->name('assistance-codes.show');
+        Route::post('/assistance-codes/{application}/code', [AssistanceCodeController::class, 'store'])->name('assistance-codes.store');
     });
 
     // MSWDO panel
     Route::middleware('role:mswdo')->prefix('mswdo')->name('mswdo.')->group(function () {
-        Route::get('/dashboard', function () {
-            return Inertia::render('Dashboard');
-        })->name('dashboard');
-        Route::get('/analytics', function () {
-            return Inertia::render('Mswdo/Analytics');
-        })->name('analytics');
-        Route::get('/applications', [\App\Http\Controllers\Mswdo\ApplicationController::class, 'index'])->name('applications.index');
-        Route::get('/applications/{application}', [\App\Http\Controllers\Mswdo\ApplicationController::class, 'show'])->name('applications.show');
-        Route::post('/applications/{application}/approve', [\App\Http\Controllers\Mswdo\ApplicationController::class, 'approve'])->name('applications.approve');
-        Route::post('/applications/{application}/return', [\App\Http\Controllers\Mswdo\ApplicationController::class, 'return'])->name('applications.return');
-        Route::get('/vouchers', [\App\Http\Controllers\Mswdo\VoucherController::class, 'index'])->name('vouchers.index');
-        Route::get('/vouchers/{application}', [\App\Http\Controllers\Mswdo\VoucherController::class, 'show'])->name('vouchers.show');
-        Route::post('/vouchers/{application}', [\App\Http\Controllers\Mswdo\VoucherController::class, 'store'])->name('vouchers.store');
+        Route::get('/dashboard', [MswdoDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/analytics', [MswdoAnalyticsController::class, 'index'])->name('analytics');
+        Route::get('/applications', [MswdoApplicationController::class, 'index'])->name('applications.index');
+        Route::get('/applications/{application}', [MswdoApplicationController::class, 'show'])->name('applications.show');
+        Route::post('/applications/{application}/approve', [MswdoApplicationController::class, 'approve'])->name('applications.approve');
+        Route::post('/applications/{application}/return', [MswdoApplicationController::class, 'return'])->name('applications.return');
+        Route::get('/vouchers', [MswdoVoucherController::class, 'index'])->name('vouchers.index');
+        Route::get('/vouchers/{application}', [MswdoVoucherController::class, 'show'])->name('vouchers.show');
+        Route::post('/vouchers/{application}', [MswdoVoucherController::class, 'store'])->name('vouchers.store');
     });
 
     // Accountant panel
     Route::middleware('role:accountant')->prefix('accountant')->name('accountant.')->group(function () {
-        Route::get('/dashboard', function () {
-            return Inertia::render('Dashboard');
-        })->name('dashboard');
-        Route::get('/analytics', function () {
-            return Inertia::render('Accountant/Analytics');
-        })->name('analytics');
+        Route::get('/dashboard', [AccountantDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/analytics', [AccountantAnalyticsController::class, 'index'])->name('analytics');
         Route::get('/vouchers', [\App\Http\Controllers\Accountant\VoucherController::class, 'index'])->name('vouchers.index');
         Route::get('/vouchers/{voucher}', [\App\Http\Controllers\Accountant\VoucherController::class, 'show'])->name('vouchers.show');
         Route::post('/vouchers/{voucher}/approve', [\App\Http\Controllers\Accountant\VoucherController::class, 'approve'])->name('vouchers.approve');
@@ -126,12 +128,8 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
 
     // Treasurer panel
     Route::middleware('role:treasurer')->prefix('treasurer')->name('treasurer.')->group(function () {
-        Route::get('/dashboard', function () {
-            return Inertia::render('Dashboard');
-        })->name('dashboard');
-        Route::get('/analytics', function () {
-            return Inertia::render('Treasurer/Analytics');
-        })->name('analytics');
+        Route::get('/dashboard', [TreasurerDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/analytics', [TreasurerAnalyticsController::class, 'index'])->name('analytics');
         Route::get('/cheques', [\App\Http\Controllers\Treasurer\ChequeController::class, 'index'])->name('cheques.index');
         Route::get('/cheques/{voucher}', [\App\Http\Controllers\Treasurer\ChequeController::class, 'show'])->name('cheques.show');
         Route::post('/cheques/{voucher}/acknowledge', [\App\Http\Controllers\Treasurer\ChequeController::class, 'acknowledge'])->name('cheques.acknowledge');
@@ -144,11 +142,7 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
 
     // Mayor's Office panel
     Route::middleware('role:mayors_office')->prefix('mayors-office')->name('mayors-office.')->group(function () {
-        Route::get('/dashboard', function () {
-            return Inertia::render('Dashboard');
-        })->name('dashboard');
-        Route::get('/analytics', function () {
-            return Inertia::render('MayorsOffice/Analytics');
-        })->name('analytics');
+        Route::get('/dashboard', [MayorsOfficeDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/analytics', [MayorsOfficeAnalyticsController::class, 'index'])->name('analytics');
     });
 });
