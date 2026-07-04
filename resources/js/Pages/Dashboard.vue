@@ -1,6 +1,7 @@
 <script setup>
-import { Head, usePage, router } from '@inertiajs/vue3'
+import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import { useAuth } from '@/Composables/useAuth'
 
 defineOptions({ layout: AppLayout })
 
@@ -11,8 +12,7 @@ defineProps({
   recentActivity: { type: Array, default: () => [] },
 })
 
-const page = usePage()
-const user = page.props.auth?.user
+const { user } = useAuth()
 const accountUrl = route('account.edit')
 </script>
 

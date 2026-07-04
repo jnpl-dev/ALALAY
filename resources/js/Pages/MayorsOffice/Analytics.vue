@@ -1,6 +1,7 @@
 <script setup>
 import { Head } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import { formatCurrency } from '@/Utils/formatCurrency'
 
 defineOptions({ layout: AppLayout })
 
@@ -56,7 +57,7 @@ defineProps({
           <div class="flex justify-between mb-4">
             <div>
               <span class="block text-muted-color font-medium mb-4">Disbursed</span>
-              <div class="text-surface-900 font-medium text-xl">{{ 'PHP ' + Number(totalDisbursed).toLocaleString() }}</div>
+              <div class="text-surface-900 font-medium text-xl">{{ formatCurrency(totalDisbursed) }}</div>
             </div>
             <div class="flex items-center justify-center bg-purple-100 dark:bg-purple-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
               <i class="pi pi-money-bill text-purple-500 text-xl!"></i>
@@ -98,7 +99,7 @@ defineProps({
               <tr v-for="row in monthlyTrends" :key="row.month" class="border-t border-surface">
                 <td class="py-2 text-surface-900">{{ row.month }}</td>
                 <td class="py-2 text-surface-900">{{ row.count }}</td>
-                <td class="py-2 text-surface-900">{{ 'PHP ' + Number(row.total).toLocaleString() }}</td>
+                <td class="py-2 text-surface-900">{{ formatCurrency(row.total) }}</td>
               </tr>
             </tbody>
           </table>

@@ -1,6 +1,7 @@
 <script setup>
 import { Head } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import { formatDate } from '@/Utils/formatDate'
 
 defineOptions({ layout: AppLayout })
 
@@ -125,7 +126,7 @@ defineProps({
                   <td class="py-2">{{ action.action }}</td>
                   <td class="py-2">{{ action.module }}</td>
                   <td class="py-2">{{ action.user_name }}</td>
-                  <td class="text-right py-2 text-muted-color">{{ new Date(action.created_at).toLocaleDateString() }}</td>
+                  <td class="text-right py-2 text-muted-color">{{ formatDate(action.created_at) }}</td>
                 </tr>
               </tbody>
             </table>

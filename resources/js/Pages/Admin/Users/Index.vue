@@ -11,8 +11,9 @@ import Tag from 'primevue/tag'
 import Paginator from 'primevue/paginator'
 import Popover from 'primevue/popover'
 import ConfirmDialog from 'primevue/confirmdialog'
-import { useToast } from 'primevue/usetoast'
-import { useConfirm } from 'primevue/useconfirm'
+import { useToast } from '@/Composables/useToast'
+import { useConfirm } from '@/Composables/useConfirm'
+import { formatDate } from '@/Utils/formatDate'
 import { ref, toRaw } from 'vue'
 
 defineOptions({ layout: AppLayout })
@@ -109,8 +110,8 @@ const confirmDelete = (user) => {
     acceptClass: 'p-button-danger',
     accept: () => {
       router.delete(window.route('admin.users.destroy', user.id), {
-        onSuccess: () => toast.add({ severity: 'success', summary: 'User deleted', life: 3000 }),
-        onError: () => toast.add({ severity: 'error', summary: 'Delete failed', life: 3000 }),
+        onSuccess: () => toast.success('User deleted'),
+        onError: () => toast.error('Delete failed'),
       })
     },
   })
@@ -128,8 +129,8 @@ const confirmToggleStatus = (user) => {
     acceptClass: user.status === 'active' ? 'p-button-warning' : 'p-button-success',
     accept: () => {
       router.patch(window.route('admin.users.toggle-status', user.id), {}, {
-        onSuccess: () => toast.add({ severity: 'success', summary: 'Status updated', life: 3000 }),
-        onError: () => toast.add({ severity: 'error', summary: 'Status update failed', life: 3000 }),
+        onSuccess: () => toast.success('Status updated'),
+        onError: () => toast.error('Status update failed'),
       })
     },
   })
@@ -146,8 +147,8 @@ const confirmRevokeSessions = (user) => {
     acceptClass: 'p-button-danger',
     accept: () => {
       router.delete(window.route('admin.users.revoke-sessions', user.id), {
-        onSuccess: () => toast.add({ severity: 'success', summary: 'Sessions revoked', life: 3000 }),
-        onError: () => toast.add({ severity: 'error', summary: 'Revoke failed', life: 3000 }),
+        onSuccess: () => toast.success('Sessions revoked'),
+        onError: () => toast.error('Revoke failed'),
       })
     },
   })
@@ -207,7 +208,7 @@ const onPage = (event) => {
           </Column>
           <Column field="created_at" header="Created" sortable>
             <template #body="{ data }">
-              {{ new Date(data.created_at).toLocaleDateString() }}
+              {{ formatDate(data.created_at) }}
             </template>
           </Column>
           <Column header="Actions" style="min-width: 8rem">

@@ -1,6 +1,8 @@
 <script setup>
 import { Head } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import { formatDate } from '@/Utils/formatDate'
+import { getStatusLabel } from '@/Utils/statusLabels'
 
 defineOptions({ layout: AppLayout })
 
@@ -126,8 +128,8 @@ defineProps({
                   <td class="py-2 font-mono text-sm">{{ app.reference_code }}</td>
                   <td class="py-2">{{ app.claimant_name }}</td>
                   <td class="py-2">{{ app.category_name }}</td>
-                  <td class="py-2">{{ app.status }}</td>
-                  <td class="text-right py-2 text-muted-color">{{ new Date(app.created_at).toLocaleDateString() }}</td>
+                  <td class="py-2">{{ getStatusLabel(app.status).label }}</td>
+                  <td class="text-right py-2 text-muted-color">{{ formatDate(app.created_at) }}</td>
                 </tr>
               </tbody>
             </table>

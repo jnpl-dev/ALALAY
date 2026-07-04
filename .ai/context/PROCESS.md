@@ -325,19 +325,20 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 ### 4.1 Foundation
 
 - [x] Configure `HandleInertiaRequests` shared props — shares `auth.user`, `flash`, `ziggy` (Ziggy routes available via `route()` in Vue)
-- [ ] Create `useAuth` composable — reads from `$page.props.auth`
-- [ ] Create `useToast` composable — PrimeVue Toast wrapper
-- [ ] Create `useConfirm` composable — PrimeVue ConfirmDialog wrapper
-- [ ] Create `useFileViewer` composable — fetches signed URL; opens DocumentViewer
+- [x] Create `useAuth` composable — reads from `$page.props.auth`; computed helpers for role checks, full name
+- [x] Create `useToast` composable — wraps PrimeVue `useToast()`; exposes `success()`, `error()`, `warn()`, `info()`
+- [x] Create `useConfirm` composable — wraps PrimeVue `useConfirm()`; exposes `require()`, `destroy()`, `approve()`
+- [x] Create `useFileViewer` composable — reactive `viewerState` ref; exposes `open(url, title)`, `close()`
 - [x] Create `useDocumentScanner` composable — camera access, frame capture, enhancement pipeline (downscale → grayscale → contrast stretch → adaptive threshold → JPEG export)
-- [ ] Create `useStatusLabel` composable — status enum → `{ label, severity }`
-- [ ] Create `Utils/statusLabels.js` — full status → display label map
-- [ ] Create `Utils/formatDate.js` — dayjs PST formatter
-- [ ] Create `Utils/formatCurrency.js` — PHP peso formatter
-- [ ] Create `Utils/constants.js` — status arrays, role arrays
-- [ ] Create flash message handling — read `$page.props.flash` on page load; show PrimeVue Toast
+- [x] Create `useStatusLabel` composable — delegates to `statusLabels.js`; exposes `label(status)` and `severity(status)`
+- [x] Create `Utils/statusLabels.js` — full 14-status map with `{ label, severity }` pairs; `getStatusLabel()` export
+- [x] Create `Utils/formatDate.js` — dayjs PST (`Asia/Manila`) with `formatDate`, `formatDateTime`, `formatRelative`, `formatDateShort`, `formatDateFull`, `now()`
+- [x] Create `Utils/formatCurrency.js` — `formatCurrency(value)` → `'PHP 1,234.56'`
+- [x] Create `Utils/constants.js` — `APPLICATION_STATUSES`, `ROLES`, `USER_STATUSES`, `SUBMISSION_TYPES`
+- [x] Create flash message handling — `AppLayout.vue` watches `$page.props.flash` and calls `useToast().success()` / `.error()` on mount and on every navigation
 - [x] Create `AppLayout` (Sakai persistent layout) — all 8 panel pages use `defineOptions({ layout: AppLayout })` for true SPA navigation (layout stays mounted, only content swaps)
-- [ ] Create admin-specific, auth-specific, public-specific Layout components as separate wrappers
+- [x] Create `PublicLayout.vue` — Tailwind-only header (brand + nav: Home / Apply / Track / Login) + slot + footer; no PrimeVue dependency
+- [x] Create `AuthLayout.vue` — centered card on gradient bg; used by Login, OTP, AUP, Password reset
 - [x] Verify Ziggy `route()` helper available in Vue: `import { route } from 'ziggy-js'`
 
 ### 4.2 Auth Pages
@@ -352,14 +353,14 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 4.3 Public Pages
 
-- [x] `Public/Apply.vue` — multi-step form (placeholder stub):
+- [x] `Public/Apply.vue` — multi-step form (PublicLayout):
   - [ ] Step 1: Category selection (card grid)
   - [ ] Step 2: Claimant + beneficiary fields with server error display
   - [ ] Step 3: Document capture via DocumentScanner per required document (one DocumentScanner per document; fallback file input shown when camera unavailable)
   - [ ] Step 4: Summary confirmation
   - [ ] Step 5: Success — display reference code
   - [ ] Uses `useForm()` for submission
-- [x] `Public/Track.vue` — reference code input + application status + review trail (placeholder stub)
+- [x] `Public/Track.vue` — reference code input + application status + review trail (PublicLayout)
 
 ### 4.4 Shared Components
 
@@ -385,15 +386,15 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 - [x] `Admin/Dashboard.vue` — KPI cards + recent/unusual activity tables + system status (persistent layout via `defineOptions`)
 - [x] `Admin/Analytics.vue` — 4 stat cards (users, active, inactive, apps) + system overview + activity (persistent layout)
-- [ ] `Admin/Users/Index.vue` — PrimeVue DataTable + search + filter + Add User button
-- [ ] `Admin/Users/Create.vue` — user form + `useForm()`
-- [ ] `Admin/Users/Edit.vue` — pre-populated user form + toggle status + revoke sessions
+- [x] `Admin/Users/Index.vue` — PrimeVue DataTable + search + filter + Add User button + `useToast()`/`useConfirm()` composables + `formatDate()`
+- [x] `Admin/Users/Create.vue` — user form + `useForm()`
+- [x] `Admin/Users/Edit.vue` — pre-populated user form + toggle status + revoke sessions
 - [ ] `Admin/AuditLogs.vue` — filterable table + export
 - [ ] `Admin/SystemSettings.vue` — grouped settings form sections
 
 ### 4.6 AICS Staff Panel Pages
 
-- [ ] `Aics/Dashboard.vue`
+- [x] `Aics/Dashboard.vue` — shared Dashboard.vue (persistent layout)
 - [x] `Aics/Analytics.vue` — 4 stat cards (apps, pending, approved, codes) + trends + recent (persistent layout)
 - [ ] `Aics/Applications/Index.vue` — PrimeVue TabView (Pending/Screened/Returned) + DataTable per tab
 - [ ] `Aics/Applications/Review.vue`
@@ -412,7 +413,7 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 4.7 MSWDO Panel Pages
 
-- [ ] `Mswdo/Dashboard.vue`
+- [x] `Mswdo/Dashboard.vue` — shared Dashboard.vue (persistent layout)
 - [x] `Mswdo/Analytics.vue` — 4 stat cards (apps, validated, returned, vouchers) + validation + pending (persistent layout)
 - [ ] `Mswdo/Applications/Index.vue` — TabView (Screened/Approved/Returned)
 - [ ] `Mswdo/Applications/Review.vue`
@@ -428,7 +429,7 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 4.8 Accountant Panel Pages
 
-- [ ] `Accountant/Dashboard.vue`
+- [x] `Accountant/Dashboard.vue` — shared Dashboard.vue (persistent layout)
 - [x] `Accountant/Analytics.vue` — 4 stat cards (vouchers, approved, returned,
   total PHP) + voucher trends + transactions (persistent layout)
 - [ ] `Accountant/Vouchers/Index.vue` — TabView (Pending/Approved/Returned)
@@ -436,7 +437,7 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 4.9 Treasurer Panel Pages
 
-- [ ] `Treasurer/Dashboard.vue`
+- [x] `Treasurer/Dashboard.vue` — shared Dashboard.vue (persistent layout)
 - [x] `Treasurer/Analytics.vue` — 4 stat cards (cheques, acknowledged, total PHP,
   pending) + disbursement + recent (persistent layout)
 - [ ] `Treasurer/Cheques/Index.vue` — TabView (Pending/Ready/On Hold)
@@ -446,7 +447,7 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 4.10 Mayor's Office Panel Pages
 
-- [ ] `MayorsOffice/Dashboard.vue` — consolidated KPIs + activity table + category table
+- [x] `MayorsOffice/Dashboard.vue` — shared Dashboard.vue (persistent layout)
 - [x] `MayorsOffice/Analytics.vue` — 4 stat cards (apps, approved, disbursed PHP,
   beneficiaries) + overview + reports (persistent layout)
 

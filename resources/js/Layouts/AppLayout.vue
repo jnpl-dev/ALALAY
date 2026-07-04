@@ -1,12 +1,21 @@
 <script setup>
 import { useLayout } from './composables/layout'
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 import AppFooter from './AppFooter.vue'
 import AppSidebar from './AppSidebar.vue'
 import AppTopbar from './AppTopbar.vue'
 import Toast from 'primevue/toast'
+import { useToast } from '@/Composables/useToast'
 
 const { layoutConfig, layoutState, hideMobileMenu } = useLayout()
+const toast = useToast()
+const page = usePage()
+
+watch(() => page.props.flash, (flash) => {
+  if (flash?.success) toast.success('Success', flash.success)
+  if (flash?.error) toast.error('Error', flash.error)
+}, { immediate: true })
 
 const containerClass = computed(() => {
   return {
