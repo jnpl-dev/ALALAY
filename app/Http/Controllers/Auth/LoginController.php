@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
+use App\Models\AuditLog;
+
 class LoginController extends Controller
 {
     public function create()
@@ -49,6 +51,19 @@ class LoginController extends Controller
 
     public function destroy(Request $request)
     {
+        $user = $request->user();
+
+        AuditLog::create([
+            'user_id' => $user?->id,
+            'role' => $user?->role,
+            'module' => 'auth',
+            'action' => 'logout',
+            'description' => $user ? sprintf('%s logged out', $user->full_name) : 'User logged out',
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'created_at' => now(),
+        ]);
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

@@ -13,10 +13,17 @@ const model = computed(() => {
       { label: 'Analytics', icon: 'pi pi-fw pi-chart-bar', to: route('admin.analytics') },
       { label: 'Users', icon: 'pi pi-fw pi-users', to: route('admin.users.index') },
       { label: 'Audit Logs', icon: 'pi pi-fw pi-history', to: route('admin.audit-logs') },
-      { label: 'Settings', icon: 'pi pi-fw pi-cog', to: route('admin.settings') },
-      { label: 'Assistance Categories', icon: 'pi pi-fw pi-tags', to: route('admin.assistance-categories.index') },
-      { label: 'Required Documents', icon: 'pi pi-fw pi-file', to: route('admin.required-documents.index') },
-      { label: 'Code References', icon: 'pi pi-fw pi-qrcode', to: route('admin.assistance-code-references.index') },
+      {
+        label: 'Settings',
+        icon: 'pi pi-fw pi-cog',
+        path: '/settings',
+        items: [
+          { label: 'System Settings', icon: 'pi pi-fw pi-cog', to: route('admin.settings') },
+          { label: 'Assistance Categories', icon: 'pi pi-fw pi-tags', to: route('admin.assistance-categories.index') },
+          { label: 'Required Documents', icon: 'pi pi-fw pi-file', to: route('admin.required-documents.index') },
+          { label: 'Code References', icon: 'pi pi-fw pi-qrcode', to: route('admin.assistance-code-references.index') },
+        ],
+      },
     ],
     aics_staff: [
       { label: 'Analytics', icon: 'pi pi-fw pi-chart-bar', to: route('aics.analytics') },

@@ -3,13 +3,93 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AssistanceCategory;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class AssistanceCategoryController extends Controller
 {
-    public function index() { return inertia('Admin/AssistanceCategories/Index'); }
-    public function create() { return inertia('Admin/AssistanceCategories/Create'); }
-    public function store(\Illuminate\Http\Request $r) { return redirect()->route('admin.assistance-categories.index'); }
-    public function edit($id) { return inertia('Admin/AssistanceCategories/Edit'); }
-    public function update(\Illuminate\Http\Request $r, $id) { return redirect()->route('admin.assistance-categories.index'); }
-    public function destroy($id) { return redirect()->route('admin.assistance-categories.index'); }
+    public function index()
+    {
+        $search = request('search');
+
+        $categories = AssistanceCategory::query()
+            ->when($search, fn ($q, $s) => $q->where(function ($q) use ($s) {
+                $q->where('category_name', 'like', "%{$s}%")
+                  ->orWhere('category_description', 'like', "%{$s}%");
+            }))
+            ->latest()
+            ->paginate(10)
+            ->through(fn ($cat) => [
+                'id' => $cat->id,
+                'category_name' => $cat->category_name,
+                'category_description' => $cat->category_description,
+                'is_active' => $cat->is_active,
+                'documents_count' => $cat->requiredDocuments()->count(),
+                'created_at' => $cat->created_at,
+            ]);
+
+        return Inertia::render('Admin/AssistanceCategories/Index', [
+            'categories' => $categories,
+            'filters' => request()->only(['search']),
+        ]);
+    }
+
+    public function create()
+    {
+        return Inertia::render('Admin/AssistanceCategories/Create');
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'category_name' => ['required', 'string', 'max:150', 'unique:assistance_categories,category_name'],
+            'category_description' => ['nullable', 'string'],
+            'is_active' => ['boolean'],
+        ]);
+
+        AssistanceCategory::create($validated);
+
+        return redirect()->route('admin.assistance-categories.index')
+            ->with('success', 'Assistance category created successfully.');
+    }
+
+    public function edit($id)
+    {
+        $category = AssistanceCategory::findOrFail($id);
+
+        return Inertia::render('Admin/AssistanceCategories/Edit', [
+            'category' => [
+                'id' => $category->id,
+                'category_name' => $category->category_name,
+                'category_description' => $category->category_description,
+                'is_active' => $category->is_active,
+            ],
+        ]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $category = AssistanceCategory::findOrFail($id);
+
+        $validated = $request->validate([
+            'category_name' => ['required', 'string', 'max:150', 'unique:assistance_categories,category_name,' . $id],
+            'category_description' => ['nullable', 'string'],
+            'is_active' => ['boolean'],
+        ]);
+
+        $category->update($validated);
+
+        return redirect()->route('admin.assistance-categories.index')
+            ->with('success', 'Assistance category updated successfully.');
+    }
+
+    public function destroy($id)
+    {
+        $category = AssistanceCategory::findOrFail($id);
+        $category->delete();
+
+        return redirect()->route('admin.assistance-categories.index')
+            ->with('success', 'Assistance category deleted successfully.');
+    }
 }

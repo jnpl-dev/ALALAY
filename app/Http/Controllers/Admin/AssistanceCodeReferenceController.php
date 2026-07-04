@@ -3,13 +3,96 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AssistanceCodeReference;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class AssistanceCodeReferenceController extends Controller
 {
-    public function index() { return inertia('Admin/AssistanceCodeReferences/Index'); }
-    public function create() { return inertia('Admin/AssistanceCodeReferences/Create'); }
-    public function store(\Illuminate\Http\Request $r) { return redirect()->route('admin.assistance-code-references.index'); }
-    public function edit($id) { return inertia('Admin/AssistanceCodeReferences/Edit'); }
-    public function update(\Illuminate\Http\Request $r, $id) { return redirect()->route('admin.assistance-code-references.index'); }
-    public function destroy($id) { return redirect()->route('admin.assistance-code-references.index'); }
+    public function index()
+    {
+        $search = request('search');
+
+        $references = AssistanceCodeReference::query()
+            ->when($search, fn ($q, $s) => $q->where(function ($q) use ($s) {
+                $q->where('code_type', 'like', "%{$s}%")
+                  ->orWhere('description', 'like', "%{$s}%");
+            }))
+            ->latest()
+            ->paginate(10)
+            ->through(fn ($ref) => [
+                'id' => $ref->id,
+                'code_type' => $ref->code_type,
+                'default_amount' => $ref->default_amount,
+                'description' => $ref->description,
+                'is_active' => $ref->is_active,
+                'created_at' => $ref->created_at,
+            ]);
+
+        return Inertia::render('Admin/AssistanceCodeReferences/Index', [
+            'references' => $references,
+            'filters' => request()->only(['search']),
+        ]);
+    }
+
+    public function create()
+    {
+        return Inertia::render('Admin/AssistanceCodeReferences/Create');
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'code_type' => ['required', 'string', 'max:100', 'unique:assistance_code_references,code_type'],
+            'default_amount' => ['required', 'numeric', 'min:0'],
+            'description' => ['nullable', 'string'],
+            'is_active' => ['boolean'],
+        ]);
+
+        AssistanceCodeReference::create($validated);
+
+        return redirect()->route('admin.assistance-code-references.index')
+            ->with('success', 'Code reference created successfully.');
+    }
+
+    public function edit($id)
+    {
+        $ref = AssistanceCodeReference::findOrFail($id);
+
+        return Inertia::render('Admin/AssistanceCodeReferences/Edit', [
+            'reference' => [
+                'id' => $ref->id,
+                'code_type' => $ref->code_type,
+                'default_amount' => $ref->default_amount,
+                'description' => $ref->description,
+                'is_active' => $ref->is_active,
+            ],
+        ]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $ref = AssistanceCodeReference::findOrFail($id);
+
+        $validated = $request->validate([
+            'code_type' => ['required', 'string', 'max:100', 'unique:assistance_code_references,code_type,' . $id],
+            'default_amount' => ['required', 'numeric', 'min:0'],
+            'description' => ['nullable', 'string'],
+            'is_active' => ['boolean'],
+        ]);
+
+        $ref->update($validated);
+
+        return redirect()->route('admin.assistance-code-references.index')
+            ->with('success', 'Code reference updated successfully.');
+    }
+
+    public function destroy($id)
+    {
+        $ref = AssistanceCodeReference::findOrFail($id);
+        $ref->delete();
+
+        return redirect()->route('admin.assistance-code-references.index')
+            ->with('success', 'Code reference deleted successfully.');
+    }
 }

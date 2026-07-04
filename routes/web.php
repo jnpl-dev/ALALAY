@@ -52,7 +52,7 @@ Route::middleware('guest')->group(function () {
         return Inertia::render('Auth/ForgotPassword');
     })->name('password.request');
     Route::get('/otp-challenge', [OtpChallengeController::class, 'show'])->name('otp.challenge');
-    Route::post('/otp-challenge', [OtpChallengeController::class, 'verify']);
+    Route::post('/otp-challenge', [OtpChallengeController::class, 'verify'])->name('otp.verify');
     Route::post('/otp-challenge/resend', [OtpChallengeController::class, 'resend'])->name('otp.resend');
 });
 

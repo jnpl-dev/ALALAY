@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\EmailOtpService;
 use Illuminate\Http\Request;
@@ -49,6 +50,17 @@ class OtpChallengeController extends Controller
         Auth::login($user, $remember);
 
         $user->update(['is_online' => true]);
+
+        AuditLog::create([
+            'user_id' => $user->id,
+            'role' => $user->role,
+            'module' => 'auth',
+            'action' => 'login',
+            'description' => sprintf('%s logged in', $user->full_name),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'created_at' => now(),
+        ]);
 
         $request->session()->regenerate();
 

@@ -198,7 +198,7 @@
 ### 2.3 Middleware
 
 - [x] `RoleMiddleware` — checks `auth()->user()->role`; aborts with 403 (Inertia renders as Error page)
-- [x] `AuditLogMiddleware` — writes to `audit_logs` on POST/PUT/PATCH/DELETE; captures user_id, role, module (from route name prefix), action (from route name), ip_address, user_agent
+- [x] `AuditLogMiddleware` — writes to `audit_logs` on POST/PUT/PATCH/DELETE; captures user_id, role, module (from route name prefix), action (from route name), ip_address, user_agent; extracts entity_type/entity_id from route parameters; human-readable description format
 - [x] `EnsureAupAccepted` — redirects to `/acceptable-use-policy` if `acceptable_use_policy_accepted_at` is null
 - [x] Register all middleware in `bootstrap/app.php` (Laravel 12) — `role` and `aup.accepted` aliases; `AuditLogMiddleware` appended to web group
 - [x] Apply middleware to route groups in `web.php` — all role panel routes grouped with correct `role:X` middleware
@@ -244,11 +244,11 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 3.2 Auth Controllers
 
-- [x] `Auth/LoginController` — login (email + password → OTP challenge)
-- [x] `Auth/OtpChallengeController` — OTP verify + resend
+- [x] `Auth/LoginController` — login (email + password → OTP challenge); logs `auth.logout` audit on destroy
+- [x] `Auth/OtpChallengeController` — OTP verify + resend; logs `auth.login` audit on successful verify
 - [x] `Auth/PasswordResetController` — forgot + reset password (via Fortify)
 - [x] `AupController@show` — renders `Auth/AcceptableUsePolicy.vue`
-- [x] `AupController@accept` — records `acceptable_use_policy_accepted_at`; redirects to role dashboard
+- [x] `AupController@accept` — records `acceptable_use_policy_accepted_at`; logs `auth.aup_accepted` audit; redirects to role dashboard
 
 ### 3.3 Shared Controllers
 
@@ -262,9 +262,9 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `Admin/UserController` — full CRUD (index, create, store, edit, update, toggleStatus, revokeSessions) — stub methods exist
 - [x] `Admin/AuditLogController@index` — paginated + filterable + CSV export — stub exists
 - [x] `Admin/SystemSettingController` — index + update — stub exists
-- [x] `Admin/AssistanceCategoryController` — full CRUD + toggle active — stub exists
-- [x] `Admin/RequiredDocumentController` — full CRUD per category + toggle — stub exists
-- [x] `Admin/AssistanceCodeReferenceController` — full CRUD + toggle — stub exists
+- [x] `Admin/AssistanceCategoryController` — full CRUD + search/paginate — implemented
+- [x] `Admin/RequiredDocumentController` — full CRUD + search + category filter — implemented
+- [x] `Admin/AssistanceCodeReferenceController` — full CRUD + search/paginate — implemented
 
 ### 3.5 AICS Staff Controllers
 
@@ -340,6 +340,7 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] Create `PublicLayout.vue` — Tailwind-only header (brand + nav: Home / Apply / Track / Login) + slot + footer; no PrimeVue dependency
 - [x] Create `AuthLayout.vue` — centered card on gradient bg; used by Login, OTP, AUP, Password reset
 - [x] Verify Ziggy `route()` helper available in Vue: `import { route } from 'ziggy-js'`
+- [x] Sakai sidebar submenu added — Settings parent with collapsible children (System Settings, Assistance Categories, Required Documents, Code References); uses `path` property for activePath tracking
 
 ### 4.2 Auth Pages
 
@@ -348,7 +349,7 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `Auth/ForgotPassword.vue` — email input
 - [x] `Auth/ResetPassword.vue` — new password form
 - [x] `Auth/AcceptableUsePolicy.vue` — AUP text + acknowledge button + `useForm()`
-- [x] `Auth/AccountSettings.vue` — name + email form with save (persistent layout)
+- [x] `Auth/AccountSettings.vue` — name + email form with save (persistent layout); edit/save/cancel buttons at top right matching SystemSettings layout
 - [x] Test full auth flow: login → OTP → AUP → dashboard
 
 ### 4.3 Public Pages
@@ -368,7 +369,7 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `Components/Common/AppStatusBadge.vue` — props: `status`; reads from `getStatusLabel()`; 5 severity color maps
 - [x] `Components/Common/AppDateFilter.vue` — emits: `filter-changed`; 5 presets (Today → This Year) + custom range
 - [x] `Components/Common/AppConfirmModal.vue` — renders `<ConfirmDialog />`
-- [x] `Components/Common/AppExportButton.vue` — triggers CSV download via `router.visit()`
+- [x] `Components/Common/AppExportButton.vue` — triggers CSV download via `window.open()` (bypasses Inertia)
 - [x] `Components/Common/AppEmptyState.vue` — props: `icon`, `message`; named slot for children
 - [x] `Components/Application/ReviewTrail.vue` — props: `reviews`; chronological list with stage/decision/remarks/date
 - [x] `Components/Application/ApplicationInfo.vue` — props: `application`; claimant + beneficiary + reference + category display
@@ -385,8 +386,11 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `Admin/Users/Index.vue` — PrimeVue DataTable + search + filter + Add User button + `useToast()`/`useConfirm()` composables + `formatDate()`
 - [x] `Admin/Users/Create.vue` — user form + `useForm()`
 - [x] `Admin/Users/Edit.vue` — pre-populated user form + toggle status + revoke sessions
-- [ ] `Admin/AuditLogs.vue` — filterable table + export
-- [ ] `Admin/SystemSettings.vue` — grouped settings form sections
+- [x] `Admin/AssistanceCategories/Index.vue`, `Create.vue`, `Edit.vue` — DataTable + search + status Tag + CRUD forms
+- [x] `Admin/RequiredDocuments/Index.vue`, `Create.vue`, `Edit.vue` — DataTable + search + category Select filter + mandatory/status Tags + CRUD forms
+- [x] `Admin/AssistanceCodeReferences/Index.vue`, `Create.vue`, `Edit.vue` — DataTable + search + InputNumber currency + status Tag + CRUD forms
+- [x] `Admin/AuditLogs.vue` — filterable table + CSV export; colored Tag badges for role/module/action; `window.open` download (bypasses Inertia)
+- [x] `Admin/SystemSettings.vue` — grouped settings form with edit/save/cancel toggle pattern; InputSwitch for boolean values
 
 ### 4.6 AICS Staff Panel Pages
 
@@ -501,6 +505,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 5.5 Audit Log Testing
 
+- [x] Login/logout/AUP acceptance now logged via `AuditLog::create` directly in controllers
+- [x] OTP verify route named `otp.verify` — fixes blank module/action entries caused by AuditLogMiddleware firing after `Auth::login()` on unnamed routes
 - [ ] Login → `action = 'login'` in `audit_logs`
 - [ ] Approve application → entry with `entity_type = 'application'`
 - [ ] Export CSV → export action logged

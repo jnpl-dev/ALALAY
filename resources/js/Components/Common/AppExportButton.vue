@@ -1,15 +1,14 @@
 <script setup>
-import { router } from '@inertiajs/vue3'
 import Button from 'primevue/button'
 
-defineProps({
+const props = defineProps({
   url: { type: String, required: true },
   label: { type: String, default: 'Export CSV' },
   icon: { type: String, default: 'pi pi-download' },
 })
 
 function exportData() {
-  router.visit(url, { method: 'get', data: { export: 'csv' } })
+  window.open(props.url, '_blank')
 }
 </script>
 

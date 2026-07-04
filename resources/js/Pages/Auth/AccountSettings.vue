@@ -74,7 +74,26 @@ const profilePictureUrl = computed(() => {
   <div class="grid grid-cols-12 gap-8">
     <div class="col-span-12">
       <div class="card">
-        <div class="font-semibold text-xl mb-4">Account Settings</div>
+        <div class="flex items-center justify-between mb-4">
+          <div class="font-semibold text-xl">Account Settings</div>
+          <div class="flex gap-2">
+            <Button
+              v-if="isEditing"
+              type="button"
+              label="Cancel"
+              icon="pi pi-times"
+              severity="secondary"
+              @click="cancelEdit"
+            />
+            <Button
+              type="submit"
+              :label="isEditing ? 'Save Changes' : 'Edit Account'"
+              :icon="isEditing ? 'pi pi-check' : 'pi pi-pencil'"
+              :loading="form.processing"
+              @click="handleButtonClick"
+            />
+          </div>
+        </div>
 
         <form @submit.prevent="handleButtonClick">
           <div class="flex items-center gap-6 mb-2">
@@ -150,23 +169,6 @@ const profilePictureUrl = computed(() => {
           </div>
 
           <hr class="border-surface my-6">
-
-          <div class="flex justify-end gap-4">
-            <Button
-              v-if="isEditing"
-              type="button"
-              label="Cancel"
-              icon="pi pi-times"
-              severity="secondary"
-              @click="cancelEdit"
-            />
-            <Button
-              type="submit"
-              :label="isEditing ? 'Save Changes' : 'Edit Account'"
-              :icon="isEditing ? 'pi pi-check' : 'pi pi-pencil'"
-              :loading="form.processing"
-            />
-          </div>
         </form>
       </div>
     </div>
