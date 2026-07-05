@@ -257,7 +257,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 3.4 Admin Controllers
 
-- [x] `Admin/DashboardController@index` — KPIs + recent activity feed (shared Dashboard.vue)
+- [x] `Admin/DashboardController@index` — KPIs + recent activity feed (generic Dashboard.vue)
+- [x] Root `DashboardController@index` — redirects `/dashboard` to role-specific dashboard (admin/aics/mswdo/accountant/treasurer/mayors-office)
 - [x] `Admin/AnalyticsController@index` — user stats + app stats + recent activity with date filter
 - [x] `Admin/UserController` — full CRUD (index, create, store, edit, update, toggleStatus, revokeSessions) — stub methods exist
 - [x] `Admin/AuditLogController@index` — paginated + filterable + CSV export — stub exists
@@ -268,8 +269,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 3.5 AICS Staff Controllers
 
-- [x] `Aics/DashboardController@index`
-- [x] `Aics/AnalyticsController@index`
+- [x] `Aics/DashboardController@index` — renders `Aics/Dashboard.vue` with AICS-specific KPIs (Total/Pending Review/Forwarded/Returned) + recent applications + quick actions; category_name fix
+- [x] `Aics/AnalyticsController@index` — 4 KPIs (Total/Pending/Forwarded/Returned) + by-status breakdown + monthly trends + recent apps; category_name fix
 - [x] `Aics/ApplicationController@index` — tabbed by status prop — stub exists
 - [x] `Aics/ApplicationController@show` — full application + documents + review trail — stub exists
 - [x] `Aics/ApplicationController@documentUrl` — returns signed URL for document viewer — stub exists
@@ -281,7 +282,7 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 3.6 MSWDO Controllers
 
-- [x] `Mswdo/DashboardController@index`
+- [x] `Mswdo/DashboardController@index` — renders generic Dashboard.vue
 - [x] `Mswdo/AnalyticsController@index`
 - [x] `Mswdo/ApplicationController@index` — stub exists
 - [x] `Mswdo/ApplicationController@show` — stub exists
@@ -293,8 +294,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 3.7 Accountant Controllers
 
-- [x] `Accountant/DashboardController@index`
-- [x] `Accountant/AnalyticsController@index`
+- [x] `Accountant/DashboardController@index` — renders generic Dashboard.vue
+- [x] `Accountant/AnalyticsController@index` — category_name fix
 - [x] `Accountant/VoucherController@index` — stub exists
 - [x] `Accountant/VoucherController@show` — stub exists
 - [x] `Accountant/VoucherController@approve` — stub exists
@@ -302,8 +303,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 3.8 Treasurer Controllers
 
-- [x] `Treasurer/DashboardController@index`
-- [x] `Treasurer/AnalyticsController@index`
+- [x] `Treasurer/DashboardController@index` — renders generic Dashboard.vue
+- [x] `Treasurer/AnalyticsController@index` — category_name fix
 - [x] `Treasurer/ChequeController@index` — stub exists
 - [x] `Treasurer/ChequeController@show` — stub exists
 - [x] `Treasurer/ChequeController@acknowledge` — stub exists
@@ -315,8 +316,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 3.9 Mayor's Office Controllers
 
-- [x] `MayorsOffice/DashboardController@index` — consolidated KPIs
-- [x] `MayorsOffice/AnalyticsController@index` — consolidated charts
+- [x] `MayorsOffice/DashboardController@index` — renders generic Dashboard.vue (consolidated KPIs)
+- [x] `MayorsOffice/AnalyticsController@index` — consolidated charts; category_name fix
 
 ---
 
@@ -381,7 +382,7 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 4.5 Admin Panel Pages
 
-- [x] `Admin/Dashboard.vue` — KPI cards + recent/unusual activity tables + system status (persistent layout via `defineOptions`)
+- [x] `Admin/Dashboard.vue` — KPI cards + recent/unusual activity tables + system status (persistent layout via `defineOptions`); generic page shared by all non-AICS roles via root DashboardController redirect
 - [x] `Admin/Analytics.vue` — 4 stat cards (users, active, inactive, apps) + system overview + activity (persistent layout)
 - [x] `Admin/Users/Index.vue` — PrimeVue DataTable + search + filter + Add User button + `useToast()`/`useConfirm()` composables + `formatDate()`
 - [x] `Admin/Users/Create.vue` — user form + `useForm()`
@@ -394,22 +395,12 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 4.6 AICS Staff Panel Pages
 
-- [x] `Aics/Dashboard.vue` — shared Dashboard.vue (persistent layout)
-- [x] `Aics/Analytics.vue` — 4 stat cards (apps, pending, approved, codes) + trends + recent (persistent layout)
-- [ ] `Aics/Applications/Index.vue` — PrimeVue TabView (Pending/Screened/Returned) + DataTable per tab
-- [ ] `Aics/Applications/Review.vue`
-  - [ ] ApplicationInfo component
-  - [ ] DocumentList + DocumentViewer
-  - [ ] ReviewTrail right panel
-  - [ ] Approve button + confirm modal
-  - [ ] Return button → ReturnModal
-- [ ] `Aics/AssistanceCodes/Index.vue` — TabView (Pending/Coded)
-- [ ] `Aics/AssistanceCodes/Code.vue`
-  - [ ] Application info display
-  - [ ] Social case study inline viewer
-  - [ ] ReviewTrail right panel
-  - [ ] Assistance code type dropdown (auto-fills amount)
-  - [ ] Amount field + submit button
+- [x] `Aics/Dashboard.vue` — dedicated AICS page (persistent layout); 4 KPIs (Total/Pending Review/Forwarded/Returned) + recent applications table + user card + quick actions
+- [x] `Aics/Analytics.vue` — 4 KPIs (Total/Pending/Forwarded/Returned) + by-status breakdown + monthly trends + recent apps table (persistent layout)
+- [x] `Aics/Applications/Index.vue` — PrimeVue TabView (Pending/Screened/Returned + search + category filter) + DataTable per tab
+- [x] `Aics/Applications/Review.vue` — ApplicationInfo + DocumentList/DocumentViewer + ReviewTrail + Approve (ConfirmDialog) + Return (ReturnModal)
+- [x] `Aics/AssistanceCodes/Index.vue` — TabView (Pending/Coded + search + category filter)
+- [x] `Aics/AssistanceCodes/Code.vue` — application info + SCS inline viewer + ReviewTrail + code type dropdown + amount field + submit
 
 ### 4.7 MSWDO Panel Pages
 

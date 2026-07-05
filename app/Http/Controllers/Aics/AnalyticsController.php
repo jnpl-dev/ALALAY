@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Aics;
 
 use App\Http\Controllers\Controller;
 use App\Models\Application;
-use App\Models\AuditLog;
 use Inertia\Inertia;
 
 class AnalyticsController extends Controller
@@ -15,13 +14,9 @@ class AnalyticsController extends Controller
         $to = request('to', now()->toDateString());
 
         $totalApplications = Application::count();
-        $pendingApplications = Application::whereIn('status', ['submitted', 'screening', 'mswdo_review'])->count();
-        $approvedThisMonth = Application::whereIn('status', [
-            'claimed', 'cheque_ready', 'budget_checking', 'with_treasurer',
-            'voucher_checking', 'voucher_creation', 'assistance_coding',
-            'social_case_study_uploaded', 'mswdo_review',
-        ])->whereMonth('created_at', now()->month)->count();
-        $codesIssued = Application::where('status', '!=', 'submitted')->where('status', '!=', 'screening')->count();
+        $pendingReview = Application::whereIn('status', ['submitted', 'screening'])->count();
+        $forwarded = Application::where('status', 'mswdo_review')->count();
+        $returned = Application::where('status', 'returned_to_applicant')->count();
 
         $applicationsByStatus = Application::selectRaw('status, count(*) as count')
             ->groupBy('status')
@@ -33,7 +28,7 @@ class AnalyticsController extends Controller
             ->orderBy('month')
             ->pluck('count', 'month');
 
-        $recentApplications = Application::with('category', 'encoder')
+        $recentApplications = Application::with('category')
             ->latest()
             ->take(10)
             ->get()
@@ -41,16 +36,16 @@ class AnalyticsController extends Controller
                 'id' => $app->id,
                 'reference_code' => $app->reference_code,
                 'status' => $app->status,
-                'category_name' => $app->category?->name,
+                'category_name' => $app->category?->category_name,
                 'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
                 'created_at' => $app->created_at,
             ]);
 
         return Inertia::render('Aics/Analytics', [
             'totalApplications' => $totalApplications,
-            'pendingApplications' => $pendingApplications,
-            'approvedThisMonth' => $approvedThisMonth,
-            'codesIssued' => $codesIssued,
+            'pendingApplications' => $pendingReview,
+            'forwardedApplications' => $forwarded,
+            'returnedApplications' => $returned,
             'applicationsByStatus' => $applicationsByStatus,
             'monthlyTrends' => $monthlyTrends,
             'dateFrom' => $from,

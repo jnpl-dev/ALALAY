@@ -6,6 +6,7 @@ import AppFooter from './AppFooter.vue'
 import AppSidebar from './AppSidebar.vue'
 import AppTopbar from './AppTopbar.vue'
 import Toast from 'primevue/toast'
+import ConfirmDialog from 'primevue/confirmdialog'
 import { useToast } from '@/Composables/useToast'
 
 const { layoutConfig, layoutState, hideMobileMenu } = useLayout()
@@ -41,4 +42,5 @@ const containerClass = computed(() => {
     <div class="layout-mask animate-fadein" @click="hideMobileMenu" />
   </div>
   <Toast />
+  <ConfirmDialog />
 </template>

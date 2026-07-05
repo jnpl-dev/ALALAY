@@ -2,39 +2,24 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Application;
-use App\Models\AuditLog;
-use Inertia\Inertia;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        $totalApplications = Application::count();
-        $pendingApplications = Application::whereIn('status', ['submitted', 'screening'])->count();
-        $approvedThisMonth = Application::whereIn('status', [
-            'claimed', 'cheque_ready', 'budget_checking', 'with_treasurer',
-            'voucher_checking', 'voucher_creation', 'assistance_coding',
-            'social_case_study_uploaded', 'mswdo_review',
-        ])->whereMonth('created_at', now()->month)->count();
+        $user = Auth::user();
 
-        $recentActivity = AuditLog::with('user')
-            ->latest()
-            ->take(5)
-            ->get()
-            ->map(fn ($log) => [
-                'id' => $log->id,
-                'action' => $log->action,
-                'module' => $log->module,
-                'user_name' => $log->user?->full_name ?? 'System',
-                'created_at' => $log->created_at,
-            ]);
+        $route = match ($user?->role) {
+            'admin' => 'admin.dashboard',
+            'aics_staff' => 'aics.dashboard',
+            'mswdo' => 'mswdo.dashboard',
+            'accountant' => 'accountant.dashboard',
+            'treasurer' => 'treasurer.dashboard',
+            'mayors_office' => 'mayors-office.dashboard',
+            default => 'account.edit',
+        };
 
-        return Inertia::render('Dashboard', [
-            'totalApplications' => $totalApplications,
-            'pendingApplications' => $pendingApplications,
-            'approvedThisMonth' => $approvedThisMonth,
-            'recentActivity' => $recentActivity,
-        ]);
+        return redirect()->route($route);
     }
 }

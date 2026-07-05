@@ -93,9 +93,8 @@ const handleClear = () => {
 
 <template>
   <div class="document-scanner">
-    <div class="flex items-center gap-2 mb-2">
-      <span class="text-sm font-medium">{{ docName }}</span>
-      <span v-if="required" class="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-600 font-medium">Required</span>
+    <div v-if="required" class="flex mb-2">
+      <span class="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-600 font-medium">Required</span>
     </div>
 
     <div v-if="isProcessing" class="flex flex-col items-center justify-center py-12 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800">

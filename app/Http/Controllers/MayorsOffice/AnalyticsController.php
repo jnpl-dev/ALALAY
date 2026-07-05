@@ -33,7 +33,7 @@ class AnalyticsController extends Controller
             ->groupBy('category_id')
             ->get()
             ->map(fn ($app) => [
-                'category_name' => $app->category?->name ?? 'Uncategorized',
+                'category_name' => $app->category?->category_name ?? 'Uncategorized',
                 'count' => $app->count,
             ]);
 

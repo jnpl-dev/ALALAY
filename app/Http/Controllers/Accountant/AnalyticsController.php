@@ -41,7 +41,7 @@ class AnalyticsController extends Controller
                 'id' => $app->id,
                 'reference_code' => $app->reference_code,
                 'status' => $app->status,
-                'category_name' => $app->category?->name,
+                'category_name' => $app->category?->category_name,
                 'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
                 'amount' => $app->amount_granted,
                 'created_at' => $app->created_at,

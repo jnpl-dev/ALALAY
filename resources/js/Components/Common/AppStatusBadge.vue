@@ -18,7 +18,7 @@ const info = computed(() => getStatusLabel(props.status))
 </script>
 
 <template>
-  <span v-if="status" class="inline-block px-2 py-0.5 text-xs font-medium rounded-full" :class="severityMap[info.severity] ?? severityMap.contrast">
+  <span v-if="status" class="inline-block px-2 py-0.5 text-xs font-bold rounded-full" :class="severityMap[info.severity] ?? severityMap.contrast">
     {{ info.label }}
   </span>
   <span v-else class="text-muted-color text-xs">—</span>

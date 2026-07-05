@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Aics;
 
 use App\Http\Controllers\Controller;
 use App\Models\Application;
-use App\Models\AuditLog;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -12,30 +11,29 @@ class DashboardController extends Controller
     public function index()
     {
         $totalApplications = Application::count();
-        $pendingApplications = Application::whereIn('status', ['submitted', 'screening'])->count();
-        $approvedThisMonth = Application::whereIn('status', [
-            'claimed', 'cheque_ready', 'budget_checking', 'with_treasurer',
-            'voucher_checking', 'voucher_creation', 'assistance_coding',
-            'social_case_study_uploaded', 'mswdo_review',
-        ])->whereMonth('created_at', now()->month)->count();
+        $pendingReview = Application::whereIn('status', ['submitted', 'screening'])->count();
+        $forwarded = Application::where('status', 'mswdo_review')->count();
+        $returned = Application::where('status', 'returned_to_applicant')->count();
 
-        $recentActivity = AuditLog::with('user')
+        $recentApplications = Application::with('category')
             ->latest()
             ->take(5)
             ->get()
-            ->map(fn ($log) => [
-                'id' => $log->id,
-                'action' => $log->action,
-                'module' => $log->module,
-                'user_name' => $log->user?->full_name ?? 'System',
-                'created_at' => $log->created_at,
+            ->map(fn ($app) => [
+                'id' => $app->id,
+                'reference_code' => $app->reference_code,
+                'status' => $app->status,
+                'category_name' => $app->category?->category_name,
+                'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
+                'created_at' => $app->created_at,
             ]);
 
-        return Inertia::render('Dashboard', [
+        return Inertia::render('Aics/Dashboard', [
             'totalApplications' => $totalApplications,
-            'pendingApplications' => $pendingApplications,
-            'approvedThisMonth' => $approvedThisMonth,
-            'recentActivity' => $recentActivity,
+            'pendingApplications' => $pendingReview,
+            'forwardedApplications' => $forwarded,
+            'returnedApplications' => $returned,
+            'recentApplications' => $recentApplications,
         ]);
     }
 }

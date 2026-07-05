@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Public\StoreApplicationRequest;
 use App\Jobs\SendSmsJob;
 use App\Models\Application;
 use App\Models\ApplicationDocument;
@@ -12,6 +11,7 @@ use App\Services\FileUploadService;
 use App\Services\ReferenceCodeService;
 use App\Services\SignedUrlService;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -124,11 +124,26 @@ class ApplicationController extends Controller
             ];
         });
 
+        $reviewerRole = null;
         $resubmissionDocsRequired = [];
         if ($application->status === 'returned_to_applicant') {
             $latestReview = $application->reviews->first();
-            $resubmissionDocsRequired = $latestReview?->resubmission_docs_required ?? [];
+            $requiredDocIds = $latestReview?->resubmission_docs_required ?? [];
+            $resubmissionDocsRequired = $documents
+                ->filter(fn($d) => in_array($d['id'], $requiredDocIds))
+                ->map(fn($d) => ['id' => $d['id'], 'doc_name' => $d['doc_name'] ?? 'Document'])
+                ->values();
+            $reviewerRole = $latestReview?->reviewer?->role;
         }
+
+        $roleLabels = [
+            'admin' => 'Admin',
+            'aics_staff' => 'AICS',
+            'mswdo' => 'MSWDO',
+            'accountant' => 'Accountant',
+            'treasurer' => 'Treasurer',
+            'mayors_office' => "Mayor's Office",
+        ];
 
         return Inertia::render('Public/Track', [
             'application' => [
@@ -141,6 +156,7 @@ class ApplicationController extends Controller
                 'created_at' => $application->created_at->format('M d, Y g:i A'),
                 'status' => $application->status,
                 'resubmission_remarks' => $application->resubmission_remarks,
+                'reviewer_role' => $roleLabels[$reviewerRole] ?? $reviewerRole,
             ],
             'documents' => $documents,
             'reviews' => $reviews,
@@ -148,8 +164,15 @@ class ApplicationController extends Controller
         ]);
     }
 
-    public function resubmit(string $referenceCode, StoreApplicationRequest $request)
+    public function resubmit(string $referenceCode, Request $request)
     {
+        $validated = $request->validate([
+            'documents' => ['required', 'array', 'min:1'],
+            'documents.*' => ['required', 'file', 'image', 'mimes:jpeg,png', 'max:5120'],
+            'document_ids' => ['required', 'array'],
+            'document_ids.*' => ['required', 'exists:application_documents,id'],
+        ]);
+
         $application = Application::where('reference_code', $referenceCode)
             ->where('status', 'returned_to_applicant')
             ->firstOrFail();
@@ -166,9 +189,9 @@ class ApplicationController extends Controller
         $resubmissionNumber = $maxResubmission + 1;
 
         foreach ($request->file('documents', []) as $i => $file) {
-            $requiredDocId = $request->document_ids[$i];
+            $appDocId = $request->document_ids[$i];
 
-            if (!in_array($requiredDocId, $requiredDocIds)) {
+            if (!in_array($appDocId, $requiredDocIds)) {
                 continue;
             }
 
@@ -178,9 +201,7 @@ class ApplicationController extends Controller
                 $application->id,
             );
 
-            ApplicationDocument::create([
-                'application_id' => $application->id,
-                'required_doc_id' => $requiredDocId,
+            ApplicationDocument::where('id', $appDocId)->update([
                 'file_name' => $result['file_name'],
                 'file_path' => $result['file_path'],
                 'file_size' => $result['file_size'],
@@ -191,7 +212,7 @@ class ApplicationController extends Controller
         }
 
         $application->update([
-            'status' => 'resubmitted',
+            'status' => 'submitted',
             'resubmission_remarks' => null,
         ]);
 

@@ -1,9 +1,14 @@
 <script setup>
+import { computed } from 'vue'
 import { formatDate } from '@/Utils/formatDate'
 
-defineProps({
+const props = defineProps({
   application: { type: Object, required: true },
 })
+
+const capitalize = (str) => str ? str.charAt(0).toUpperCase() + str.slice(1).toLowerCase() : ''
+const claimantSex = computed(() => capitalize(props.application.claimant_sex))
+const beneficiarySex = computed(() => capitalize(props.application.beneficiary_sex))
 </script>
 
 <template>
@@ -17,7 +22,7 @@ defineProps({
         </div>
         <div>
           <dt class="text-muted-color">Sex</dt>
-          <dd class="font-medium text-surface-900">{{ application.claimant_sex }}</dd>
+          <dd class="font-medium text-surface-900">{{ claimantSex }}</dd>
         </div>
         <div>
           <dt class="text-muted-color">Date of Birth</dt>
@@ -53,7 +58,7 @@ defineProps({
         </div>
         <div>
           <dt class="text-muted-color">Sex</dt>
-          <dd class="font-medium text-surface-900">{{ application.beneficiary_sex }}</dd>
+          <dd class="font-medium text-surface-900">{{ beneficiarySex }}</dd>
         </div>
         <div>
           <dt class="text-muted-color">Date of Birth</dt>
