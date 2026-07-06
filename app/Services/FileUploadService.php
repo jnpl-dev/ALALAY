@@ -5,7 +5,6 @@ namespace App\Services;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\ImageManager;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class FileUploadService
@@ -18,7 +17,7 @@ class FileUploadService
         ?array $allowedMimes = null,
     ): array {
         $maxSizeKb = $maxSizeKb ?? (int) (\App\Models\SystemSetting::byKey('max_file_size_kb')->first()?->setting_value ?? 5120);
-        $allowedMimes = $allowedMimes ?? explode(',', \App\Models\SystemSetting::byKey('allowed_mime_types')->first()?->setting_value ?? 'image/jpeg,image/png');
+        $allowedMimes = $allowedMimes ?? explode(',', \App\Models\SystemSetting::byKey('allowed_mime_types')->first()?->setting_value ?? 'image/jpeg,image/png,application/pdf');
 
         if ($file->getSize() > $maxSizeKb * 1024) {
             throw new HttpException(413, 'File exceeds maximum size.');

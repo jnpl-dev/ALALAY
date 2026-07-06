@@ -3,12 +3,29 @@ import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3'
 import DocumentScanner from '@/Components/Application/DocumentScanner.vue'
 import { usePsgcAddress } from '@/Composables/usePsgcAddress.js'
+import { jsPDF } from 'jspdf'
 
 const props = defineProps({
   categories: Array,
 })
 
 const flash = computed(() => usePage().props.flash)
+
+const toast = ref(null)
+let toastTimer = null
+
+function showToast(message, type) {
+  toast.value = { message, type }
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toast.value = null }, 4000)
+}
+
+watch(() => usePage().props.flash, (val) => {
+  if (val?.success && !val?.reference_code) showToast(val.success, 'success')
+  if (val?.error) showToast(val.error, 'error')
+}, { immediate: true })
+
+onBeforeUnmount(() => clearTimeout(toastTimer))
 
 const homeUrl = route('home')
 const applyUrl = route('apply')
@@ -119,18 +136,30 @@ const allMandatoryCaptured = computed(() => {
   return captured
 })
 
-const thumbnailUrls = ref([])
-
-watch(() => [...form.documents], (docs) => {
-  thumbnailUrls.value.forEach(url => URL.revokeObjectURL(url))
-  thumbnailUrls.value = docs.map(file =>
-    file instanceof File ? URL.createObjectURL(file) : null
+// Step 3 pagination
+const currentDocIndex = ref(0)
+const visibleDocs = computed(() =>
+  allRequiredDocs.value.filter(d =>
+    d.doc_name !== 'Authorization Letter' || isRepresentative.value
   )
-}, { deep: false, immediate: true })
+)
+const currentDoc = computed(() => visibleDocs.value[currentDocIndex.value])
+
+// Store captured raw data for previews + deferred PDF conversion
+const capturedDocs = ref({}) // docId -> { pages: [...], docName }
+const docPreviews = ref({})  // docId -> { preview: dataUrl, pageCount }
+
+// Submit progress
+const submitting = ref(false)
+const submitProgress = ref(0)
+const submitMessage = ref('')
+const submitStep = ref('')
+const submitTotal = ref(0)
+const submitCurrent = ref(0)
 
 onBeforeUnmount(() => {
-  thumbnailUrls.value.forEach(url => {
-    if (url) URL.revokeObjectURL(url)
+  Object.values(docPreviews.value).forEach(dp => {
+    if (dp?.preview?.startsWith('blob:')) URL.revokeObjectURL(dp.preview)
   })
 })
 
@@ -138,6 +167,9 @@ function selectCategory(category) {
   form.category_id = category.id
   form.documents = []
   form.document_ids = []
+  capturedDocs.value = {}
+  docPreviews.value = {}
+  currentDocIndex.value = 0
   currentStep.value = 1
 }
 
@@ -169,17 +201,29 @@ function prevStep() {
   if (currentStep.value > 0) currentStep.value--
 }
 
-function onDocCapture(docId, file) {
-  const idx = form.document_ids.indexOf(docId)
-  if (idx >= 0) {
-    form.documents[idx] = file
-  } else {
+function onDocCapture(docId, payload) {
+  const doc = allRequiredDocs.value.find(d => d.id === docId)
+  if (!doc) return
+  capturedDocs.value[docId] = {
+    pages: payload.pages || [],
+    docName: doc.doc_name,
+  }
+  docPreviews.value[docId] = {
+    preview: payload.preview,
+    pageCount: payload.pageCount,
+  }
+  if (!form.document_ids.includes(docId)) {
     form.document_ids.push(docId)
-    form.documents.push(file)
+    form.documents.push(payload.file)
+  } else {
+    const idx = form.document_ids.indexOf(docId)
+    form.documents[idx] = payload.file
   }
 }
 
 function onDocClear(docId) {
+  delete capturedDocs.value[docId]
+  delete docPreviews.value[docId]
   const idx = form.document_ids.indexOf(docId)
   if (idx >= 0) {
     form.document_ids.splice(idx, 1)
@@ -187,12 +231,95 @@ function onDocClear(docId) {
   }
 }
 
-function submitApplication() {
+function goToDoc(i) {
+  if (i >= 0 && i < visibleDocs.value.length) {
+    currentDocIndex.value = i
+  }
+}
+
+async function submitApplication() {
+  submitting.value = true
+  submitProgress.value = 0
+  submitMessage.value = ''
+
+  const total = form.document_ids.length
+  submitTotal.value = total
+  submitCurrent.value = 0
+  submitStep.value = 'converting'
+
+  const pdfFiles = []
+
+  for (let i = 0; i < total; i++) {
+    const docId = form.document_ids[i]
+    const doc = capturedDocs.value[docId]
+    if (!doc || !doc.pages?.length) {
+      pdfFiles.push(form.documents[i])
+      submitCurrent.value = i + 1
+      submitProgress.value = ((i + 1) / total) * 70
+      continue
+    }
+
+    submitMessage.value = `Converting "${doc.docName}" to PDF...`
+    submitCurrent.value = i + 1
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    })
+
+    const pageW = pdf.internal.pageSize.getWidth()
+    const pageH = pdf.internal.pageSize.getHeight()
+    const margin = 10
+    const maxW = pageW - margin * 2
+    const maxH = pageH - margin * 2
+
+    doc.pages.forEach((img, pi) => {
+      if (pi > 0) pdf.addPage('a4', 'portrait')
+
+      const imgAspect = img.width / img.height
+      const pageAspect = maxW / maxH
+
+      let drawW, drawH
+      if (imgAspect > pageAspect) {
+        drawW = maxW
+        drawH = maxW / imgAspect
+      } else {
+        drawH = maxH
+        drawW = maxH * imgAspect
+      }
+
+      pdf.addImage(img.data, 'JPEG', (pageW - drawW) / 2, (pageH - drawH) / 2, drawW, drawH)
+    })
+
+    const blob = pdf.output('blob')
+    const file = new File([blob], `${doc.docName}.pdf`, { type: 'application/pdf' })
+    pdfFiles.push(file)
+
+    submitProgress.value = ((i + 1) / total) * 70
+  }
+
+  submitStep.value = 'submitting'
+  submitMessage.value = 'Submitting your application...'
+  submitProgress.value = 75
+
+  form.documents = pdfFiles
+
   form.post(route('apply'), {
     preserveScroll: true,
     onSuccess: () => {
+      submitting.value = false
       currentStep.value = 4
       submittedCode.value = flash.value?.reference_code
+    },
+    onError: () => {
+      submitting.value = false
+      submitMessage.value = ''
+    },
+    onFinish: () => {
+      submitting.value = false
     },
   })
 }
@@ -255,14 +382,14 @@ const statusLabel = (status) => ({
         <p class="text-center text-sm text-gray-500 mt-3 font-medium">{{ steps[currentStep] }}</p>
       </div>
 
-        <div v-if="Object.keys(form.errors).length && currentStep === 3" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p class="text-sm font-medium text-red-800 mb-1">Unable to submit</p>
-          <ul class="text-sm text-red-600 list-disc list-inside">
-            <li v-for="(msg, key) in form.errors" :key="key">{{ msg }}</li>
-          </ul>
-        </div>
+      <div v-if="Object.keys(form.errors).length && currentStep === 3" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <p class="text-sm font-medium text-red-800 mb-1">Unable to submit</p>
+        <ul class="text-sm text-red-600 list-disc list-inside">
+          <li v-for="(msg, key) in form.errors" :key="key">{{ msg }}</li>
+        </ul>
+      </div>
 
-        <div v-if="flash?.error" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div v-if="flash?.error && !toast" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
         <p class="text-sm text-red-600">{{ flash.error }}</p>
       </div>
 
@@ -550,33 +677,71 @@ const statusLabel = (status) => ({
       <div v-else-if="currentStep === 2" class="bg-white rounded-2xl shadow-lg border border-emerald-100 p-8 sm:p-12">
         <h2 class="text-xl font-bold text-emerald-900 mb-2">Capture Documents</h2>
         <p class="text-sm text-gray-500 mb-6">
-          Capture each required document using your camera.
-          <span v-if="selectedCategory" class="font-medium text-emerald-700">({{ capturedCount }}/{{ allRequiredDocs.length }} captured)</span>
+          Step {{ currentDocIndex + 1 }} of {{ visibleDocs.length }} &mdash; {{ capturedCount }}/{{ allRequiredDocs.length }} captured
         </p>
 
         <div v-if="form.errors.documents" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
           <p class="text-sm text-red-600">{{ form.errors.documents }}</p>
         </div>
 
-        <div class="space-y-6">
-          <div v-for="doc in allRequiredDocs" :key="doc.id" class="border border-gray-200 rounded-xl p-4">
+        <div v-if="currentDoc" class="space-y-4">
+          <div class="border border-gray-200 rounded-xl p-4">
             <DocumentScanner
-              :docName="doc.doc_name"
-              :required="doc.is_mandatory || (isRepresentative && doc.doc_name === 'Authorization Letter')"
-              @captured="(file) => onDocCapture(doc.id, file)"
-              @cleared="() => onDocClear(doc.id)"
+              :key="currentDoc.id"
+              :docName="currentDoc.doc_name"
+              :required="currentDoc.is_mandatory || (isRepresentative && currentDoc.doc_name === 'Authorization Letter')"
+              :captureType="currentDoc.capture_type || 'single'"
+              :scannerSize="currentDoc.scanner_size || 'a4'"
+              @captured="(payload) => onDocCapture(currentDoc.id, payload)"
+              @cleared="() => onDocClear(currentDoc.id)"
             />
-            <p v-if="form.errors['documents.' + form.document_ids.indexOf(doc.id)]" class="text-xs text-red-500 mt-1">
-              {{ form.errors['documents.' + form.document_ids.indexOf(doc.id)] }}
-            </p>
+          </div>
+
+          <!-- Multi-preview dots -->
+          <div v-if="visibleDocs.length > 1" class="flex items-center justify-center gap-1.5">
+            <button
+              v-for="(d, i) in visibleDocs"
+              :key="d.id"
+              @click="goToDoc(i)"
+              :class="[
+                'w-2.5 h-2.5 rounded-full border-0 cursor-pointer transition-colors',
+                i === currentDocIndex ? 'bg-emerald-600' :
+                form.document_ids.includes(d.id) ? 'bg-emerald-300' : 'bg-gray-300'
+              ]"
+              :title="d.doc_name"
+            />
+          </div>
+
+          <!-- Navigation -->
+          <div class="flex justify-between items-center pt-2">
+            <button
+              v-if="currentDocIndex > 0"
+              @click="goToDoc(currentDocIndex - 1)"
+              class="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              Previous
+            </button>
+            <div v-else />
+
+            <button
+              v-if="currentDocIndex < visibleDocs.length - 1"
+              @click="goToDoc(currentDocIndex + 1)"
+              class="px-4 py-2 rounded-lg text-sm font-medium text-white cursor-pointer"
+              :class="form.document_ids.includes(currentDoc.id) ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-300 cursor-not-allowed'"
+              :disabled="!form.document_ids.includes(currentDoc.id)"
+            >
+              Next Document
+            </button>
           </div>
         </div>
 
-        <div class="flex justify-between mt-8">
-          <button @click="prevStep" class="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50 transition-colors cursor-pointer">Back</button>
-          <button @click="nextStep" :disabled="!allMandatoryCaptured" :class="['px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer', allMandatoryCaptured ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-300 cursor-not-allowed']">
-            {{ allMandatoryCaptured ? 'Review Summary' : 'Capture all required documents to continue' }}
-          </button>
+        <div class="border-t border-gray-200 mt-8 pt-6">
+          <div class="flex justify-between">
+            <button @click="prevStep" class="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50 transition-colors cursor-pointer">Back</button>
+            <button @click="nextStep" :disabled="!allMandatoryCaptured" :class="['px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer', allMandatoryCaptured ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-300 cursor-not-allowed']">
+              {{ allMandatoryCaptured ? 'Review Summary' : `Capture all required (${capturedCount}/${allRequiredDocs.length})` }}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -621,33 +786,86 @@ const statusLabel = (status) => ({
             <h3 class="font-semibold text-gray-900 mb-3">Documents ({{ capturedCount }})</h3>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div v-for="(docId, i) in form.document_ids" :key="docId" class="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <img v-if="thumbnailUrls[i]" :src="thumbnailUrls[i]" alt="Document" class="w-full h-24 object-cover" />
-                <div v-else class="w-full h-24 flex items-center justify-center bg-gray-100 text-gray-400 text-xs">No preview</div>
-                <div class="px-2 py-1.5 text-xs font-medium text-gray-700 truncate">
-                  {{ allRequiredDocs.find(d => d.id === docId)?.doc_name || 'Document' }}
+                <div class="w-full h-28 flex items-center justify-center bg-gray-50 overflow-hidden">
+                  <img
+                    v-if="docPreviews[docId]?.preview"
+                    :src="docPreviews[docId].preview"
+                    :alt="allRequiredDocs.find(d => d.id === docId)?.doc_name"
+                    class="w-full h-full object-contain"
+                  />
+                  <div v-else class="text-gray-400 text-xs">No preview</div>
+                </div>
+                <div class="px-2 py-1.5 text-xs font-medium text-gray-700 truncate flex items-center justify-between">
+                  <span class="truncate">{{ allRequiredDocs.find(d => d.id === docId)?.doc_name || 'Document' }}</span>
+                  <span v-if="docPreviews[docId]?.pageCount > 1" class="shrink-0 text-gray-400 ml-1">{{ docPreviews[docId].pageCount }}p</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div v-if="form.processing" class="mt-6 p-4 bg-emerald-50 rounded-xl text-center">
-          <div class="flex items-center justify-center gap-2">
-            <svg class="animate-spin h-5 w-5 text-emerald-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            <span class="text-sm font-medium text-emerald-700">Submitting your application...</span>
-          </div>
-        </div>
-
         <div class="flex justify-between mt-8">
-          <button @click="prevStep" :disabled="form.processing" class="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50">Back</button>
-          <button @click="submitApplication" :disabled="form.processing" class="px-8 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-            {{ form.processing ? 'Submitting...' : 'Submit Application' }}
+          <button @click="prevStep" :disabled="submitting" class="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50">Back</button>
+          <button @click="submitApplication" :disabled="submitting" class="px-8 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+            {{ submitting ? 'Processing...' : 'Submit Application' }}
           </button>
         </div>
       </div>
     </main>
+
+    <!-- Submit Progress Modal -->
+    <Teleport to="body">
+      <div
+        v-if="submitting"
+        class="fixed inset-0 z-[99999] bg-black/60 flex items-center justify-center p-6"
+      >
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8">
+          <h3 class="text-lg font-bold text-gray-900 mb-1 text-center">Submitting Application</h3>
+          <p class="text-sm text-gray-500 mb-6 text-center">{{ submitMessage }}</p>
+
+          <!-- Progress bar -->
+          <div class="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
+            <div
+              class="h-full bg-emerald-600 rounded-full transition-all duration-300 ease-out"
+              :style="{ width: submitProgress + '%' }"
+            />
+          </div>
+
+          <!-- Per-doc status -->
+          <div v-if="submitStep === 'converting' && submitTotal > 0" class="space-y-1.5 mb-4">
+            <div
+              v-for="(docId, i) in form.document_ids"
+              :key="docId"
+              class="flex items-center gap-2 text-xs"
+            >
+              <span v-if="i < submitCurrent" class="text-emerald-600 shrink-0">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                </svg>
+              </span>
+              <span v-else class="w-3.5 h-3.5 shrink-0 rounded-full border-2 border-gray-300" />
+              <span :class="i < submitCurrent ? 'text-gray-700' : 'text-gray-400'">
+                {{ capturedDocs[docId]?.docName || 'Document' }}
+              </span>
+              <span v-if="i === submitCurrent - 1" class="text-emerald-600 ml-auto animate-pulse">Converting...</span>
+              <span v-else-if="i < submitCurrent - 1" class="text-emerald-600 ml-auto">Done</span>
+            </div>
+          </div>
+
+          <p v-if="submitStep === 'submitting'" class="text-xs text-gray-400 text-center">Please wait while your application is being submitted.</p>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Toast notification -->
+    <Teleport to="body">
+      <div v-if="toast"
+        class="fixed top-4 right-4 z-[99999] px-5 py-3 rounded-xl shadow-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 max-w-sm"
+        :class="toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'"
+      >
+        <i :class="toast.type === 'success' ? 'pi pi-check-circle' : 'pi pi-exclamation-circle'"></i>
+        {{ toast.message }}
+      </div>
+    </Teleport>
   </div>
 </template>

@@ -35,7 +35,7 @@ class StoreApplicationRequest extends FormRequest
             'beneficiary_dob' => ['required', 'date', 'before:today'],
             'beneficiary_address' => ['required', 'string'],
             'documents' => ['required', 'array', 'min:1'],
-            'documents.*' => ['required', 'file', 'image', 'mimes:jpeg,png', 'max:5120'],
+            'documents.*' => ['required', 'file', 'mimes:pdf', 'max:10240'],
             'document_ids' => ['required', 'array'],
             'document_ids.*' => ['required', 'exists:required_documents,id'],
         ];
@@ -75,9 +75,8 @@ class StoreApplicationRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'documents.*.image' => 'Each document must be a valid image file (JPEG or PNG).',
-            'documents.*.mimes' => 'Documents must be in JPEG or PNG format.',
-            'documents.*.max' => 'Each document must not exceed 5MB.',
+            'documents.*.mimes' => 'Each document must be a PDF file.',
+            'documents.*.max' => 'Each document must not exceed 10MB.',
         ];
     }
 }

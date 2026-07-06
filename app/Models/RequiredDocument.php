@@ -18,6 +18,8 @@ class RequiredDocument extends Model
         'doc_description',
         'is_mandatory',
         'is_active',
+        'capture_type',
+        'scanner_size',
     ];
 
     protected function casts(): array

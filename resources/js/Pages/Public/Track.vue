@@ -49,8 +49,8 @@ function lookupApplication() {
 const capturedDocs = ref({})
 const isSubmitting = ref(false)
 
-function onDocCapture(docId, file) {
-  capturedDocs.value[docId] = file
+function onDocCapture(docId, payload) {
+  capturedDocs.value[docId] = payload.file || payload
 }
 
 function onDocClear(docId) {
@@ -248,16 +248,12 @@ const timelineSteps = computed(() => {
 
           <div class="space-y-4 mb-6">
             <div v-for="doc in resubmission_docs_required" :key="doc.id" class="border border-amber-200 rounded-xl p-4 bg-amber-50/50">
-              <div class="text-sm font-semibold text-amber-900 mb-3 flex items-center gap-2">
-                <i class="pi pi-file text-amber-600"></i>
-                {{ doc.doc_name }}
-                <span v-if="capturedDocs[doc.id]" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full ml-auto">Captured</span>
-                <span v-else class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full ml-auto">Pending</span>
-              </div>
               <DocumentScanner
                 :docName="doc.doc_name"
                 :required="true"
-                @captured="(file) => onDocCapture(doc.id, file)"
+                :captureType="doc.capture_type || 'single'"
+                :scannerSize="doc.scanner_size || 'a4'"
+                @captured="(payload) => onDocCapture(doc.id, payload)"
                 @cleared="() => onDocClear(doc.id)"
               />
             </div>
@@ -273,6 +269,43 @@ const timelineSteps = computed(() => {
               {{ isSubmitting ? 'Submitting...' : 'Submit Resubmission' }}
             </button>
           </div>
+
+          <!-- Resubmission Progress Modal -->
+          <Teleport to="body">
+            <div
+              v-if="isSubmitting"
+              class="fixed inset-0 z-[99999] bg-black/60 flex items-center justify-center p-6"
+            >
+              <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8">
+                <h3 class="text-lg font-bold text-gray-900 mb-1 text-center">Submitting Resubmission</h3>
+                <p class="text-sm text-gray-500 mb-6 text-center">Uploading corrected documents...</p>
+
+                <div class="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
+                  <div class="h-full bg-emerald-600 rounded-full animate-pulse" style="width: 60%" />
+                </div>
+
+                <div class="space-y-1.5 mb-4">
+                  <div
+                    v-for="(doc, i) in resubmission_docs_required"
+                    :key="doc.id"
+                    class="flex items-center gap-2 text-xs"
+                  >
+                    <span v-if="capturedDocs[doc.id]" class="text-emerald-600 shrink-0">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                    <span v-else class="w-3.5 h-3.5 shrink-0 rounded-full border-2 border-gray-300" />
+                    <span :class="capturedDocs[doc.id] ? 'text-gray-700' : 'text-gray-400'">
+                      {{ doc.doc_name }}
+                    </span>
+                  </div>
+                </div>
+
+                <p class="text-xs text-gray-400 text-center">Please wait while your documents are being submitted.</p>
+              </div>
+            </div>
+          </Teleport>
         </div>
 
         <div class="text-center">

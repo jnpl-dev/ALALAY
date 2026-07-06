@@ -444,6 +444,61 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ---
 
+---
+
+## Phase 4.5 — Document Scanner Overhaul
+
+**Spec: `SCANNER_MODIFICATIONS.md`** — Camera-based document capture replacing all `<input type="file">` with `DocumentScanner.vue`; output changes from JPEG to A4 portrait PDF.
+
+### 4.5.1 Database
+
+- [x] Migration: add `capture_type` (string: single/double/multi) and `scanner_size` (string: a4/card/half_sheet) to `required_documents` table
+- [x] Update `RequiredDocumentSeeder` — all 21 documents populated with `capture_type` and `scanner_size` per the config table in the spec; includes `SET FOREIGN_KEY_CHECKS=0` to handle FK constraint during re-seed
+- [x] Update `RequiredDocument` model fillable array — added `capture_type`, `scanner_size`
+- [x] Run: `php artisan migrate` + `php artisan db:seed --class=RequiredDocumentSeeder`
+
+### 4.5.2 Frontend — New/Modified Composables & Components
+
+- [x] `npm install jspdf` — PDF generation library (23 packages, 0 vulnerabilities)
+- [ ] `npm install vue-pdf-embed` (optional) — richer PDF viewer for staff review pages
+- [x] Rewrite `useDocumentScanner.js` — full enhancement pipeline (downscale → grayscale → contrast stretch → adaptive threshold → JPEG), `capturedPages` array management, final PDF blob generation via `jsPDF`, reactive state (`isScanning`, `isProcessing`, `previewUrl`, `cameraError`, `hasCapture`, `isComplete`, `pdfBlob`), methods (`startCamera`, `capture`, `retakeLast`, `addPage`, `confirmAll`, `stopCamera`, `reset`). Accepts `captureType` param for `isComplete` computed.
+- [x] Rewrite `DocumentScanner.vue` — new props (`docName`, `required`, `captureType`, `scannerSize`, `modelValue`), emits (`update:modelValue`, `captured`, `cleared`), 6 states (rotate hint → camera active → processing → preview → document complete → camera denied/fallback), 3 scanner presets (`SCANNER_PRESETS` — a4 portrait, card landscape, half_sheet landscape) with SVG mask overlay cutout, 3 capture type UX flows (single: 1 click → complete; double: front+back with auto-reopen; multi: loop + Add Another Page / Done)
+
+### 4.5.3 Frontend — Affected Pages
+
+- [x] `Public/Apply.vue` — Step 3: paginated one-doc-at-a-time flow; full-viewport camera overlay via Teleport; doc name + required badge shown; multi/double capture fixed; images stored raw, PDF deferred to submit; Step 4: image thumbnails from captured data; submit progress modal with per-doc conversion bar; toast notifications
+- [x] `Public/Track.vue` — Resubmission `DocumentScanner` receives `captureType`/`scannerSize` from backend; redundant doc name wrapper removed; `onDocCapture` extracts `.file` from payload; progress modal on submit; redirects to tracked application after resubmit with toast
+- [x] `DocumentViewer.vue` — Already handles PDFs via `<iframe>` fallback
+- [x] `DocumentScanner.vue` — Teleport full-viewport camera; proper multi/double/single state machine; emits structured `{file, preview, pageCount, pages}`; raw image stored during scan, PDF generated on confirm
+- [x] `useDocumentScanner.js` — `confirmPages()` separates from `generatePdfBlob()`; `isConfirmed` flag added
+- [ ] MSWDO review/voucher pages — Not implemented yet (Phase 4.7)
+
+### 4.5.4 Backend — MIME Validation
+
+- [x] `StoreApplicationRequest.php` — `documents.*` MIME: `pdf|max:10240`
+- [x] `ApplicationController@resubmit` — `documents.*` MIME: `pdf|max:10240`
+- [x] `FileUploadService.php` — default `allowed_mimes` includes `application/pdf`; removed unused `ImageManager` import
+- [x] `ApplicationController@store` — added missing `use StoreApplicationRequest` import
+- [x] `ApplicationController@show` — `resubmission_docs_required` now reads `capture_type`/`scanner_size` from `requiredDocument` relation (was reading from `ApplicationDocument` which doesn't have those fields)
+- [ ] MSWDO form requests — Not implemented yet (Phase 4.7)
+
+### 4.5.5 Testing
+
+- [x] A4 portrait preset — tested on device
+- [x] Card landscape preset — tested on device
+- [x] Half-sheet landscape preset — tested on device
+- [x] Single capture type — tested
+- [x] Double capture (front/back) — tested
+- [x] Multi capture (3+ pages) — tested
+- [x] Camera denied → fallback file input converts image to PDF — tested
+- [x] PDF output is A4 portrait — tested
+- [x] Resubmission flow: returned → rescans flagged docs → submits — tested
+- [x] Submit progress modal with per-doc conversion bar — tested
+- [x] Toast notifications on apply + track — tested
+- [ ] MSWDO SCS upload and voucher upload via DocumentScanner — Not implemented yet (Phase 4.7)
+
+---
+
 ## Phase 5 — Integration & Workflow Testing
 
 ### 5.1 End-to-End Workflow

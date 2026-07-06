@@ -1,13 +1,20 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { jsPDF } from 'jspdf'
 
-export function useDocumentScanner() {
+export function useDocumentScanner(captureType = 'single') {
   const isScanning = ref(false)
   const isProcessing = ref(false)
   const previewUrl = ref(null)
-  const capturedBlob = ref(null)
+  const capturedPages = ref([])
   const cameraError = ref(null)
-  const hasCapture = ref(false)
-  const submissionMethod = ref(null)
+  const isConfirmed = ref(false)
+  const hasCapture = computed(() => capturedPages.value.length > 0)
+  const isComplete = computed(() => {
+    if (captureType === 'single') return capturedPages.value.length === 1
+    if (captureType === 'double') return capturedPages.value.length === 2
+    return capturedPages.value.length > 0
+  })
+  const pageLabel = ref('')
 
   let stream = null
   let videoElement = null
@@ -16,19 +23,19 @@ export function useDocumentScanner() {
     videoElement = el
   }
 
-  async function startCamera() {
+  async function startCamera(facingMode = 'environment') {
     cameraError.value = null
     isScanning.value = true
-    submissionMethod.value = null
+    isConfirmed.value = false
 
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+        video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: false,
       })
-
       if (videoElement) {
         videoElement.srcObject = stream
+        await videoElement.play()
       }
     } catch (err) {
       isScanning.value = false
@@ -37,37 +44,25 @@ export function useDocumentScanner() {
     }
   }
 
-  function capture() {
-    if (!videoElement || !stream) return
+  function downscale(sourceCanvas, maxWidth = 1200) {
+    const scale = Math.min(1, maxWidth / sourceCanvas.width)
+    const dest = document.createElement('canvas')
+    dest.width = sourceCanvas.width * scale
+    dest.height = sourceCanvas.height * scale
+    dest.getContext('2d').drawImage(sourceCanvas, 0, 0, dest.width, dest.height)
+    return dest
+  }
 
-    isProcessing.value = true
-
-    const video = videoElement
-    const srcWidth = video.videoWidth
-    const srcHeight = video.videoHeight
-
-    const canvas = document.createElement('canvas')
-
-    const MAX_WIDTH = 1200
-    let targetWidth = srcWidth
-    let targetHeight = srcHeight
-    if (srcWidth > MAX_WIDTH) {
-      targetWidth = MAX_WIDTH
-      targetHeight = Math.round((srcHeight / srcWidth) * MAX_WIDTH)
-    }
-
-    canvas.width = targetWidth
-    canvas.height = targetHeight
-
-    const ctx = canvas.getContext('2d')
-    ctx.drawImage(video, 0, 0, targetWidth, targetHeight)
-
-    const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight)
+  function enhance(canvas) {
+    const down = downscale(canvas)
+    const w = down.width
+    const h = down.height
+    const ctx = down.getContext('2d')
+    const imageData = ctx.getImageData(0, 0, w, h)
     const data = imageData.data
     const len = data.length
 
-    const gray = new Uint8Array(targetWidth * targetHeight)
-
+    const gray = new Uint8Array(w * h)
     let minVal = 255
     let maxVal = 0
     for (let i = 0; i < len; i += 4) {
@@ -89,10 +84,7 @@ export function useDocumentScanner() {
 
     const blockSize = 40
     const C = 10
-    const w = targetWidth
-    const h = targetHeight
     const integral = new Uint32Array((w + 1) * (h + 1))
-
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const idx = (y + 1) * (w + 1) + (x + 1)
@@ -111,14 +103,11 @@ export function useDocumentScanner() {
         const y1 = Math.max(0, y - Math.floor(blockSize / 2))
         const x2 = Math.min(w - 1, x + Math.floor(blockSize / 2))
         const y2 = Math.min(h - 1, y + Math.floor(blockSize / 2))
-
         const count = (x2 - x1 + 1) * (y2 - y1 + 1)
-
         const sum = integral[(y2 + 1) * (w + 1) + (x2 + 1)]
           - integral[(y1) * (w + 1) + (x2 + 1)]
           - integral[(y2 + 1) * (w + 1) + (x1)]
           + integral[(y1) * (w + 1) + (x1)]
-
         const mean = sum / count
         const idx = (y * w + x) * 4
         const val = stretched[y * w + x] < (mean - C) ? 0 : 255
@@ -130,39 +119,94 @@ export function useDocumentScanner() {
     }
 
     const outCanvas = document.createElement('canvas')
-    outCanvas.width = targetWidth
-    outCanvas.height = targetHeight
+    outCanvas.width = w
+    outCanvas.height = h
     const outCtx = outCanvas.getContext('2d')
-    const outImageData = new ImageData(output, targetWidth, targetHeight)
-    outCtx.putImageData(outImageData, 0, 0)
-
-    outCanvas.toBlob((blob) => {
-      isProcessing.value = false
-
-      if (previewUrl.value) {
-        URL.revokeObjectURL(previewUrl.value)
-      }
-
-      capturedBlob.value = blob
-      previewUrl.value = URL.createObjectURL(blob)
-      hasCapture.value = true
-      submissionMethod.value = 'camera'
-
-      stopCamera()
-    }, 'image/jpeg', 0.88)
+    outCtx.putImageData(new ImageData(output, w, h), 0, 0)
+    return outCanvas
   }
 
-  function retake() {
-    if (previewUrl.value) {
-      URL.revokeObjectURL(previewUrl.value)
-    }
-    capturedBlob.value = null
+  function canvasToDataUrl(enhancedCanvas) {
+    return enhancedCanvas.toDataURL('image/jpeg', 0.88)
+  }
+
+  function capture() {
+    if (!videoElement || !stream) return
+    isProcessing.value = true
     previewUrl.value = null
-    hasCapture.value = false
-    submissionMethod.value = null
+
+    const srcCanvas = document.createElement('canvas')
+    srcCanvas.width = videoElement.videoWidth
+    srcCanvas.height = videoElement.videoHeight
+    srcCanvas.getContext('2d').drawImage(videoElement, 0, 0)
+
+    const enhanced = enhance(srcCanvas)
+    const dataUrl = canvasToDataUrl(enhanced)
+
+    capturedPages.value.push({
+      data: dataUrl,
+      width: enhanced.width,
+      height: enhanced.height,
+    })
+
+    previewUrl.value = dataUrl
+    isProcessing.value = false
+    stopCamera()
+  }
+
+  function retakeLast() {
+    if (capturedPages.value.length > 0) {
+      capturedPages.value.pop()
+    }
+    previewUrl.value = null
     cameraError.value = null
-    isScanning.value = false
     startCamera()
+  }
+
+  function addPage() {
+    previewUrl.value = null
+    startCamera()
+  }
+
+  function confirmPages() {
+    isConfirmed.value = true
+  }
+
+  function generatePdfBlob() {
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    })
+
+    const pageW = pdf.internal.pageSize.getWidth()
+    const pageH = pdf.internal.pageSize.getHeight()
+    const margin = 10
+    const maxW = pageW - margin * 2
+    const maxH = pageH - margin * 2
+
+    capturedPages.value.forEach((img, index) => {
+      if (index > 0) pdf.addPage('a4', 'portrait')
+
+      const imgAspect = img.width / img.height
+      const pageAspect = maxW / maxH
+
+      let drawW, drawH
+      if (imgAspect > pageAspect) {
+        drawW = maxW
+        drawH = maxW / imgAspect
+      } else {
+        drawH = maxH
+        drawW = maxH * imgAspect
+      }
+
+      const x = (pageW - drawW) / 2
+      const y = (pageH - drawH) / 2
+
+      pdf.addImage(img.data, 'JPEG', x, y, drawW, drawH)
+    })
+
+    return pdf.output('blob')
   }
 
   function stopCamera() {
@@ -176,69 +220,34 @@ export function useDocumentScanner() {
     isScanning.value = false
   }
 
-  function useFallback(file) {
-    if (!file) return
-
-    if (previewUrl.value) {
-      URL.revokeObjectURL(previewUrl.value)
-    }
-
-    isProcessing.value = true
-
-    const img = new Image()
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      const MAX_WIDTH = 1200
-      let targetWidth = img.width
-      let targetHeight = img.height
-      if (img.width > MAX_WIDTH) {
-        targetWidth = MAX_WIDTH
-        targetHeight = Math.round((img.height / img.width) * MAX_WIDTH)
-      }
-
-      canvas.width = targetWidth
-      canvas.height = targetHeight
-      const ctx = canvas.getContext('2d')
-      ctx.drawImage(img, 0, 0, targetWidth, targetHeight)
-
-      canvas.toBlob((blob) => {
-        isProcessing.value = false
-        capturedBlob.value = blob
-        previewUrl.value = URL.createObjectURL(blob)
-        hasCapture.value = true
-        submissionMethod.value = 'fallback_upload'
-      }, 'image/jpeg', 0.88)
-    }
-    img.src = URL.createObjectURL(file)
-  }
-
-  function clearCapture() {
-    if (previewUrl.value) {
-      URL.revokeObjectURL(previewUrl.value)
-    }
-    capturedBlob.value = null
+  function reset() {
+    stopCamera()
     previewUrl.value = null
-    hasCapture.value = false
-    submissionMethod.value = null
-    isScanning.value = false
-    isProcessing.value = false
+    capturedPages.value = []
     cameraError.value = null
+    isProcessing.value = false
+    isConfirmed.value = false
+    pageLabel.value = ''
   }
 
   return {
     isScanning,
     isProcessing,
     previewUrl,
-    capturedBlob,
+    capturedPages,
     cameraError,
     hasCapture,
-    submissionMethod,
+    isComplete,
+    isConfirmed,
+    pageLabel,
     setVideoElement,
     startCamera,
     capture,
-    retake,
+    retakeLast,
+    addPage,
+    confirmPages,
+    generatePdfBlob,
     stopCamera,
-    useFallback,
-    clearCapture,
+    reset,
   }
 }

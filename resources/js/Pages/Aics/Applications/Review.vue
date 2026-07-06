@@ -116,8 +116,14 @@ function onReturnConfirmed(data) {
               class="relative group border border-surface rounded-lg overflow-hidden cursor-pointer hover:border-primary transition-colors"
               @click="viewDocument(doc, idx)">
               <div class="aspect-[3/4] flex items-center justify-center bg-surface-50 dark:bg-surface-800 overflow-hidden">
-                <img v-if="doc.signed_url" :src="doc.signed_url" :alt="doc.doc_name"
-                  class="w-full h-full object-cover" loading="lazy" />
+                <template v-if="doc.signed_url">
+                  <div v-if="doc.mime_type === 'application/pdf'" class="flex flex-col items-center gap-2 text-muted-color">
+                    <i class="pi pi-file-pdf text-4xl"></i>
+                    <span class="text-[10px] font-medium">PDF</span>
+                  </div>
+                  <img v-else :src="doc.signed_url" :alt="doc.doc_name"
+                    class="w-full h-full object-cover" loading="lazy" />
+                </template>
                 <i v-else class="pi pi-file text-3xl text-muted-color"></i>
               </div>
               <div class="px-2 py-1.5">

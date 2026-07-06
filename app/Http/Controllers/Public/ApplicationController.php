@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Public\StoreApplicationRequest;
 use App\Jobs\SendSmsJob;
 use App\Models\Application;
 use App\Models\ApplicationDocument;
@@ -129,9 +130,14 @@ class ApplicationController extends Controller
         if ($application->status === 'returned_to_applicant') {
             $latestReview = $application->reviews->first();
             $requiredDocIds = $latestReview?->resubmission_docs_required ?? [];
-            $resubmissionDocsRequired = $documents
-                ->filter(fn($d) => in_array($d['id'], $requiredDocIds))
-                ->map(fn($d) => ['id' => $d['id'], 'doc_name' => $d['doc_name'] ?? 'Document'])
+            $resubmissionDocsRequired = $application->documents
+                ->filter(fn($d) => in_array($d->id, $requiredDocIds))
+                ->map(fn($d) => [
+                    'id' => $d->id,
+                    'doc_name' => $d->requiredDocument?->doc_name ?? 'Document',
+                    'capture_type' => $d->requiredDocument?->capture_type ?? 'single',
+                    'scanner_size' => $d->requiredDocument?->scanner_size ?? 'a4',
+                ])
                 ->values();
             $reviewerRole = $latestReview?->reviewer?->role;
         }
@@ -168,7 +174,7 @@ class ApplicationController extends Controller
     {
         $validated = $request->validate([
             'documents' => ['required', 'array', 'min:1'],
-            'documents.*' => ['required', 'file', 'image', 'mimes:jpeg,png', 'max:5120'],
+            'documents.*' => ['required', 'file', 'mimes:pdf', 'max:10240'],
             'document_ids' => ['required', 'array'],
             'document_ids.*' => ['required', 'exists:application_documents,id'],
         ]);
@@ -218,6 +224,6 @@ class ApplicationController extends Controller
 
         SendSmsJob::dispatch($application, 'application_under_review');
 
-        return redirect()->route('track')->with('success', 'Your documents have been resubmitted successfully.');
+        return redirect()->route('track.show', $referenceCode)->with('success', 'Your documents have been resubmitted successfully.');
     }
 }
