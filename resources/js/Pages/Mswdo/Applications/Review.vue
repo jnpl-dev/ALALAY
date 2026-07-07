@@ -1,8 +1,10 @@
 <script setup>
-import { Head, router } from '@inertiajs/vue3'
+import { Head, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ApplicationInfo from '@/Components/Application/ApplicationInfo.vue'
 import DocumentViewer from '@/Components/Application/DocumentViewer.vue'
+import DocumentMeta from '@/Components/Application/DocumentMeta.vue'
+import DocumentScanner from '@/Components/Application/DocumentScanner.vue'
 import ReviewTrail from '@/Components/Application/ReviewTrail.vue'
 import ReturnModal from '@/Components/Application/ReturnModal.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
@@ -17,6 +19,7 @@ const props = defineProps({
   application: { type: Object, required: true },
   documents: { type: Array, default: () => [] },
   reviews: { type: Array, default: () => [] },
+  socialCaseStudy: { type: Object, default: null },
 })
 
 const toast = useToast()
@@ -26,14 +29,28 @@ const route = window.route
 const viewerUrl = ref(null)
 const viewerTitle = ref('')
 const viewerIdx = ref(0)
+const viewerDocuments = ref([])
 const showReturnModal = ref(false)
+const form = useForm({
+  social_case_study: null,
+  page_count: 1,
+  remarks: '',
+})
 
-const canReview = computed(() => ['submitted', 'screening'].includes(props.application.status))
+const canReview = computed(() => props.application.status === 'mswdo_review')
+const hasScs = computed(() => !!props.socialCaseStudy)
+const scsDocName = computed(() => 'Social Case Study')
+
+function onDocCapture(payload) {
+  form.social_case_study = payload.file
+  form.page_count = payload.pageCount || 1
+}
 
 function viewDocument(doc, idx) {
-  viewerUrl.value = route('aics.applications.document-url', [props.application.id, doc.id])
+  viewerUrl.value = route('mswdo.applications.document-url', [props.application.id, doc.id])
   viewerTitle.value = doc.doc_name
   viewerIdx.value = idx
+  viewerDocuments.value = props.documents
 }
 
 function closeViewer() {
@@ -52,14 +69,15 @@ function nextDoc() {
 
 function confirmApprove() {
   confirm.require({
-    message: 'Approve this application and forward to MSWDO review?',
+    message: 'Approve this application and upload the social case study? This will move the application to Assistance Coding.',
     header: 'Confirm Approval',
     icon: 'pi pi-check-circle',
     rejectProps: { label: 'Cancel', outlined: true },
     acceptProps: { label: 'Approve', severity: 'success' },
     accept: () => {
-      router.post(route('aics.applications.approve', props.application.id), {}, {
-        onError: () => toast.error('Approval failed'),
+      form.post(route('mswdo.applications.approve', props.application.id), {
+        preserveScroll: true,
+        onError: () => toast.error('Approval failed. Check that the social case study PDF is attached.'),
       })
     },
   })
@@ -83,10 +101,17 @@ function openReturnModal() {
 }
 
 function onReturnConfirmed(data) {
-  router.post(route('aics.applications.return', props.application.id), data, {
+  router.post(route('mswdo.applications.return', props.application.id), data, {
     onError: () => toast.error('Return failed'),
   })
   showReturnModal.value = false
+}
+
+function viewScs() {
+  viewerUrl.value = props.socialCaseStudy?.signed_url || null
+  viewerTitle.value = 'Social Case Study'
+  viewerIdx.value = 0
+  viewerDocuments.value = []
 }
 </script>
 
@@ -102,7 +127,7 @@ function onReturnConfirmed(data) {
             <AppStatusBadge :status="application.status" class="mt-1" />
           </div>
           <Button icon="pi pi-arrow-left" label="Back" severity="secondary" text
-            @click="router.get(route('aics.applications.index'))" />
+            @click="router.get(route('mswdo.applications.index'))" />
         </div>
 
         <ApplicationInfo :application="application" />
@@ -141,11 +166,46 @@ function onReturnConfirmed(data) {
           </div>
         </div>
 
+        <hr v-if="hasScs" class="border-surface my-6" />
+
+        <div v-if="hasScs">
+          <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Social Case Study</h3>
+          <DocumentMeta
+            :uploaded-by="socialCaseStudy.uploaded_by"
+            :uploaded-at="socialCaseStudy.conducted_at"
+            :page-count="socialCaseStudy.page_count"
+            :file-size="socialCaseStudy.file_size_label"
+          />
+          <div class="mt-3">
+            <Button icon="pi pi-eye" label="View Case Study" severity="secondary" outlined @click="viewScs" />
+          </div>
+        </div>
+
         <hr v-if="canReview" class="border-surface my-6" />
 
-        <div v-if="canReview" class="flex gap-3">
-          <Button label="Approve" icon="pi pi-check" severity="success" @click="confirmApprove" />
-          <Button label="Return" icon="pi pi-undo" severity="warn" @click="confirmReturn" />
+        <div v-if="canReview" class="space-y-6">
+          <div>
+            <h3 class="font-semibold text-surface-900 mb-4 text-sm uppercase tracking-wide text-muted-color">
+              Capture Social Case Study
+            </h3>
+            <DocumentScanner
+              :doc-name="scsDocName"
+              :required="true"
+              capture-type="multi"
+              scanner-size="a4"
+              @captured="onDocCapture"
+            />
+          </div>
+
+          <div class="flex gap-3">
+            <Button label="Approve & Forward" icon="pi pi-check" severity="success" @click="confirmApprove" :loading="form.processing" :disabled="!form.social_case_study" />
+            <Button label="Return" icon="pi pi-undo" severity="warn" @click="confirmReturn" />
+          </div>
+          <p v-if="!form.social_case_study" class="text-xs text-muted-color">Capture the social case study document before approving.</p>
+        </div>
+
+        <div v-else-if="!canReview && !hasScs" class="text-sm text-muted-color py-4 text-center">
+          This application is no longer in MSWDO review.
         </div>
       </div>
     </div>
@@ -158,7 +218,7 @@ function onReturnConfirmed(data) {
     </div>
 
     <DocumentViewer
-      :url="viewerUrl" :title="viewerTitle" :documents="documents"
+      :url="viewerUrl" :title="viewerTitle" :documents="viewerDocuments"
       :current-index="viewerIdx" @close="closeViewer" @prev="prevDoc" @next="nextDoc" />
     <ReturnModal v-model:visible="showReturnModal" :submitted-documents="documents" @confirmed="onReturnConfirmed" />
   </div>

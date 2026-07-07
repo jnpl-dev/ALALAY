@@ -95,6 +95,11 @@ class Application extends Model
         return $this->hasMany(Voucher::class, 'application_id');
     }
 
+    public function voucher()
+    {
+        return $this->hasOne(Voucher::class, 'application_id')->latestOfMany();
+    }
+
     public function smsNotifications()
     {
         return $this->hasMany(SmsNotification::class, 'application_id');

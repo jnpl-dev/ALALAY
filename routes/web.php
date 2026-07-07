@@ -111,9 +111,12 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/applications/{application}', [MswdoApplicationController::class, 'show'])->name('applications.show');
         Route::post('/applications/{application}/approve', [MswdoApplicationController::class, 'approve'])->name('applications.approve');
         Route::post('/applications/{application}/return', [MswdoApplicationController::class, 'return'])->name('applications.return');
+        Route::get('/applications/{application}/document/{document}/url', [MswdoApplicationController::class, 'documentUrl'])->name('applications.document-url');
+        Route::get('/applications/{application}/case-study/url', [MswdoApplicationController::class, 'caseStudyUrl'])->name('applications.case-study-url');
         Route::get('/vouchers', [MswdoVoucherController::class, 'index'])->name('vouchers.index');
         Route::get('/vouchers/{application}', [MswdoVoucherController::class, 'show'])->name('vouchers.show');
         Route::post('/vouchers/{application}', [MswdoVoucherController::class, 'store'])->name('vouchers.store');
+        Route::get('/vouchers/{application}/url', [MswdoVoucherController::class, 'voucherUrl'])->name('vouchers.url');
     });
 
     // Accountant panel

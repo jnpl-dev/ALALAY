@@ -78,18 +78,41 @@ function submitResubmission() {
 const stageLabels = {
   aics_screening: 'AICS Screening',
   mswdo_review: 'MSWDO Review',
+  assistance_coding: 'Assistance Coding',
   voucher_creation: 'Voucher Creation',
   accountant_review: 'Accountant Review',
   treasurer_review: 'Treasurer Review',
   mayors_approval: "Mayor's Approval",
 }
 
+const decisionLabels = {
+  approved: 'Approved',
+  coded: 'Coded',
+  voucher_created: 'Created',
+  returned: 'Returned',
+  pending: 'Pending',
+}
+
+const decisionBadgeClass = (decision) => {
+  if (decision === 'approved' || decision === 'coded' || decision === 'voucher_created') return 'bg-emerald-100 text-emerald-700'
+  if (decision === 'returned') return 'bg-amber-100 text-amber-700'
+  return 'bg-gray-100 text-gray-600'
+}
+
 const statusConfig = {
   submitted: { label: 'Submitted', color: 'bg-blue-100 text-blue-700' },
+  screening: { label: 'Under AICS Screening', color: 'bg-cyan-100 text-cyan-700' },
   returned_to_applicant: { label: 'Returned for Revision', color: 'bg-amber-100 text-amber-700' },
   mswdo_review: { label: 'Under MSWDO Review', color: 'bg-cyan-100 text-cyan-700' },
-  approved: { label: 'Approved', color: 'bg-emerald-100 text-emerald-700' },
-  claim_ready: { label: 'Ready for Claiming', color: 'bg-green-100 text-green-700' },
+  social_case_study_uploaded: { label: 'Case Study Uploaded', color: 'bg-indigo-100 text-indigo-700' },
+  assistance_coding: { label: 'Assistance Coding', color: 'bg-purple-100 text-purple-700' },
+  voucher_creation: { label: 'Voucher Creation', color: 'bg-teal-100 text-teal-700' },
+  voucher_checking: { label: 'Voucher Checking', color: 'bg-emerald-100 text-emerald-700' },
+  voucher_returned: { label: 'Voucher Returned', color: 'bg-orange-100 text-orange-700' },
+  with_treasurer: { label: 'With Treasurer', color: 'bg-blue-100 text-blue-700' },
+  budget_checking: { label: 'Budget Checking', color: 'bg-violet-100 text-violet-700' },
+  on_hold: { label: 'On Hold', color: 'bg-gray-100 text-gray-700' },
+  cheque_ready: { label: 'Cheque Ready', color: 'bg-green-100 text-green-700' },
   claimed: { label: 'Claimed', color: 'bg-gray-100 text-gray-700' },
 }
 
@@ -223,8 +246,9 @@ const timelineSteps = computed(() => {
                     <span :class="['text-sm font-semibold', step.isCompleted ? 'text-emerald-700' : step.isCurrent ? 'text-emerald-900' : 'text-gray-400']">
                       {{ step.label }}
                     </span>
-                    <span v-if="step.decision === 'returned'" class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wider">Returned</span>
-                    <span v-else-if="step.decision === 'approved'" class="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold uppercase tracking-wider">Approved</span>
+                    <span v-if="step.decision" class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold uppercase tracking-wider" :class="decisionBadgeClass(step.decision)">
+                      {{ decisionLabels[step.decision] ?? step.decision }}
+                    </span>
                     <span v-if="step.isCurrent" class="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold uppercase tracking-wider">Current</span>
                   </div>
                   <div class="text-xs text-gray-400 mt-1">{{ step.timestamp ?? props.application.created_at }}</div>

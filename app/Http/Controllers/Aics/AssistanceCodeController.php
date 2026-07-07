@@ -146,7 +146,14 @@ class AssistanceCodeController extends Controller
             ],
             'documents' => $documents,
             'reviews' => $reviews,
-            'social_case_study_url' => $scsUrl,
+            'socialCaseStudy' => $application->socialCaseStudy ? [
+                'id' => $application->socialCaseStudy->id,
+                'signed_url' => $scsUrl,
+                'uploaded_by' => $application->socialCaseStudy->conductedBy?->full_name,
+                'conducted_at' => $application->socialCaseStudy->conducted_at,
+                'page_count' => $application->socialCaseStudy->page_count,
+                'file_size_label' => $application->socialCaseStudy->file_size_label,
+            ] : null,
             'code_references' => $codeReferences,
         ]);
     }

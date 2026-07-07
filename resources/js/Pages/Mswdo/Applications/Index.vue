@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
+import Tag from 'primevue/tag'
 import TabView from 'primevue/tabview'
 import TabPanel from 'primevue/tabpanel'
 import DataTable from 'primevue/datatable'
@@ -11,12 +12,15 @@ import Button from 'primevue/button'
 import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
-import Tag from 'primevue/tag'
 import Select from 'primevue/select'
 import Paginator from 'primevue/paginator'
 import { ref, toRaw, watch } from 'vue'
 import { formatDate } from '@/Utils/formatDate'
-import { formatCurrency } from '@/Utils/formatCurrency'
+
+const categorySeverity = (name) => {
+  const map = { medical: 'info', hospital: 'warn', burial: 'danger' }
+  return map[name?.toLowerCase()] || 'info'
+}
 
 defineOptions({ layout: AppLayout })
 
@@ -31,7 +35,7 @@ const props = defineProps({
 const total = props.applications?.total ?? 0
 const route = window.route
 
-const tabIndex = ['pending', 'coded'].indexOf(props.tab)
+const tabIndex = ['pending', 'scs_uploaded', 'returned'].indexOf(props.tab)
 const searchQuery = ref(props.search ?? '')
 const categoryFilter = ref(props.category ?? '')
 let filterTimer = null
@@ -39,7 +43,7 @@ let filterTimer = null
 const categoryOptions = [{ label: 'All Categories', value: '' }, ...props.categories.map(c => ({ label: c, value: c }))]
 
 function applyFilters() {
-  router.get(route('aics.assistance-codes.index'), {
+  router.get(route('mswdo.applications.index'), {
     tab: props.tab,
     search: searchQuery.value || null,
     category: categoryFilter.value || null,
@@ -55,12 +59,12 @@ watch(searchQuery, () => {
 watch(categoryFilter, applyFilters)
 
 function onTabChange(event) {
-  const tabValues = ['pending', 'coded']
-  router.get(route('aics.assistance-codes.index'), { tab: tabValues[event.index], search: searchQuery.value || null, category: categoryFilter.value || null }, { replace: true })
+  const tabValues = ['pending', 'scs_uploaded', 'returned']
+  router.get(route('mswdo.applications.index'), { tab: tabValues[event.index], search: searchQuery.value || null, category: categoryFilter.value || null }, { replace: true })
 }
 
 function onPage(event) {
-  router.get(route('aics.assistance-codes.index'), {
+  router.get(route('mswdo.applications.index'), {
     tab: props.tab,
     search: searchQuery.value || null,
     category: categoryFilter.value || null,
@@ -70,13 +74,13 @@ function onPage(event) {
 </script>
 
 <template>
-  <Head title="Assistance Codes" />
+  <Head title="MSWDO - Applications" />
 
   <div class="grid grid-cols-12 gap-8">
     <div class="col-span-12">
       <div class="card">
         <div class="flex items-center justify-between mb-4">
-          <div class="font-semibold text-xl">Assistance Codes</div>
+          <div class="font-semibold text-xl">Applications</div>
           <div class="flex items-center gap-2">
             <Select v-model="categoryFilter" :options="categoryOptions" optionLabel="label" optionValue="value" placeholder="All Categories" class="w-48" />
             <IconField iconPosition="left">
@@ -89,11 +93,20 @@ function onPage(event) {
         </div>
 
         <TabView :activeIndex="tabIndex" @tab-change="onTabChange">
-          <TabPanel header="Pending">
+          <TabPanel header="For Review">
             <DataTable :value="toRaw(props.applications.data)" striped-rows class="w-full">
               <Column field="reference_code" header="Reference" sortable />
               <Column field="claimant_name" header="Claimant" sortable />
-              <Column field="category_name" header="Category" sortable />
+              <Column field="category_name" header="Category" sortable>
+                <template #body="{ data }">
+                  <Tag :value="data.category_name" :severity="categorySeverity(data.category_name)" />
+                </template>
+              </Column>
+              <Column field="submission_type" header="Type" sortable>
+                <template #body="{ data }">
+                  <Tag :value="data.submission_type" severity="info" />
+                </template>
+              </Column>
               <Column field="status" header="Status" sortable>
                 <template #body="{ data }">
                   <AppStatusBadge :status="data.status" />
@@ -106,8 +119,8 @@ function onPage(event) {
               </Column>
               <Column header="Actions" style="width: 6rem">
                 <template #body="{ data }">
-                  <Button icon="pi pi-pencil" severity="info" text rounded size="small"
-                    @click="router.get(route('aics.assistance-codes.show', data.id))" />
+                  <Button icon="pi pi-eye" severity="info" text rounded size="small"
+                    @click="router.get(route('mswdo.applications.show', data.id))" />
                 </template>
               </Column>
             </DataTable>
@@ -122,29 +135,32 @@ function onPage(event) {
               class="mt-4"
             />
 
-            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-inbox" message="No applications pending coding" />
+            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-inbox" message="No applications for review" />
           </TabPanel>
 
-          <TabPanel header="Coded">
+          <TabPanel header="SCS Uploaded">
             <DataTable :value="toRaw(props.applications.data)" striped-rows class="w-full">
               <Column field="reference_code" header="Reference" sortable />
               <Column field="claimant_name" header="Claimant" sortable />
-              <Column field="category_name" header="Category" sortable />
-              <Column field="code_type" header="Code" sortable />
-              <Column field="amount" header="Amount" sortable>
+              <Column field="category_name" header="Category" sortable>
                 <template #body="{ data }">
-                  {{ data.amount ? formatCurrency(data.amount) : '—' }}
+                  <Tag :value="data.category_name" :severity="categorySeverity(data.category_name)" />
                 </template>
               </Column>
               <Column field="status" header="Status" sortable>
                 <template #body="{ data }">
-                  <Tag value="Coded" severity="info" />
+                  <Tag value="Case Study Uploaded" severity="info" />
+                </template>
+              </Column>
+              <Column field="created_at" header="Submitted" sortable>
+                <template #body="{ data }">
+                  {{ formatDate(data.created_at) }}
                 </template>
               </Column>
               <Column header="Actions" style="width: 6rem">
                 <template #body="{ data }">
                   <Button icon="pi pi-eye" severity="info" text rounded size="small"
-                    @click="router.get(route('aics.assistance-codes.show', data.id))" />
+                    @click="router.get(route('mswdo.applications.show', data.id))" />
                 </template>
               </Column>
             </DataTable>
@@ -159,7 +175,47 @@ function onPage(event) {
               class="mt-4"
             />
 
-            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-check-circle" message="No coded applications" />
+            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-file" message="No applications with SCS uploaded" />
+          </TabPanel>
+
+          <TabPanel header="Returned">
+            <DataTable :value="toRaw(props.applications.data)" striped-rows class="w-full">
+              <Column field="reference_code" header="Reference" sortable />
+              <Column field="claimant_name" header="Claimant" sortable />
+              <Column field="category_name" header="Category" sortable>
+                <template #body="{ data }">
+                  <Tag :value="data.category_name" :severity="categorySeverity(data.category_name)" />
+                </template>
+              </Column>
+              <Column field="status" header="Status" sortable>
+                <template #body="{ data }">
+                  <AppStatusBadge :status="data.status" />
+                </template>
+              </Column>
+              <Column field="created_at" header="Submitted" sortable>
+                <template #body="{ data }">
+                  {{ formatDate(data.created_at) }}
+                </template>
+              </Column>
+              <Column header="Actions" style="width: 6rem">
+                <template #body="{ data }">
+                  <Button icon="pi pi-eye" severity="info" text rounded size="small"
+                    @click="router.get(route('mswdo.applications.show', data.id))" />
+                </template>
+              </Column>
+            </DataTable>
+
+            <Paginator
+              v-if="total > props.applications.per_page"
+              :first="(props.applications.current_page - 1) * props.applications.per_page"
+              :rows="props.applications.per_page"
+              :total-records="total"
+              @page="onPage"
+              template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+              class="mt-4"
+            />
+
+            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-undo" message="No returned applications" />
           </TabPanel>
         </TabView>
       </div>

@@ -217,8 +217,11 @@ class ApplicationController extends Controller
             ]);
         }
 
+        $returnStage = $latestReview?->stage;
+        $nextStatus = $returnStage === 'mswdo_review' ? 'mswdo_review' : 'submitted';
+
         $application->update([
-            'status' => 'submitted',
+            'status' => $nextStatus,
             'resubmission_remarks' => null,
         ]);
 

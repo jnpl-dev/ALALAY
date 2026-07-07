@@ -372,10 +372,10 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `Components/Common/AppConfirmModal.vue` — renders `<ConfirmDialog />`
 - [x] `Components/Common/AppExportButton.vue` — triggers CSV download via `window.open()` (bypasses Inertia)
 - [x] `Components/Common/AppEmptyState.vue` — props: `icon`, `message`; named slot for children
-- [x] `Components/Application/ReviewTrail.vue` — props: `reviews`; chronological list with stage/decision/remarks/date
+- [x] `Components/Application/ReviewTrail.vue` — props: `reviews`; chronological list with stage/decision/remarks/date; name formatted as `Last, FI MI.` with `whitespace-nowrap` (no space between given name initials); supports `assistance_coding`, `voucher_created` (green, label "Created") labels
 - [x] `Components/Application/ApplicationInfo.vue` — props: `application`; claimant + beneficiary + reference + category display
 - [x] `Components/Application/DocumentList.vue` — props: `documents`; emits: `view`; per-doc view button
-- [x] `Components/Application/DocumentViewer.vue` — Teleported modal; props: `url`, `title`; image/iframe viewer
+- [x] `Components/Application/DocumentViewer.vue` — Teleported modal; props: `url`, `title`, `documents`, `currentIndex`; image/iframe viewer; full-screen (`fixed inset-0`) with prev/next navigation
 - [x] `Components/Application/DocumentScanner.vue` — camera capture with guide overlay (SVG mask), enhancement pipeline (5-step: downscale 1200px → grayscale → contrast stretch → adaptive threshold 40×10 → JPEG 0.88), preview/recapture/confirm, fallback file input `image/jpeg,image/png` only. Zero PrimeVue dependency — pure Tailwind + canvas JS. Works in both public (Tailwind-only) and dashboard (PrimeVue) pages.
 - [x] `Components/Application/ReturnModal.vue` — PrimeVue Dialog; props: `visible`, `requiredDocuments`; emits: `confirmed` with remarks + document_ids
 - [x] `Components/Charts/LineChart.vue`, `BarChart.vue`, `DonutChart.vue` — presentational wrappers; table fallback until chart.js installed
@@ -399,24 +399,25 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `Aics/Analytics.vue` — 4 KPIs (Total/Pending/Forwarded/Returned) + by-status breakdown + monthly trends + recent apps table (persistent layout)
 - [x] `Aics/Applications/Index.vue` — PrimeVue TabView (Pending/Screened/Returned + search + category filter) + DataTable per tab
 - [x] `Aics/Applications/Review.vue` — ApplicationInfo + DocumentList/DocumentViewer + ReviewTrail + Approve (ConfirmDialog) + Return (ReturnModal)
-- [x] `Aics/AssistanceCodes/Index.vue` — TabView (Pending/Coded + search + category filter)
-- [x] `Aics/AssistanceCodes/Code.vue` — application info + SCS inline viewer + ReviewTrail + code type dropdown + amount field + submit
+- [x] `Aics/AssistanceCodes/Index.vue` — TabView (Pending/Coded + search + category filter); "Coded" tab status column shows `<Tag value="Coded" severity="info" />`
+- [x] `Aics/AssistanceCodes/Code.vue` — application info + document thumbnail grid + SCS with DocumentMeta/Viewer + ReviewTrail + code type dropdown + amount field + submit
 
 ### 4.7 MSWDO Panel Pages
 
 - [x] `Mswdo/Dashboard.vue` — shared Dashboard.vue (persistent layout)
 - [x] `Mswdo/Analytics.vue` — 4 stat cards (apps, validated, returned, vouchers) + validation + pending (persistent layout)
-- [ ] `Mswdo/Applications/Index.vue` — TabView (Screened/Approved/Returned)
-- [ ] `Mswdo/Applications/Review.vue`
-  - [ ] ApplicationInfo + DocumentList + DocumentViewer
-  - [ ] ReviewTrail right panel
-  - [ ] Next button → social case study capture step (via DocumentScanner — MSWDO scans the printed SCS) → submit
-  - [ ] Return button → ReturnModal
-- [ ] `Mswdo/Vouchers/Index.vue` — TabView (Pending/Created)
-- [ ] `Mswdo/Vouchers/Create.vue`
-  - [ ] Step 1: Application info + SCS viewer + assistance code details + ReviewTrail
-  - [ ] Step 2: Voucher document capture (via DocumentScanner — MSWDO scans the
-    physical voucher) + adjustment remarks + submit
+- [x] `Mswdo/Applications/Index.vue` — TabView (For Review/SCS Uploaded/Returned) with search + category filter + pagination; SCS tab shows "Case Study Uploaded" Tag
+- [x] `Mswdo/Applications/Review.vue`
+  - [x] ApplicationInfo + document thumbnail grid (PDF icon for PDFs) + DocumentViewer (full-screen overlay with prev/next)
+  - [x] Social Case Study with DocumentMeta (uploaded_by, conducted_at, page_count, file_size_label) + View Case Study button via DocumentViewer
+  - [x] ReviewTrail right panel
+  - [x] DocumentScanner multi/a4 for SCS capture + Approve (ConfirmDialog) + Return (ReturnModal)
+- [x] `Mswdo/Vouchers/Index.vue` — TabView (To Create / Created); "To Create" shows `voucher_creation` + `voucher_returned`; "Created" shows `voucher_checking` with "Voucher Created" Tag
+- [x] `Mswdo/Vouchers/Create.vue`
+  - [x] Application info + assistance code details + Social Case Study with DocumentMeta/Viewer
+  - [x] Previous Voucher DocumentMeta + Viewer (only for `voucher_returned` re-creation)
+  - [x] DocumentScanner single/a4 for voucher capture + submit (only when `canEdit` — `voucher_returned` status)
+  - [x] ReviewTrail right panel
 
 ### 4.8 Accountant Panel Pages
 

@@ -21,7 +21,11 @@ class Voucher extends Model
         'file_size',
         'mime_type',
         'version',
+        'page_count',
+        'prepared_at',
         'adjustment_remarks',
+        'returned_at',
+        'returned_by',
     ];
 
     protected function casts(): array
@@ -29,6 +33,9 @@ class Voucher extends Model
         return [
             'file_size' => 'integer',
             'version' => 'integer',
+            'page_count' => 'integer',
+            'prepared_at' => 'datetime',
+            'returned_at' => 'datetime',
         ];
     }
 
@@ -45,5 +52,22 @@ class Voucher extends Model
     public function preparedBy()
     {
         return $this->belongsTo(User::class, 'prepared_by');
+    }
+
+    public function returnedBy()
+    {
+        return $this->belongsTo(User::class, 'returned_by');
+    }
+
+    public function getFileSizeLabelAttribute(): string
+    {
+        $kb = $this->file_size / 1024;
+        if ($kb < 1024) return round($kb, 1) . ' KB';
+        return round($kb / 1024, 2) . ' MB';
+    }
+
+    public function isReturned(): bool
+    {
+        return !is_null($this->returned_at);
     }
 }

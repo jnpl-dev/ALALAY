@@ -37,7 +37,7 @@ function isImage(url) {
 <template>
   <Teleport to="body">
     <div v-if="visible" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80" @click.self="close">
-      <div class="fixed inset-4 bg-surface-0 rounded-xl shadow-xl flex flex-col">
+      <div class="fixed inset-0 bg-surface-0 flex flex-col">
         <div class="flex items-center justify-between px-6 py-4 shrink-0 bg-black/10">
           <div class="flex items-center gap-3">
             <i class="pi pi-file text-white/80"></i>
@@ -61,9 +61,9 @@ function isImage(url) {
             </button>
           </div>
         </div>
-        <div v-if="url" class="flex-1 flex items-center justify-center p-4 bg-surface-50 dark:bg-surface-900 overflow-hidden">
+        <div v-if="url" class="flex-1 flex items-center justify-center bg-surface-50 dark:bg-surface-900 overflow-hidden">
           <img v-if="isImage(url)" :src="url" :alt="title" class="block max-w-full max-h-full object-contain" />
-          <iframe v-else :src="url" class="w-full h-full rounded-lg border-0" style="min-height: 60vh;" />
+          <iframe v-else :src="url" class="w-full h-full border-0" />
         </div>
         <div v-else class="flex-1 flex items-center justify-center text-muted-color">
           <div class="text-center">

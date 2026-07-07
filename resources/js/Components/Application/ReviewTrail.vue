@@ -6,9 +6,25 @@ defineProps({
   reviews: { type: Array, default: () => [] },
 })
 
+function formatReviewerName(name) {
+  if (!name) return 'System'
+  const parts = name.trim().split(/\s+/)
+  const lastName = parts.pop()
+  let middleInit = ''
+  let givenParts = [...parts]
+  const last = parts[parts.length - 1]
+  if (last && (last.endsWith('.') || last.length === 1)) {
+    middleInit = last.endsWith('.') ? last : last.toUpperCase() + '.'
+    givenParts = parts.slice(0, -1)
+  }
+  const givenInitials = givenParts.map(p => p.charAt(0).toUpperCase()).join('')
+  return `${lastName}, ${givenInitials}${middleInit ? ' ' + middleInit : ''}`
+}
+
 const stageLabels = {
   aics_screening: 'AICS Screening',
   mswdo_review: 'MSWDO Review',
+  assistance_coding: 'Assistance Coding',
   voucher_creation: 'Voucher Creation',
   accountant_review: 'Accountant Review',
   treasurer_review: 'Treasurer Review',
@@ -18,18 +34,19 @@ const stageLabels = {
 const decisionLabels = {
   approved: 'Approved',
   coded: 'Coded',
+  voucher_created: 'Created',
   returned: 'Returned',
   pending: 'Pending',
 }
 
 const decisionSeverity = (decision) => {
-  if (decision === 'approved' || decision === 'coded') return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+  if (decision === 'approved' || decision === 'coded' || decision === 'voucher_created') return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
   if (decision === 'returned') return 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
   return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
 }
 
 const dotColor = (decision) => {
-  if (decision === 'approved' || decision === 'coded') return 'border-green-500 bg-green-400'
+  if (decision === 'approved' || decision === 'coded' || decision === 'voucher_created') return 'border-green-500 bg-green-400'
   if (decision === 'returned') return 'border-orange-500 bg-orange-400'
   return 'border-primary bg-primary'
 }
@@ -39,8 +56,8 @@ const dotColor = (decision) => {
   <div v-if="reviews.length">
     <Timeline :value="reviews" align="left" layout="vertical">
       <template #opposite="slotProps">
-        <div class="text-xs text-muted-color leading-tight text-right pr-4 pt-0.5">
-          <div>{{ slotProps.item.user_name ?? 'System' }}</div>
+        <div class="text-xs text-muted-color leading-tight text-right pr-4 pt-0.5 whitespace-nowrap">
+          <div>{{ formatReviewerName(slotProps.item.user_name) }}</div>
           <div>{{ formatDateTime(slotProps.item.created_at) }}</div>
         </div>
       </template>

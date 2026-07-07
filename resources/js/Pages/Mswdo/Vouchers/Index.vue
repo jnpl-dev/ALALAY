@@ -18,11 +18,13 @@ import { ref, toRaw, watch } from 'vue'
 import { formatDate } from '@/Utils/formatDate'
 import { formatCurrency } from '@/Utils/formatCurrency'
 
+const typeSeverity = (type) => type === 'online' ? 'info' : 'success'
+
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
   applications: { type: Object, required: true },
-  tab: { type: String, default: 'pending' },
+  tab: { type: String, default: 'to_create' },
   search: { type: String, default: '' },
   category: { type: String, default: '' },
   categories: { type: Array, default: () => [] },
@@ -31,7 +33,7 @@ const props = defineProps({
 const total = props.applications?.total ?? 0
 const route = window.route
 
-const tabIndex = ['pending', 'coded'].indexOf(props.tab)
+const tabIndex = ['to_create', 'completed'].indexOf(props.tab)
 const searchQuery = ref(props.search ?? '')
 const categoryFilter = ref(props.category ?? '')
 let filterTimer = null
@@ -39,7 +41,7 @@ let filterTimer = null
 const categoryOptions = [{ label: 'All Categories', value: '' }, ...props.categories.map(c => ({ label: c, value: c }))]
 
 function applyFilters() {
-  router.get(route('aics.assistance-codes.index'), {
+  router.get(route('mswdo.vouchers.index'), {
     tab: props.tab,
     search: searchQuery.value || null,
     category: categoryFilter.value || null,
@@ -55,12 +57,12 @@ watch(searchQuery, () => {
 watch(categoryFilter, applyFilters)
 
 function onTabChange(event) {
-  const tabValues = ['pending', 'coded']
-  router.get(route('aics.assistance-codes.index'), { tab: tabValues[event.index], search: searchQuery.value || null, category: categoryFilter.value || null }, { replace: true })
+  const tabValues = ['to_create', 'completed']
+  router.get(route('mswdo.vouchers.index'), { tab: tabValues[event.index], search: searchQuery.value || null, category: categoryFilter.value || null }, { replace: true })
 }
 
 function onPage(event) {
-  router.get(route('aics.assistance-codes.index'), {
+  router.get(route('mswdo.vouchers.index'), {
     tab: props.tab,
     search: searchQuery.value || null,
     category: categoryFilter.value || null,
@@ -70,13 +72,13 @@ function onPage(event) {
 </script>
 
 <template>
-  <Head title="Assistance Codes" />
+  <Head title="MSWDO - Vouchers" />
 
   <div class="grid grid-cols-12 gap-8">
     <div class="col-span-12">
       <div class="card">
         <div class="flex items-center justify-between mb-4">
-          <div class="font-semibold text-xl">Assistance Codes</div>
+          <div class="font-semibold text-xl">Vouchers</div>
           <div class="flex items-center gap-2">
             <Select v-model="categoryFilter" :options="categoryOptions" optionLabel="label" optionValue="value" placeholder="All Categories" class="w-48" />
             <IconField iconPosition="left">
@@ -89,43 +91,7 @@ function onPage(event) {
         </div>
 
         <TabView :activeIndex="tabIndex" @tab-change="onTabChange">
-          <TabPanel header="Pending">
-            <DataTable :value="toRaw(props.applications.data)" striped-rows class="w-full">
-              <Column field="reference_code" header="Reference" sortable />
-              <Column field="claimant_name" header="Claimant" sortable />
-              <Column field="category_name" header="Category" sortable />
-              <Column field="status" header="Status" sortable>
-                <template #body="{ data }">
-                  <AppStatusBadge :status="data.status" />
-                </template>
-              </Column>
-              <Column field="created_at" header="Submitted" sortable>
-                <template #body="{ data }">
-                  {{ formatDate(data.created_at) }}
-                </template>
-              </Column>
-              <Column header="Actions" style="width: 6rem">
-                <template #body="{ data }">
-                  <Button icon="pi pi-pencil" severity="info" text rounded size="small"
-                    @click="router.get(route('aics.assistance-codes.show', data.id))" />
-                </template>
-              </Column>
-            </DataTable>
-
-            <Paginator
-              v-if="total > props.applications.per_page"
-              :first="(props.applications.current_page - 1) * props.applications.per_page"
-              :rows="props.applications.per_page"
-              :total-records="total"
-              @page="onPage"
-              template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
-              class="mt-4"
-            />
-
-            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-inbox" message="No applications pending coding" />
-          </TabPanel>
-
-          <TabPanel header="Coded">
+          <TabPanel header="To Create">
             <DataTable :value="toRaw(props.applications.data)" striped-rows class="w-full">
               <Column field="reference_code" header="Reference" sortable />
               <Column field="claimant_name" header="Claimant" sortable />
@@ -138,13 +104,18 @@ function onPage(event) {
               </Column>
               <Column field="status" header="Status" sortable>
                 <template #body="{ data }">
-                  <Tag value="Coded" severity="info" />
+                  <AppStatusBadge :status="data.status" />
+                </template>
+              </Column>
+              <Column field="created_at" header="Submitted" sortable>
+                <template #body="{ data }">
+                  {{ formatDate(data.created_at) }}
                 </template>
               </Column>
               <Column header="Actions" style="width: 6rem">
                 <template #body="{ data }">
-                  <Button icon="pi pi-eye" severity="info" text rounded size="small"
-                    @click="router.get(route('aics.assistance-codes.show', data.id))" />
+                  <Button icon="pi pi-receipt" severity="info" text rounded size="small"
+                    @click="router.get(route('mswdo.vouchers.show', data.id))" />
                 </template>
               </Column>
             </DataTable>
@@ -159,7 +130,44 @@ function onPage(event) {
               class="mt-4"
             />
 
-            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-check-circle" message="No coded applications" />
+            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-inbox" message="No applications pending voucher creation" />
+          </TabPanel>
+
+          <TabPanel header="Created">
+            <DataTable :value="toRaw(props.applications.data)" striped-rows class="w-full">
+              <Column field="reference_code" header="Reference" sortable />
+              <Column field="claimant_name" header="Claimant" sortable />
+              <Column field="category_name" header="Category" sortable />
+              <Column field="code_type" header="Code" sortable />
+              <Column field="amount" header="Amount" sortable>
+                <template #body="{ data }">
+                  {{ data.amount ? formatCurrency(data.amount) : '—' }}
+                </template>
+              </Column>
+              <Column field="status" header="Status" sortable>
+                <template #body="{ data }">
+                  <Tag value="Voucher Created" severity="info" />
+                </template>
+              </Column>
+              <Column header="Actions" style="width: 6rem">
+                <template #body="{ data }">
+                  <Button icon="pi pi-eye" severity="info" text rounded size="small"
+                    @click="router.get(route('mswdo.vouchers.show', data.id))" />
+                </template>
+              </Column>
+            </DataTable>
+
+            <Paginator
+              v-if="total > props.applications.per_page"
+              :first="(props.applications.current_page - 1) * props.applications.per_page"
+              :rows="props.applications.per_page"
+              :total-records="total"
+              @page="onPage"
+              template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+              class="mt-4"
+            />
+
+            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-check-circle" message="No completed vouchers" />
           </TabPanel>
         </TabView>
       </div>

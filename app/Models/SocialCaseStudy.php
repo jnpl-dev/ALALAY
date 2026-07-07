@@ -19,12 +19,16 @@ class SocialCaseStudy extends Model
         'file_path',
         'file_size',
         'mime_type',
+        'page_count',
+        'conducted_at',
     ];
 
     protected function casts(): array
     {
         return [
             'file_size' => 'integer',
+            'page_count' => 'integer',
+            'conducted_at' => 'datetime',
         ];
     }
 
@@ -36,5 +40,12 @@ class SocialCaseStudy extends Model
     public function conductedBy()
     {
         return $this->belongsTo(User::class, 'conducted_by');
+    }
+
+    public function getFileSizeLabelAttribute(): string
+    {
+        $kb = $this->file_size / 1024;
+        if ($kb < 1024) return round($kb, 1) . ' KB';
+        return round($kb / 1024, 2) . ' MB';
     }
 }
