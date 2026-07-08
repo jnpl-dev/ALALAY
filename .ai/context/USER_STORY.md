@@ -16,8 +16,8 @@
 | **Applicant** | Submits application (online or in-person), receives reference code, tracks application, resubmits documents when returned |
 | **AICS Staff** | Screens applications; creates assistance codes |
 | **MSWDO** | Reviews applications; conducts and captures social case study (DocumentScanner); creates vouchers |
-| **Accountant** | Checks voucher validity; checks budget availability |
-| **Treasurer** | Receives and acknowledges approved vouchers |
+| **Accountant** | Checks voucher validity; approves or returns vouchers |
+| **Treasurer** | Acknowledges approved vouchers; marks as cheque ready or places on hold |
 | **Mayor's Office Staff** | View-only access to application data and reports; no direct manipulation of the workflow |
 | **Admin** | Manages system users and role assignments; views and maintains audit logs; configures system settings; no direct manipulation of the application workflow |
 
@@ -121,14 +121,14 @@ Both methods produce the same workflow and issue a reference code to the applica
 
 ---
 
-### Stage 6 — Accountant: Budget Checking
-- **Actor:** Accountant
-- **Input:** Treasurer-acknowledged voucher
+### Stage 6 — Treasurer: Voucher Acknowledgment
+- **Actor:** Treasurer
+- **Input:** Accountant-approved voucher
 
 | Decision | Next Step |
 |---|---|
-| ✅ Budget Available | Application marked as **Cheque Ready** |
-| ⏸ Budget Unavailable | Application placed **On Hold** |
+| ✅ Acknowledge & Ready | Application marked as **Cheque Ready**; SMS sent to applicant |
+| ⏸ Acknowledge & Hold | Application placed **On Hold** (pending budget) |
 
 ---
 
@@ -153,8 +153,7 @@ Both methods produce the same workflow and issue a reference code to the applica
 | `VOUCHER_CREATION` | MSWDO creating voucher |
 | `VOUCHER_CHECKING` | Accountant reviewing voucher |
 | `WITH_TREASURER` | Voucher forwarded to Treasurer |
-| `BUDGET_CHECKING` | Accountant checking budget availability |
-| `ON_HOLD` | Pending budget availability |
+| `ON_HOLD` | Placed on hold by Treasurer |
 | `CHEQUE_READY` | Approved and ready for claiming |
 | `CLAIMED` | Applicant has claimed the cheque |
 
@@ -168,7 +167,7 @@ Both methods produce the same workflow and issue a reference code to the applica
 4. The **Social Case Study image/document** must be captured (via DocumentScanner) before an application can proceed past Stage 2.
 5. An **Assistance Code** must exist before a voucher can be created.
 6. A voucher must be **Accountant-approved** before it is forwarded to the Treasurer.
-7. Applications placed **On Hold** remain in queue until budget is available; no resubmission is required from the applicant.
+7. The **Treasurer** makes the final determination — applications are marked **Cheque Ready** or placed **On Hold** directly after voucher acknowledgment; no separate budget checking step exists.
 8. **SMS notifications** are sent only at defined critical stages; non-critical internal transitions do not trigger applicant notifications.
 9. **Mayor's Office Staff** has read-only access to all application data and reports and cannot modify or act on any application at any stage.
 10. **Admin** has no role in the application workflow and cannot approve, return, or act on any application at any stage.
@@ -198,9 +197,9 @@ Applicant Submits (Online or In-Person)
   Stage 5: Accountant — Voucher Checking
     ├── Returned → Stage 4 (Re-create Voucher)
     └── Approved → Treasurer ↓
-  Stage 6: Accountant — Budget Checking
-    ├── No Budget → ON HOLD (waiting for budget)
-    └── Budget OK → CHEQUE READY ↓
+  Stage 6: Treasurer — Voucher Acknowledgment
+    ├── On Hold → ON HOLD (pending budget)
+    └── Ready → CHEQUE READY ↓
   Stage 7: Notify Applicant → SMS: Cheque Claiming Notice
 ```
 

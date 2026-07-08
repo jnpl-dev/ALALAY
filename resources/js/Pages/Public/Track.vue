@@ -129,12 +129,13 @@ const timelineSteps = computed(() => {
   const isSubmitting = currentStatus === 'submitted' && latestReview?.to_status === 'returned_to_applicant'
 
   if (currentStatus !== 'submitted' || isSubmitting) {
+    const isClaimed = currentStatus === 'claimed'
     steps.push({
       key: currentStatus,
       label: statusConfig[currentStatus]?.label ?? currentStatus,
-      isCompleted: false,
-      isCurrent: true,
-      timestamp: null,
+      isCompleted: isClaimed,
+      isCurrent: !isClaimed,
+      timestamp: isClaimed ? props.application.claimed_at : null,
     })
   }
 
@@ -251,7 +252,7 @@ const timelineSteps = computed(() => {
                     </span>
                     <span v-if="step.isCurrent" class="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold uppercase tracking-wider">Current</span>
                   </div>
-                  <div class="text-xs text-gray-400 mt-1">{{ step.timestamp ?? props.application.created_at }}</div>
+                  <div v-if="!step.isCurrent" class="text-xs text-gray-400 mt-1">{{ step.timestamp ?? props.application.created_at }}</div>
                 </div>
               </div>
             </div>

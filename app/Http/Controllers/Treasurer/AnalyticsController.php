@@ -17,18 +17,20 @@ class AnalyticsController extends Controller
         $acknowledgedThisMonth = Application::whereIn('status', ['cheque_ready', 'claimed'])
             ->whereMonth('created_at', now()->month)
             ->count();
-        $totalAmount = Application::whereIn('status', ['with_treasurer', 'cheque_ready', 'claimed'])
-            ->sum('amount_granted');
+        $totalAmount = Application::whereIn('applications.status', ['with_treasurer', 'cheque_ready', 'claimed'])
+            ->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')
+            ->sum('assistance_codes.amount');
         $pendingCheques = Application::where('status', 'with_treasurer')->count();
 
-        $monthlyTrends = Application::selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, count(*) as count, sum(amount_granted) as total")
-            ->whereBetween('created_at', [$from, $to . ' 23:59:59'])
-            ->whereIn('status', ['with_treasurer', 'cheque_ready', 'claimed'])
+        $monthlyTrends = Application::selectRaw("DATE_FORMAT(applications.created_at, '%Y-%m') as month, count(*) as count, sum(assistance_codes.amount) as total")
+            ->whereBetween('applications.created_at', [$from, $to . ' 23:59:59'])
+            ->whereIn('applications.status', ['with_treasurer', 'cheque_ready', 'claimed'])
+            ->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')
             ->groupBy('month')
             ->orderBy('month')
             ->get();
 
-        $recentCheques = Application::with('category', 'encoder')
+        $recentCheques = Application::with('category', 'encoder', 'assistanceCode')
             ->whereIn('status', ['with_treasurer', 'cheque_ready', 'claimed'])
             ->latest()
             ->take(10)
@@ -39,7 +41,7 @@ class AnalyticsController extends Controller
                 'status' => $app->status,
                 'category_name' => $app->category?->category_name,
                 'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
-                'amount' => $app->amount_granted,
+                'amount' => $app->assistanceCode?->amount,
                 'created_at' => $app->created_at,
             ]);
 

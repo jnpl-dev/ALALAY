@@ -1,5 +1,6 @@
 # ALALAY: Ngrok Configuration
-**How to serve ALALAY via ngrok without white screen / missing assets**
+
+How to serve ALALAY via ngrok without white screen / missing assets.
 
 ---
 
@@ -15,7 +16,7 @@ Running `npm run dev` creates `public/hot` containing the Vite dev server URL. L
 
 ### A. Production only (ngrok testing)
 
-```
+```bash
 npm run build          # generate production assets in public/build/
 php artisan serve      # start Laravel on port 8000
 ngrok start            # tunnel port 8000
@@ -26,7 +27,7 @@ ngrok start            # tunnel port 8000
 
 ### B. Mixed (local dev + occasional ngrok)
 
-```
+```bash
 npm run dev            # starts Vite dev server, creates public/hot
                        # ... do local development ...
 npm run build          # rebuild production assets
@@ -34,14 +35,14 @@ npm run build          # rebuild production assets
 
 Then **before accessing via ngrok**:
 
-```
+```bash
 rm public/hot          # delete Vite dev server marker
                        # Access via ngrok — production assets served
 ```
 
 To go back to local development:
 
-```
+```bash
 npm run dev            # recreates public/hot, dev mode back
 ```
 

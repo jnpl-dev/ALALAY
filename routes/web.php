@@ -136,11 +136,9 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/cheques', [\App\Http\Controllers\Treasurer\ChequeController::class, 'index'])->name('cheques.index');
         Route::get('/cheques/{voucher}', [\App\Http\Controllers\Treasurer\ChequeController::class, 'show'])->name('cheques.show');
         Route::post('/cheques/{voucher}/acknowledge', [\App\Http\Controllers\Treasurer\ChequeController::class, 'acknowledge'])->name('cheques.acknowledge');
-        Route::get('/budget', [\App\Http\Controllers\Treasurer\BudgetController::class, 'index'])->name('budget.index');
-        Route::get('/budget/{voucher}', [\App\Http\Controllers\Treasurer\BudgetController::class, 'show'])->name('budget.show');
-        Route::post('/budget/{voucher}/mark-ready', [\App\Http\Controllers\Treasurer\BudgetController::class, 'markReady'])->name('budget.mark-ready');
-        Route::post('/budget/{voucher}/hold', [\App\Http\Controllers\Treasurer\BudgetController::class, 'hold'])->name('budget.hold');
-        Route::post('/budget/{voucher}/re-evaluate', [\App\Http\Controllers\Treasurer\BudgetController::class, 'reEvaluate'])->name('budget.re-evaluate');
+        Route::post('/cheques/{voucher}/hold', [\App\Http\Controllers\Treasurer\ChequeController::class, 'hold'])->name('cheques.hold');
+        Route::post('/cheques/{voucher}/re-evaluate', [\App\Http\Controllers\Treasurer\ChequeController::class, 'reEvaluate'])->name('cheques.re-evaluate');
+        Route::post('/cheques/{voucher}/claim', [\App\Http\Controllers\Treasurer\ChequeController::class, 'claim'])->name('cheques.claim');
     });
 
     // Mayor's Office panel

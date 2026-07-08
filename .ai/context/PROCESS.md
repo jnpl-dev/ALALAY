@@ -206,7 +206,7 @@
 ### 2.4 Authorization (Policies)
 
 - [x] `ApplicationPolicy` — `viewAny`/`view` for all internal roles; `approve`/`returnApp` for AICS (status=submitted) and MSWDO (status=mswdo_review)
-- [x] `VoucherPolicy` — `viewAny`/`view` for MSWDO/Accountant/Treasurer/Mayor; `create` for MSWDO; `approve`/`returnVoucher` for Accountant; `acknowledge` for Treasurer; `markReady`/`hold`/`reEvaluate` for Accountant
+- [x] `VoucherPolicy` — `viewAny`/`view` for MSWDO/Accountant/Treasurer/Mayor; `create` for MSWDO; `approve`/`returnVoucher` for Accountant; `acknowledge`/`hold` for Treasurer; `markReady`/`reEvaluate` not used
 - [x] `AssistanceCodePolicy` — `viewAny`/`view` for internal roles; `create` for AICS only
 - [x] `SocialCaseStudyPolicy` — `viewAny`/`view` for AICS/MSWDO; `create` for MSWDO only
 - [x] `AuditLogPolicy` — `viewAny`/`export` for Admin only
@@ -305,14 +305,11 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 - [x] `Treasurer/DashboardController@index` — renders generic Dashboard.vue
 - [x] `Treasurer/AnalyticsController@index` — category_name fix
-- [x] `Treasurer/ChequeController@index` — stub exists
-- [x] `Treasurer/ChequeController@show` — stub exists
-- [x] `Treasurer/ChequeController@acknowledge` — stub exists
-- [x] `Treasurer/BudgetController@index` — stub exists
-- [x] `Treasurer/BudgetController@show` — stub exists
-- [x] `Treasurer/BudgetController@markReady` — stub exists
-- [x] `Treasurer/BudgetController@hold` — stub exists
-- [x] `Treasurer/BudgetController@reEvaluate` — stub exists
+- [x] `Treasurer/ChequeController@index` — 3-tab index (Pending/Ready/On Hold)
+- [x] `Treasurer/ChequeController@show` — application + assistance code + voucher + review trail
+- [x] `Treasurer/ChequeController@acknowledge` — approve → `cheque_ready` (with SMS)
+- [x] `Treasurer/ChequeController@hold` — hold → `on_hold` (with remarks)
+- `Treasurer/BudgetController` — **not used**; `budget_checking` step removed from workflow
 
 ### 3.9 Mayor's Office Controllers
 
@@ -362,7 +359,7 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
   - [x] Step 4: Summary confirmation (claimant, beneficiary, document thumbnails)
   - [x] Step 5: Success — display reference code + copy button + track/apply-again links
   - [x] Uses `useForm()` for submission + `usePsgcAddress()` for address selectors; auto-selects Nueva Ecija → General Mamerto Natividad on mount
-- [x] `Public/Track.vue` — reference code input + application status + review trail (standalone Tailwind)
+- [x] `Public/Track.vue` — reference code input + application status + review trail (standalone Tailwind); current step hides timestamp; `claimed` status shows as completed (green checkmark) with `claimed_at` timestamp
 
 ### 4.4 Shared Components
 
@@ -372,11 +369,14 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `Components/Common/AppConfirmModal.vue` — renders `<ConfirmDialog />`
 - [x] `Components/Common/AppExportButton.vue` — triggers CSV download via `window.open()` (bypasses Inertia)
 - [x] `Components/Common/AppEmptyState.vue` — props: `icon`, `message`; named slot for children
-- [x] `Components/Application/ReviewTrail.vue` — props: `reviews`; chronological list with stage/decision/remarks/date; name formatted as `Last, FI MI.` with `whitespace-nowrap` (no space between given name initials); supports `assistance_coding`, `voucher_created` (green, label "Created") labels
+- [x] `Components/Application/ReviewTrail.vue` — props: `reviews`; chronological list with stage/decision/remarks/date; name formatted as `Last, FI MI.` with `whitespace-nowrap` (no space between given name initials); supports `assistance_coding`, `voucher_created` (green, label "Created"), `on_hold` (yellow, label "On Hold") labels
 - [x] `Components/Application/ApplicationInfo.vue` — props: `application`; claimant + beneficiary + reference + category display
 - [x] `Components/Application/DocumentList.vue` — props: `documents`; emits: `view`; per-doc view button
 - [x] `Components/Application/DocumentViewer.vue` — Teleported modal; props: `url`, `title`, `documents`, `currentIndex`; image/iframe viewer; full-screen (`fixed inset-0`) with prev/next navigation
-- [x] `Components/Application/DocumentScanner.vue` — camera capture with guide overlay (SVG mask), enhancement pipeline (5-step: downscale 1200px → grayscale → contrast stretch → adaptive threshold 40×10 → JPEG 0.88), preview/recapture/confirm, fallback file input `image/jpeg,image/png` only. Zero PrimeVue dependency — pure Tailwind + canvas JS. Works in both public (Tailwind-only) and dashboard (PrimeVue) pages.
+- [x] `Components/Application/DocumentScanner.vue` — camera capture with guide overlay (SVG mask),
+  enhancement pipeline (5-step: downscale 1200px → grayscale → contrast stretch → adaptive threshold
+  40×10 → JPEG 0.88), preview/recapture/confirm, fallback file input `image/jpeg,image/png` only.
+  Zero PrimeVue dependency — pure Tailwind + canvas JS. Works in both public and dashboard pages.
 - [x] `Components/Application/ReturnModal.vue` — PrimeVue Dialog; props: `visible`, `requiredDocuments`; emits: `confirmed` with remarks + document_ids
 - [x] `Components/Charts/LineChart.vue`, `BarChart.vue`, `DonutChart.vue` — presentational wrappers; table fallback until chart.js installed
 
@@ -416,7 +416,7 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `Mswdo/Vouchers/Create.vue`
   - [x] Application info + assistance code details + Social Case Study with DocumentMeta/Viewer
   - [x] Previous Voucher DocumentMeta + Viewer (only for `voucher_returned` re-creation)
-  - [x] DocumentScanner single/a4 for voucher capture + submit (only when `canEdit` — `voucher_returned` status)
+  - [x] DocumentScanner single/a4 for voucher capture + submit (only when `canEdit` — `voucher_creation` or `voucher_returned`)
   - [x] ReviewTrail right panel
 
 ### 4.8 Accountant Panel Pages
@@ -424,18 +424,20 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `Accountant/Dashboard.vue` — shared Dashboard.vue (persistent layout)
 - [x] `Accountant/Analytics.vue` — 4 stat cards (vouchers, approved, returned,
   total PHP) + voucher trends + transactions (persistent layout)
-- [ ] `Accountant/Vouchers/Index.vue` — TabView (Pending/Approved/Returned)
-- [ ] `Accountant/Vouchers/Review.vue` — voucher viewer + summary + ReviewTrail + approve/return
+- [x] `Accountant/Vouchers/Index.vue` — TabView (Pending/Approved/Returned) with search + category filter + DataTable; status Tags: "Approved" / "Returned"
+- [x] `Accountant/Vouchers/Review.vue` — ApplicationInfo + AssistanceCode + Voucher DocumentMeta/Viewer + ReviewTrail + remarks + approve/return (ConfirmDialog)
 
 ### 4.9 Treasurer Panel Pages
 
 - [x] `Treasurer/Dashboard.vue` — shared Dashboard.vue (persistent layout)
 - [x] `Treasurer/Analytics.vue` — 4 stat cards (cheques, acknowledged, total PHP,
   pending) + disbursement + recent (persistent layout)
-- [ ] `Treasurer/Cheques/Index.vue` — TabView (Pending/Ready/On Hold)
-- [ ] `Treasurer/Cheques/Review.vue` — voucher viewer + summary + ReviewTrail + acknowledge
-- [ ] `Treasurer/Budget/Index.vue` — TabView (Pending/Cheque Ready/On Hold)
-- [ ] `Treasurer/Budget/Check.vue` — voucher + application summary + ReviewTrail + mark ready/hold/re-evaluate
+- [x] `Treasurer/Cheques/Index.vue` — TabView (Pending/Ready/On Hold) with search + category filter + DataTable; status Tags: "Cheque Ready" / "On Hold"
+- [x] `Treasurer/Cheques/Review.vue` — ApplicationInfo + AssistanceCode + Voucher DocumentMeta/Viewer + ReviewTrail + contextual action buttons:
+  - `with_treasurer`: "Acknowledge & Ready" (→ `cheque_ready`, SMS) / "Acknowledge & Hold" (dialog → `on_hold`)
+  - `on_hold`: "Acknowledge & Ready" (→ `cheque_ready`, SMS)
+  - `cheque_ready`: "Mark as Complete" (→ `claimed`, sets `claimed_at`, no duplicate review entry)
+- `Treasurer/Budget/*.vue` — **not used**; `budget_checking` stage removed from workflow
 
 ### 4.10 Mayor's Office Panel Pages
 
@@ -462,8 +464,17 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 - [x] `npm install jspdf` — PDF generation library (23 packages, 0 vulnerabilities)
 - [ ] `npm install vue-pdf-embed` (optional) — richer PDF viewer for staff review pages
-- [x] Rewrite `useDocumentScanner.js` — full enhancement pipeline (downscale → grayscale → contrast stretch → adaptive threshold → JPEG), `capturedPages` array management, final PDF blob generation via `jsPDF`, reactive state (`isScanning`, `isProcessing`, `previewUrl`, `cameraError`, `hasCapture`, `isComplete`, `pdfBlob`), methods (`startCamera`, `capture`, `retakeLast`, `addPage`, `confirmAll`, `stopCamera`, `reset`). Accepts `captureType` param for `isComplete` computed.
-- [x] Rewrite `DocumentScanner.vue` — new props (`docName`, `required`, `captureType`, `scannerSize`, `modelValue`), emits (`update:modelValue`, `captured`, `cleared`), 6 states (rotate hint → camera active → processing → preview → document complete → camera denied/fallback), 3 scanner presets (`SCANNER_PRESETS` — a4 portrait, card landscape, half_sheet landscape) with SVG mask overlay cutout, 3 capture type UX flows (single: 1 click → complete; double: front+back with auto-reopen; multi: loop + Add Another Page / Done)
+- [x] Rewrite `useDocumentScanner.js` — full enhancement pipeline (downscale → grayscale → contrast
+  stretch → adaptive threshold → JPEG), `capturedPages` array management, final PDF blob generation
+  via `jsPDF`, reactive state (`isScanning`, `isProcessing`, `previewUrl`, `cameraError`,
+  `hasCapture`, `isComplete`, `pdfBlob`), methods (`startCamera`, `capture`, `retakeLast`, `addPage`,
+  `confirmAll`, `stopCamera`, `reset`). Accepts `captureType` param for `isComplete` computed.
+- [x] Rewrite `DocumentScanner.vue` — new props (`docName`, `required`, `captureType`, `scannerSize`,
+  `modelValue`), emits (`update:modelValue`, `captured`, `cleared`), 6 states (rotate hint → camera
+  active → processing → preview → document complete → camera denied/fallback), 3 scanner presets
+  (`SCANNER_PRESETS` — a4 portrait, card landscape, half_sheet landscape) with SVG mask overlay
+  cutout, 3 capture type UX flows (single: 1 click → complete; double: front+back with auto-reopen;
+  multi: loop + Add Another Page / Done)
 
 ### 4.5.3 Frontend — Affected Pages
 
@@ -514,10 +525,11 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [ ] MSWDO create voucher → verify status `voucher_checking`
 - [ ] Accountant approve voucher → verify status `with_treasurer`
 - [ ] Accountant return voucher → verify MSWDO can re-create (version increments)
-- [ ] Treasurer acknowledge → verify status `budget_checking`
-- [ ] Treasurer mark cheque ready → verify status `cheque_ready` + SMS
-- [ ] Treasurer put on hold → verify status `on_hold`
-- [ ] Treasurer re-evaluate on-hold → mark cheque ready
+- [ ] Treasurer acknowledge & ready → verify status `cheque_ready` + SMS
+- [ ] Treasurer acknowledge & hold → verify status `on_hold`
+- [ ] Treasurer re-evaluate (from on_hold) → verify status `cheque_ready` + SMS
+- [ ] Treasurer mark as complete → verify status `claimed`, `claimed_at` set, no duplicate review entry
+- [ ] `budget_checking` status is **not used** — Treasurer handles ready/hold directly
 - [ ] Walk-in submission (AICS Staff encodes) → verify `submission_type = 'walk_in'`, `encoded_by` set
 
 ### 5.2 Role Access Control

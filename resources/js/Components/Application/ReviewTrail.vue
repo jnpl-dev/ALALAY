@@ -36,18 +36,21 @@ const decisionLabels = {
   coded: 'Coded',
   voucher_created: 'Created',
   returned: 'Returned',
+  on_hold: 'On Hold',
   pending: 'Pending',
 }
 
 const decisionSeverity = (decision) => {
   if (decision === 'approved' || decision === 'coded' || decision === 'voucher_created') return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
   if (decision === 'returned') return 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
+  if (decision === 'on_hold') return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
   return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
 }
 
 const dotColor = (decision) => {
   if (decision === 'approved' || decision === 'coded' || decision === 'voucher_created') return 'border-green-500 bg-green-400'
   if (decision === 'returned') return 'border-orange-500 bg-orange-400'
+  if (decision === 'on_hold') return 'border-yellow-500 bg-yellow-400'
   return 'border-primary bg-primary'
 }
 </script>

@@ -17,13 +17,16 @@ class AnalyticsController extends Controller
         $approvedThisMonth = Application::whereIn('status', ['claimed', 'cheque_ready'])
             ->whereMonth('created_at', now()->month)
             ->count();
-        $totalDisbursed = Application::where('status', 'claimed')->sum('amount_granted');
+        $totalDisbursed = Application::where('applications.status', 'claimed')
+            ->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')
+            ->sum('assistance_codes.amount');
         $beneficiariesServed = Application::whereIn('status', ['claimed', 'cheque_ready'])
             ->distinct('claimant_email')
             ->count('claimant_email');
 
-        $monthlyTrends = Application::selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, count(*) as count, sum(amount_granted) as total")
-            ->whereBetween('created_at', [$from, $to . ' 23:59:59'])
+        $monthlyTrends = Application::selectRaw("DATE_FORMAT(applications.created_at, '%Y-%m') as month, count(*) as count, sum(assistance_codes.amount) as total")
+            ->whereBetween('applications.created_at', [$from, $to . ' 23:59:59'])
+            ->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')
             ->groupBy('month')
             ->orderBy('month')
             ->get();

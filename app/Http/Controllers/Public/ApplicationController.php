@@ -160,6 +160,7 @@ class ApplicationController extends Controller
                     $application->beneficiary_first_name . ' ' . $application->beneficiary_last_name
                 ),
                 'created_at' => $application->created_at->format('M d, Y g:i A'),
+                'claimed_at' => $application->claimed_at?->format('M d, Y g:i A'),
                 'status' => $application->status,
                 'resubmission_remarks' => $application->resubmission_remarks,
                 'reviewer_role' => $roleLabels[$reviewerRole] ?? $reviewerRole,

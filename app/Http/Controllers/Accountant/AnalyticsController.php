@@ -17,22 +17,26 @@ class AnalyticsController extends Controller
         $approvedThisMonth = Application::whereIn('status', ['budget_checking', 'with_treasurer', 'cheque_ready', 'claimed'])
             ->whereMonth('created_at', now()->month)
             ->count();
-        $totalAmount = Application::whereIn('status', [
+        $totalAmount = Application::whereIn('applications.status', [
             'voucher_creation', 'voucher_checking', 'budget_checking',
             'with_treasurer', 'cheque_ready', 'claimed',
-        ])->sum('amount_granted');
-        $disbursedThisMonth = Application::where('status', 'claimed')
-            ->whereMonth('created_at', now()->month)
-            ->sum('amount_granted');
+        ])->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')
+            ->sum('assistance_codes.amount');
 
-        $monthlyTrends = Application::selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, count(*) as count, sum(amount_granted) as total")
-            ->whereBetween('created_at', [$from, $to . ' 23:59:59'])
-            ->whereIn('status', ['voucher_creation', 'voucher_checking', 'budget_checking', 'with_treasurer', 'cheque_ready', 'claimed'])
+        $disbursedThisMonth = Application::where('applications.status', 'claimed')
+            ->whereMonth('applications.created_at', now()->month)
+            ->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')
+            ->sum('assistance_codes.amount');
+
+        $monthlyTrends = Application::selectRaw("DATE_FORMAT(applications.created_at, '%Y-%m') as month, count(*) as count, sum(assistance_codes.amount) as total")
+            ->whereBetween('applications.created_at', [$from, $to . ' 23:59:59'])
+            ->whereIn('applications.status', ['voucher_creation', 'voucher_checking', 'budget_checking', 'with_treasurer', 'cheque_ready', 'claimed'])
+            ->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')
             ->groupBy('month')
             ->orderBy('month')
             ->get();
 
-        $recentTransactions = Application::with('category', 'encoder')
+        $recentTransactions = Application::with('category', 'encoder', 'assistanceCode')
             ->whereIn('status', ['voucher_creation', 'voucher_checking', 'budget_checking', 'with_treasurer', 'cheque_ready', 'claimed'])
             ->latest()
             ->take(10)
@@ -43,7 +47,7 @@ class AnalyticsController extends Controller
                 'status' => $app->status,
                 'category_name' => $app->category?->category_name,
                 'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
-                'amount' => $app->amount_granted,
+                'amount' => $app->assistanceCode?->amount,
                 'created_at' => $app->created_at,
             ]);
 

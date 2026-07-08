@@ -118,7 +118,7 @@ class VoucherController extends Controller
             'signed_url' => $this->signedUrlService->generate($existingVoucher->file_path),
         ] : null;
 
-        $canEdit = $application->status === 'voucher_returned';
+        $canEdit = in_array($application->status, ['voucher_creation', 'voucher_returned']);
 
         return Inertia::render('Mswdo/Vouchers/Create', [
             'canEdit' => $canEdit,

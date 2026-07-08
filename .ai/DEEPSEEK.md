@@ -231,3 +231,65 @@ PrimeVue works", the pasted .ai/context/ file wins.
 Confirm you have read and understood all of the above. State in one sentence
 what ALALAY is, confirm the architecture pattern in one sentence, and then
 tell me you are ready for my first task.
+
+---
+
+## CURRENT SESSION STATE (July 8, 2026)
+
+### DocumentViewer
+- Full-screen overlay (`fixed inset-0`, no margins). Teleported to body.
+- Props: `url`, `title`, `documents` (for prev/next nav), `currentIndex`.
+- Images via `<img>`, PDFs via `<iframe>` (full viewport fill).
+
+### ReviewTrail
+- Name format: `Last, FI MI` (last name, given initials concatenated, space before middle initial).
+- Opposite slot uses `whitespace-nowrap` — no text wrapping.
+- Stage labels include: `aics_screening`, `mswdo_review`, `assistance_coding`, `voucher_creation`, `accountant_review`, `treasurer_review`, `mayors_approval`.
+- Decision labels include: `approved`, `coded`, `voucher_created → "Created"`, `returned`, `on_hold → "On Hold"`, `pending`.
+- Green for: `approved`, `coded`, `voucher_created`. Yellow for: `on_hold`.
+
+### MSWDO Vouchers
+- **2 tabs**: "To Create" (`voucher_creation` + `voucher_returned`), "Created" (`voucher_checking` with Tag "Voucher Created").
+- **Editing for both**: `canEdit=true` for `voucher_creation` and `voucher_returned` — scanner/submit shown for both first-time and re-creation.
+- **Re-creation**: "Previous Voucher" DocumentMeta + Viewer only when `canEdit && isRecreation` (i.e. `voucher_returned`). No orange warning banner.
+
+### SCS Viewing
+- Social Case Study displayed with `DocumentMeta` (uploaded_by, conducted_at, page_count, file_size_label) + "View Case Study" button → opens `DocumentViewer` full-screen overlay.
+- Applied in: MSWDO Review, MSWDO Voucher Create, AICS Assistance Codes Code page.
+
+### Document Thumbnail Grid
+- Used in: AICS Review, MSWDO Review, AICS Assistance Codes Code.
+- 3/4 aspect ratio container, PDF icon for PDFs, image preview for images, hover overlay with "View" button.
+
+### Public Track Page Timeline
+- Inline custom timeline (not ReviewTrail component).
+- `statusConfig` covers all 14 statuses with human-readable labels.
+- Decision badges dynamic: green (approved/coded/voucher_created), amber (returned), gray (other).
+- `stageLabels` includes `assistance_coding`.
+- **Current step**: no date/time shown (only "Current" badge).
+- **Claimed status**: shown as completed (green checkmark) with `claimed_at` timestamp.
+
+### Treasurer Flow (Consolidated)
+- **No `budget_checking` step** — removed from workflow.
+- Cheques Index: 3 tabs (Pending/Ready/On Hold).
+- Cheques Review (contextual buttons):
+  - `with_treasurer`: "Acknowledge & Ready" (→ `cheque_ready`, SMS) / "Acknowledge & Hold" (dialog → `on_hold`).
+  - `on_hold`: "Acknowledge & Ready" (→ `cheque_ready`, SMS).
+  - `cheque_ready`: "Mark as Complete" (→ `claimed`, sets `claimed_at`, no review entry created).
+- `claimed` status: no duplicate "Treasurer Review Approved" review entry; uses `applications.claimed_at` for timeline.
+
+### Status Visual Labels (hardcoded Tag overrides)
+| Page | Status Column | Display |
+| --- | --- | --- |
+| MSWDO Apps Index (SCS tab) | `assistance_coding` | `"Case Study Uploaded"` (Tag) |
+| AICS Codes Index (Coded tab) | `voucher_creation`+ | `"Coded"` (Tag) |
+| MSWDO Vouchers Index (Created tab) | `voucher_checking` | `"Voucher Created"` (Tag) |
+
+### Missing from controllers (FIXED)
+- VoucherController: added `claimant_email`.
+- AssistanceCodeController: sends full `socialCaseStudy` object (not just url).
+
+### Remaining MSWDO work (DONE — see PROCESS.md)
+- Applications Index/Review: thumbnail grid, SCS DocumentMeta + Viewer, DocumentScanner multi/a4, approve/return, ReturnModal.
+- Vouchers Index/Create: 2-tab, re-creation flow, Previous Voucher section, ReviewTrail.
+- ReviewTrail: `assistance_coding` label, `voucher_created` green + "Created" label.
