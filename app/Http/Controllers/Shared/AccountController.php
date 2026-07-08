@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Shared;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Shared\UpdateAccountRequest;
+use App\Models\User;
 use App\Services\FileUploadService;
 use App\Services\SignedUrlService;
 use Illuminate\Support\Facades\Redirect;
@@ -14,12 +15,14 @@ class AccountController extends Controller
 {
     public function edit()
     {
+        $this->authorize('update', request()->user());
         return Inertia::render('Auth/AccountSettings');
     }
 
     public function update(UpdateAccountRequest $request)
     {
         $user = $request->user();
+        $this->authorize('update', $user);
         $validated = $request->safe();
         $data = $validated->except(['current_password', 'password', 'password_confirmation', 'profile_picture']);
 
@@ -48,6 +51,7 @@ class AccountController extends Controller
     public function profilePicture()
     {
         $user = request()->user();
+        $this->authorize('view', $user);
 
         if (!$user || !$user->profile_picture_path) {
             abort(404);

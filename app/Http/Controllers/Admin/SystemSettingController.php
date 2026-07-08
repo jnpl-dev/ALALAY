@@ -11,6 +11,7 @@ class SystemSettingController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', SystemSetting::class);
         $settings = SystemSetting::all()->groupBy('setting_group');
 
         $groups = $settings->map(fn ($items, $group) => [
@@ -29,6 +30,7 @@ class SystemSettingController extends Controller
 
     public function update(Request $request)
     {
+        $this->authorize('update', SystemSetting::class);
         $settings = $request->input('settings', []);
 
         foreach ($settings as $key => $value) {

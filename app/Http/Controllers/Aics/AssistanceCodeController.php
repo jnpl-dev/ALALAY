@@ -17,6 +17,7 @@ class AssistanceCodeController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', AssistanceCode::class);
         $tab = request('tab', 'pending');
         $search = request('search');
         $category = request('category');
@@ -67,6 +68,8 @@ class AssistanceCodeController extends Controller
 
     public function show($id, SignedUrlService $signedUrl)
     {
+        $this->authorize('viewAny', AssistanceCode::class);
+
         $application = Application::with([
             'category',
             'documents.requiredDocument',
@@ -161,6 +164,7 @@ class AssistanceCodeController extends Controller
     public function store(Request $request, $id)
     {
         $application = Application::findOrFail($id);
+        $this->authorize('create', AssistanceCode::class);
 
         if ($application->status !== 'assistance_coding') {
             return redirect()->back()->with('error', 'Application is not ready for assistance coding.');

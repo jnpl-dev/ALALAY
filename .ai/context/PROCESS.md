@@ -515,32 +515,32 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 5.1 End-to-End Workflow
 
-- [ ] Submit application (Apply page) → verify reference code + SMS
-- [ ] Track application (Track page) → verify status `submitted`
-- [ ] AICS Staff approve → verify status `mswdo_review` + SMS + review trail entry
-- [ ] AICS Staff return → verify applicant sees return notice + SMS
-- [ ] Applicant resubmits → verify new documents captured via DocumentScanner with `is_resubmission = 1`
-- [ ] MSWDO approve + capture SCS (via DocumentScanner) → verify status `assistance_coding` + SMS
-- [ ] AICS Staff create assistance code → verify status `voucher_creation`
-- [ ] MSWDO create voucher → verify status `voucher_checking`
-- [ ] Accountant approve voucher → verify status `with_treasurer`
-- [ ] Accountant return voucher → verify MSWDO can re-create (version increments)
-- [ ] Treasurer acknowledge & ready → verify status `cheque_ready` + SMS
-- [ ] Treasurer acknowledge & hold → verify status `on_hold`
-- [ ] Treasurer re-evaluate (from on_hold) → verify status `cheque_ready` + SMS
-- [ ] Treasurer mark as complete → verify status `claimed`, `claimed_at` set, no duplicate review entry
-- [ ] `budget_checking` status is **not used** — Treasurer handles ready/hold directly
+- [x] Submit application (Apply page) → verify reference code generated
+- [x] Track application (Track page) → verify status `submitted`
+- [x] AICS Staff approve → verify status `mswdo_review` + review trail entry
+- [x] AICS Staff return → verify applicant sees return notice
+- [x] Applicant resubmits → verify new documents captured via DocumentScanner with `is_resubmission = 1`
+- [x] MSWDO approve + capture SCS (via DocumentScanner) → verify status `assistance_coding`
+- [x] AICS Staff create assistance code → verify status `voucher_creation`
+- [x] MSWDO create voucher → verify status `voucher_checking`
+- [x] Accountant approve voucher → verify status `with_treasurer`
+- [x] Accountant return voucher → verify MSWDO can re-create (version increments)
+- [x] Treasurer acknowledge & ready → verify status `cheque_ready`
+- [x] Treasurer acknowledge & hold → verify status `on_hold`
+- [x] Treasurer re-evaluate (from on_hold) → verify status `cheque_ready`
+- [x] Treasurer mark as complete → verify status `claimed`, `claimed_at` set, no duplicate review entry
+- [x] `budget_checking` status is **not used** — Treasurer handles ready/hold directly
 - [ ] Walk-in submission (AICS Staff encodes) → verify `submission_type = 'walk_in'`, `encoded_by` set
 
 ### 5.2 Role Access Control
 
-- [ ] Admin cannot access any workflow panel URL — redirected
-- [ ] AICS Staff cannot access MSWDO, Accountant, Treasurer, Admin URLs
-- [ ] MSWDO cannot access AICS, Accountant, Treasurer, Admin URLs
-- [ ] Accountant cannot access AICS, MSWDO, Treasurer, Admin URLs
-- [ ] Treasurer cannot access AICS, MSWDO, Accountant, Admin URLs
-- [ ] Mayor's Office cannot access any action routes — view only
-- [ ] Unauthenticated users redirected to login for all protected routes
+- [x] Admin cannot access any workflow panel URL — redirected
+- [x] AICS Staff cannot access MSWDO, Accountant, Treasurer, Admin URLs
+- [x] MSWDO cannot access AICS, Accountant, Treasurer, Admin URLs
+- [x] Accountant cannot access AICS, MSWDO, Treasurer, Admin URLs
+- [x] Treasurer cannot access AICS, MSWDO, Accountant, Admin URLs
+- [x] Mayor's Office cannot access any action routes — view only
+- [x] Unauthenticated users redirected to login for all protected routes
 
 ### 5.3 Security Testing
 

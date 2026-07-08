@@ -15,6 +15,7 @@ class ApplicationController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', Application::class);
         $tab = request('tab', 'pending');
         $search = request('search');
         $category = request('category');
@@ -71,6 +72,8 @@ class ApplicationController extends Controller
             'reviews.reviewer',
             'socialCaseStudy',
         ])->findOrFail($id);
+
+        $this->authorize('view', $application);
 
         $reviews = $application->reviews()
             ->latest()
@@ -130,6 +133,7 @@ class ApplicationController extends Controller
     public function documentUrl($appId, $docId, SignedUrlService $signedUrl)
     {
         $application = Application::findOrFail($appId);
+        $this->authorize('documentUrl', $application);
         $document = $application->documents()->findOrFail($docId);
 
         $url = $signedUrl->generate($document->file_path);
@@ -140,6 +144,7 @@ class ApplicationController extends Controller
     public function approve(Request $request, $id)
     {
         $application = Application::findOrFail($id);
+        $this->authorize('approve', $application);
 
         if (! in_array($application->status, ['submitted', 'screening'])) {
             return redirect()->back()->with('error', 'Application cannot be approved at this stage.');
@@ -172,6 +177,7 @@ class ApplicationController extends Controller
     public function return(Request $request, $id)
     {
         $application = Application::findOrFail($id);
+        $this->authorize('returnApp', $application);
 
         if (! in_array($application->status, ['submitted', 'screening'])) {
             return redirect()->back()->with('error', 'Application cannot be returned at this stage.');

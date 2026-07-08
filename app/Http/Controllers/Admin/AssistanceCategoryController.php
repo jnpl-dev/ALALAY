@@ -11,6 +11,7 @@ class AssistanceCategoryController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', AssistanceCategory::class);
         $search = request('search');
 
         $categories = AssistanceCategory::query()
@@ -37,11 +38,13 @@ class AssistanceCategoryController extends Controller
 
     public function create()
     {
+        $this->authorize('create', AssistanceCategory::class);
         return Inertia::render('Admin/AssistanceCategories/Create');
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', AssistanceCategory::class);
         $validated = $request->validate([
             'category_name' => ['required', 'string', 'max:150', 'unique:assistance_categories,category_name'],
             'category_description' => ['nullable', 'string'],
@@ -56,6 +59,7 @@ class AssistanceCategoryController extends Controller
 
     public function edit($id)
     {
+        $this->authorize('update', AssistanceCategory::class);
         $category = AssistanceCategory::findOrFail($id);
 
         return Inertia::render('Admin/AssistanceCategories/Edit', [
@@ -70,6 +74,7 @@ class AssistanceCategoryController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorize('update', AssistanceCategory::class);
         $category = AssistanceCategory::findOrFail($id);
 
         $validated = $request->validate([
@@ -86,6 +91,7 @@ class AssistanceCategoryController extends Controller
 
     public function destroy($id)
     {
+        $this->authorize('delete', AssistanceCategory::class);
         $category = AssistanceCategory::findOrFail($id);
         $category->delete();
 

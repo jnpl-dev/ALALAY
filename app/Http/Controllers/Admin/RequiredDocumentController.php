@@ -12,6 +12,7 @@ class RequiredDocumentController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', RequiredDocument::class);
         $search = request('search');
         $category_id = request('category_id');
 
@@ -46,6 +47,7 @@ class RequiredDocumentController extends Controller
 
     public function create()
     {
+        $this->authorize('create', RequiredDocument::class);
         $categories = AssistanceCategory::orderBy('category_name')
             ->get(['id', 'category_name']);
 
@@ -56,6 +58,7 @@ class RequiredDocumentController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorize('create', RequiredDocument::class);
         $validated = $request->validate([
             'category_id' => ['required', 'exists:assistance_categories,id'],
             'doc_name' => ['required', 'string', 'max:200'],
@@ -72,6 +75,7 @@ class RequiredDocumentController extends Controller
 
     public function edit($id)
     {
+        $this->authorize('update', RequiredDocument::class);
         $doc = RequiredDocument::findOrFail($id);
 
         $categories = AssistanceCategory::orderBy('category_name')
@@ -92,6 +96,7 @@ class RequiredDocumentController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorize('update', RequiredDocument::class);
         $doc = RequiredDocument::findOrFail($id);
 
         $validated = $request->validate([
@@ -110,6 +115,7 @@ class RequiredDocumentController extends Controller
 
     public function destroy($id)
     {
+        $this->authorize('delete', RequiredDocument::class);
         $doc = RequiredDocument::findOrFail($id);
         $doc->delete();
 

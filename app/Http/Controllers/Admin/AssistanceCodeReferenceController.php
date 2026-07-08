@@ -11,6 +11,7 @@ class AssistanceCodeReferenceController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', AssistanceCodeReference::class);
         $search = request('search');
 
         $references = AssistanceCodeReference::query()
@@ -37,11 +38,13 @@ class AssistanceCodeReferenceController extends Controller
 
     public function create()
     {
+        $this->authorize('create', AssistanceCodeReference::class);
         return Inertia::render('Admin/AssistanceCodeReferences/Create');
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', AssistanceCodeReference::class);
         $validated = $request->validate([
             'code_type' => ['required', 'string', 'max:100', 'unique:assistance_code_references,code_type'],
             'default_amount' => ['required', 'numeric', 'min:0'],
@@ -57,6 +60,7 @@ class AssistanceCodeReferenceController extends Controller
 
     public function edit($id)
     {
+        $this->authorize('update', AssistanceCodeReference::class);
         $ref = AssistanceCodeReference::findOrFail($id);
 
         return Inertia::render('Admin/AssistanceCodeReferences/Edit', [
@@ -72,6 +76,7 @@ class AssistanceCodeReferenceController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorize('update', AssistanceCodeReference::class);
         $ref = AssistanceCodeReference::findOrFail($id);
 
         $validated = $request->validate([
@@ -89,6 +94,7 @@ class AssistanceCodeReferenceController extends Controller
 
     public function destroy($id)
     {
+        $this->authorize('delete', AssistanceCodeReference::class);
         $ref = AssistanceCodeReference::findOrFail($id);
         $ref->delete();
 

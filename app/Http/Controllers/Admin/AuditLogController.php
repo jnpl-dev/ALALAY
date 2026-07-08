@@ -10,6 +10,7 @@ class AuditLogController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', AuditLog::class);
         $search = request('search');
         $module = request('module');
         $action = request('action');
@@ -94,6 +95,7 @@ class AuditLogController extends Controller
 
     public function export()
     {
+        $this->authorize('export', AuditLog::class);
         $search = request('search');
         $module = request('module');
         $action = request('action');

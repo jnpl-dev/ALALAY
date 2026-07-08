@@ -14,6 +14,7 @@ class UserController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', User::class);
         $search = request('search');
         $role = request('role');
         $status = request('status');
@@ -50,11 +51,13 @@ class UserController extends Controller
 
     public function create()
     {
+        $this->authorize('create', User::class);
         return Inertia::render('Admin/Users/Create');
     }
 
     public function store(StoreUserRequest $request)
     {
+        $this->authorize('create', User::class);
         User::create([
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
@@ -72,6 +75,7 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
+        $this->authorize('update', $user);
         return Inertia::render('Admin/Users/Edit', [
             'user' => [
                 'id' => $user->id,
@@ -88,6 +92,7 @@ class UserController extends Controller
 
     public function update(UpdateUserRequest $request, User $user)
     {
+        $this->authorize('update', $user);
         $data = $request->validated();
 
         if ($request->filled('password')) {
@@ -104,6 +109,7 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
+        $this->authorize('delete', $user);
         if ($user->id === request()->user()->id) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'You cannot delete your own account.');
@@ -117,6 +123,7 @@ class UserController extends Controller
 
     public function toggleStatus(User $user)
     {
+        $this->authorize('toggleStatus', $user);
         if ($user->id === request()->user()->id) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'You cannot toggle your own status.');
@@ -134,6 +141,7 @@ class UserController extends Controller
 
     public function revokeSessions(User $user)
     {
+        $this->authorize('revokeSessions', $user);
         // Delete all sessions for this user except current one
         \DB::table('sessions')
             ->where('user_id', $user->id)
@@ -146,6 +154,7 @@ class UserController extends Controller
 
     public function profilePicture(User $user)
     {
+        $this->authorize('view', $user);
         if (!$user->profile_picture_path) {
             abort(404);
         }
