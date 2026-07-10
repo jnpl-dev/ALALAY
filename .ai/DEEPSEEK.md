@@ -234,7 +234,22 @@ tell me you are ready for my first task.
 
 ---
 
-## CURRENT SESSION STATE (July 8, 2026)
+## CURRENT SESSION STATE (July 10, 2026)
+
+### Phase 5 Progress
+- **5.1** — End-to-end workflow tested and marked done. SMS verifications skipped (SMS not configured yet). Walk-in encoding not started.
+- **5.2** — Role access control verified. Policy authorization (`$this->authorize()`) added to every controller method that was missing it. New policies created: `AssistanceCategoryPolicy`, `RequiredDocumentPolicy`, `AssistanceCodeReferencePolicy`. All registered in `AppServiceProvider`.
+
+### Policy Coverage (complete)
+Every controller now calls `$this->authorize()`:
+- `Aics\ApplicationController` — `viewAny`, `view`, `documentUrl`, `approve`, `returnApp`
+- `Aics\AssistanceCodeController` — `viewAny`, `create`
+- `Admin\UserController` — all 9 methods (`viewAny`, `create`, `update`, `delete`, `toggleStatus`, `revokeSessions`, `view`)
+- `Admin\AuditLogController` — `viewAny`, `export`
+- `Admin\SystemSettingController` — `viewAny`, `update`
+- `Admin\AssistanceCategoryController`, `RequiredDocumentController`, `AssistanceCodeReferenceController` — `viewAny`, `create`, `update`, `delete`
+- `Shared\AccountController` — `update`, `view`
+- Existing controllers (MSWDO, Accountant, Treasurer) already had policies wired.
 
 ### DocumentViewer
 - Full-screen overlay (`fixed inset-0`, no margins). Teleported to body.
@@ -285,11 +300,9 @@ tell me you are ready for my first task.
 | AICS Codes Index (Coded tab) | `voucher_creation`+ | `"Coded"` (Tag) |
 | MSWDO Vouchers Index (Created tab) | `voucher_checking` | `"Voucher Created"` (Tag) |
 
-### Missing from controllers (FIXED)
-- VoucherController: added `claimant_email`.
-- AssistanceCodeController: sends full `socialCaseStudy` object (not just url).
+### Docs Created
+- `COLLABORATION_GUIDE.md` — git workflow, local setup, conflict avoidance, coding standards.
 
-### Remaining MSWDO work (DONE — see PROCESS.md)
-- Applications Index/Review: thumbnail grid, SCS DocumentMeta + Viewer, DocumentScanner multi/a4, approve/return, ReturnModal.
-- Vouchers Index/Create: 2-tab, re-creation flow, Previous Voucher section, ReviewTrail.
-- ReviewTrail: `assistance_coding` label, `voucher_created` green + "Created" label.
+### Missing
+- Walk-in submission (AICS Staff encode) — not yet built.
+- SMS configuration — driver is `log`, not wired to PhilSMS API token.

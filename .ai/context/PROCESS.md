@@ -229,6 +229,78 @@
 
 ---
 
+## Phase 2b — System Design Improvements
+
+**Spec: `SYSTEM_DESIGN_IMPROVEMENTS.md`** — Performance, security hardening, and zero-day preparation.
+
+### Redis
+
+- [ ] Install Redis (local: WSL2/Memurai or skip; production: Ubuntu apt)
+- [ ] `composer require predis/predis`
+- [ ] Update production `.env`: `CACHE_DRIVER=redis`, `SESSION_DRIVER=redis`, `QUEUE_CONNECTION=redis`, `REDIS_HOST`, `REDIS_PASSWORD`, `REDIS_PORT`
+- [ ] Update `config/database.php` Redis connection with separate DB for cache
+- [ ] Update Supervisor config to use redis queue driver in production
+
+### Caching
+
+- [ ] Add `Cache::remember()` to `Public/CategoryController@index` (1 hour)
+- [ ] Add `Cache::remember()` to `SystemSettingService` (30 min)
+- [ ] Add `Cache::remember()` to `AssistanceCodeReference` dropdown queries (1 hour)
+- [ ] Add `Cache::remember()` to all dashboard KPI queries (5 min)
+- [ ] Add `Cache::remember()` to all analytics chart queries (15 min)
+- [ ] Add `Cache::forget()` in all Admin controllers that update cached data
+- [ ] Add `bustPollCache()` calls to all status-changing controller actions
+
+### Database Indexes
+
+- [ ] `php artisan make:migration add_performance_indexes_to_alalay_tables`
+- [ ] Add composite indexes per spec (applications, reviews, audit_logs, sms_notifications)
+- [ ] `php artisan migrate`
+- [ ] Verify indexes in phpMyAdmin
+
+### Security Headers
+
+- [ ] Create `app/Http/Middleware/SecurityHeaders.php`
+- [ ] Register in `bootstrap/app.php` web middleware group
+- [ ] Verify headers in browser DevTools
+- [ ] Confirm `Permissions-Policy` allows camera (needed for DocumentScanner)
+- [ ] Confirm CSP `connect-src` includes Supabase and PSGC API URLs
+
+### Login Security
+
+- [ ] Add login lockout logging to `audit_logs` in FortifyServiceProvider
+- [ ] Create `app/Notifications/NewLoginDetected.php`
+- [ ] Add new-IP login notification in OTP verification controller
+
+### Query Optimization
+
+- [ ] Add slow query logger to `AppServiceProvider@boot` (local env only)
+- [ ] Audit all controller list methods — confirm `with()` on all relationships
+- [ ] Add `Inertia::lazy()` to all analytics controllers
+
+### Backup
+
+- [ ] Create `alalay-backups` private bucket in Supabase Storage
+- [ ] Add offsite backup upload to `scripts/backup.sh`
+- [ ] Create `app/Console/Commands/VerifyBackup.php`
+- [ ] Register weekly `backup:verify` schedule
+
+### Emergency Maintenance
+
+- [ ] Add `APP_MAINTENANCE_SECRET` to `.env`
+- [ ] Add `toggleMaintenance()` to `Admin/SystemSettingController`
+- [ ] Add maintenance toggle route to `web.php`
+- [ ] Add maintenance toggle button to `Admin/SystemSettings.vue`
+- [ ] Print emergency command reference — store physically in IT office
+
+### Zero-Day
+
+- [ ] Add `composer audit` check to `deploy.sh`
+- [ ] Add PII redaction to `AuditLogger::log()` description field
+- [ ] Document incident response procedure in `.ai/context/`
+
+---
+
 ## Phase 3 — Controllers (Inertia::render)
 
 All controllers return `Inertia::render('Path/To/Page', [...props])` or redirects.
@@ -511,6 +583,63 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ---
 
+## Phase 4.6 — Real-Time Table Polling
+
+**Spec: `DATABASE_POLLING.md`** — Short polling for index/list tables via `usePolling` composable.
+
+### Backend — Poll Endpoints
+
+- [ ] Create `resources/js/Composables/usePolling.js`
+- [ ] Add `poll` method to `Aics/ApplicationController`
+- [ ] Add `poll` method to `Aics/AssistanceCodeController`
+- [ ] Add `poll` method to `Mswdo/ApplicationController`
+- [ ] Add `poll` method to `Mswdo/VoucherController`
+- [ ] Add `poll` method to `Accountant/VoucherController`
+- [ ] Add `poll` method to `Treasurer/ChequeController`
+- [ ] Add `trackPoll` method to `Public/ApplicationController`
+- [ ] Add poll routes to `web.php` per role
+- [ ] Add `bustPollCache()` call to every controller action that changes status
+
+### Frontend — usePolling Integration
+
+- [ ] Integrate `usePolling` into `Aics/Applications/Index.vue`
+- [ ] Integrate `usePolling` into `Aics/AssistanceCodes/Index.vue`
+- [ ] Integrate `usePolling` into `Mswdo/Applications/Index.vue`
+- [ ] Integrate `usePolling` into `Mswdo/Vouchers/Index.vue`
+- [ ] Integrate `usePolling` into `Accountant/Vouchers/Index.vue`
+- [ ] Integrate `usePolling` into `Treasurer/Cheques/Index.vue`
+- [ ] Integrate `usePolling` into `Public/Track.vue` (with terminal status check)
+
+---
+
+## Phase 4.7 — Form Persistence & Real-Time Validation
+
+**Spec: `FORM_IMPROVEMENTS.md`** — Forms never reset on failed submission, real-time field validation.
+
+### Composables & Components
+
+- [ ] Create `resources/js/Composables/useFieldValidation.js`
+- [ ] Create `resources/js/Utils/scrollToFirstError.js`
+- [ ] Create `resources/js/Components/Common/AppFormField.vue`
+- [ ] Create `app/Http/Controllers/ValidationController.php`
+- [ ] Add `/validate/*` routes to `web.php`
+
+### Apply Form Persistence (preserveState)
+
+- [ ] Add `preserveState + preserveScroll` to every `form.post/put/patch` across all pages
+- [ ] Add `sessionStorage` backup/restore to `Apply.vue`
+- [ ] Add `goToStepWithErrors()` to `Apply.vue` multi-step navigation
+
+### Real-Time Field Validation
+
+- [ ] Add phone live validation to `Apply.vue` claimant phone field
+- [ ] Add reference code live validation to `Track.vue`
+- [ ] Add email live validation to Admin Users Create and Edit pages
+- [ ] Add email live validation to all Account Settings pages
+- [ ] Add assistance code live validation to AICS Assistance Coding page
+
+---
+
 ## Phase 5 — Integration & Workflow Testing
 
 ### 5.1 End-to-End Workflow
@@ -587,6 +716,26 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [ ] Error states: `form.errors.field` displayed below each form field
 - [ ] Empty states: `AppEmptyState.vue` when tables have no data
 - [ ] Test on tablet resolution (staff may use tablets)
+
+### Phase 6 — Polling Verification
+
+- [ ] Verify polling sync indicator (small spinning icon) appears during active polls on all index pages
+- [ ] Verify tables update silently with no flicker or scroll reset
+- [ ] Verify polling stops when browser tab is hidden and resumes on focus
+- [ ] Verify no polling occurs on Review, Code, or Create pages
+- [ ] Verify terminal statuses on Track page do not trigger polling
+
+### Phase 6 — Form Persistence Verification
+
+- [ ] Verify: fail a form submission — fields retain their filled values
+- [ ] Verify: page scrolls to first error field after failed submission
+- [ ] Verify: Apply page multi-step — failed submission routes back to the step that contains the error field
+- [ ] Verify: Apply page `sessionStorage` — fill form, hard refresh, confirm values restored
+- [ ] Verify: phone validation shows warning (amber) not hard error
+- [ ] Verify: email validation shows "Available" (green check) for new email and error for taken email
+- [ ] Verify: reference code validation shows error immediately on blur if code does not exist
+- [ ] Verify: live validation errors disappear when user edits the field
+- [ ] Verify: live validation never prevents form submission
 
 ---
 
