@@ -3,21 +3,63 @@
 namespace App\Http\Controllers\Mswdo;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\HasPollCache;
 use App\Http\Requests\Mswdo\CreateVoucherRequest;
 use App\Models\Application;
 use App\Models\Review;
 use App\Services\FileUploadService;
 use App\Services\SignedUrlService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class VoucherController extends Controller
 {
+    use HasPollCache;
+
     public function __construct(
         protected FileUploadService $fileUploadService,
         protected SignedUrlService $signedUrlService,
     ) {}
+
+    protected function getPollData(Request $request): array
+    {
+        $tab = $request->query('tab', 'to_create');
+        $search = $request->query('search');
+        $category = $request->query('category');
+
+        $query = Application::with('category', 'assistanceCode.reference');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_code', 'like', "%{$search}%")
+                  ->orWhere('claimant_first_name', 'like', "%{$search}%")
+                  ->orWhere('claimant_last_name', 'like', "%{$search}%")
+                  ->orWhereHas('category', fn($q) => $q->where('category_name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($category) {
+            $query->whereHas('category', fn($q) => $q->where('category_name', $category));
+        }
+
+        $applications = match ($tab) {
+            'completed' => (clone $query)->where('status', 'voucher_checking'),
+            default => (clone $query)->whereIn('status', ['voucher_creation', 'voucher_returned']),
+        };
+
+        return $applications->latest()->get()->map(fn ($app) => [
+            'id' => $app->id,
+            'reference_code' => $app->reference_code,
+            'status' => $app->status,
+            'category_name' => $app->category?->category_name,
+            'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
+            'code_type' => $app->assistanceCode?->reference?->code_type,
+            'amount' => $app->assistanceCode?->amount,
+            'created_at' => $app->created_at,
+        ])->values()->toArray();
+    }
 
     public function index(): Response
     {
@@ -204,6 +246,8 @@ class VoucherController extends Controller
             'remarks' => $request->input('adjustment_remarks'),
             'created_at' => now(),
         ]);
+
+        $this->bustPollCache();
 
         return redirect()
             ->route('mswdo.vouchers.index')

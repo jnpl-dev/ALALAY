@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\RequiredDocumentController;
 use App\Http\Controllers\Admin\SystemSettingController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Accountant\VoucherController as AccountantVoucherController;
 use App\Http\Controllers\Auth\AupController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\OtpChallengeController;
@@ -25,6 +26,7 @@ use App\Http\Controllers\Mswdo\DashboardController as MswdoDashboardController;
 use App\Http\Controllers\Mswdo\VoucherController as MswdoVoucherController;
 use App\Http\Controllers\Accountant\DashboardController as AccountantDashboardController;
 use App\Http\Controllers\Accountant\AnalyticsController as AccountantAnalyticsController;
+use App\Http\Controllers\Treasurer\ChequeController as TreasurerChequeController;
 use App\Http\Controllers\Treasurer\DashboardController as TreasurerDashboardController;
 use App\Http\Controllers\Treasurer\AnalyticsController as TreasurerAnalyticsController;
 use App\Http\Controllers\MayorsOffice\DashboardController as MayorsOfficeDashboardController;
@@ -41,6 +43,7 @@ Route::get('/apply', [CategoryController::class, 'index'])->name('apply');
 Route::post('/apply', [ApplicationController::class, 'store']);
 
 Route::get('/track', [ApplicationController::class, 'track'])->name('track');
+Route::get('/track/poll', [ApplicationController::class, 'trackPoll'])->name('track.poll');
 Route::get('/track/{referenceCode}', [ApplicationController::class, 'show'])->name('track.show');
 Route::post('/track/{referenceCode}/resubmit', [ApplicationController::class, 'resubmit'])->name('track.resubmit');
 
@@ -94,11 +97,13 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/dashboard', [AicsDashboardController::class, 'index'])->name('dashboard');
         Route::get('/analytics', [AicsAnalyticsController::class, 'index'])->name('analytics');
         Route::get('/applications', [AicsApplicationController::class, 'index'])->name('applications.index');
+        Route::get('/applications/poll', [AicsApplicationController::class, 'poll'])->name('applications.poll');
         Route::get('/applications/{application}', [AicsApplicationController::class, 'show'])->name('applications.show');
         Route::get('/applications/{application}/documents/{document}/url', [AicsApplicationController::class, 'documentUrl'])->name('applications.document-url');
         Route::post('/applications/{application}/approve', [AicsApplicationController::class, 'approve'])->name('applications.approve');
         Route::post('/applications/{application}/return', [AicsApplicationController::class, 'return'])->name('applications.return');
         Route::get('/assistance-codes', [AssistanceCodeController::class, 'index'])->name('assistance-codes.index');
+        Route::get('/assistance-codes/poll', [AssistanceCodeController::class, 'poll'])->name('assistance-codes.poll');
         Route::get('/assistance-codes/{application}', [AssistanceCodeController::class, 'show'])->name('assistance-codes.show');
         Route::post('/assistance-codes/{application}/code', [AssistanceCodeController::class, 'store'])->name('assistance-codes.store');
     });
@@ -108,12 +113,14 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/dashboard', [MswdoDashboardController::class, 'index'])->name('dashboard');
         Route::get('/analytics', [MswdoAnalyticsController::class, 'index'])->name('analytics');
         Route::get('/applications', [MswdoApplicationController::class, 'index'])->name('applications.index');
+        Route::get('/applications/poll', [MswdoApplicationController::class, 'poll'])->name('applications.poll');
         Route::get('/applications/{application}', [MswdoApplicationController::class, 'show'])->name('applications.show');
         Route::post('/applications/{application}/approve', [MswdoApplicationController::class, 'approve'])->name('applications.approve');
         Route::post('/applications/{application}/return', [MswdoApplicationController::class, 'return'])->name('applications.return');
         Route::get('/applications/{application}/document/{document}/url', [MswdoApplicationController::class, 'documentUrl'])->name('applications.document-url');
         Route::get('/applications/{application}/case-study/url', [MswdoApplicationController::class, 'caseStudyUrl'])->name('applications.case-study-url');
         Route::get('/vouchers', [MswdoVoucherController::class, 'index'])->name('vouchers.index');
+        Route::get('/vouchers/poll', [MswdoVoucherController::class, 'poll'])->name('vouchers.poll');
         Route::get('/vouchers/{application}', [MswdoVoucherController::class, 'show'])->name('vouchers.show');
         Route::post('/vouchers/{application}', [MswdoVoucherController::class, 'store'])->name('vouchers.store');
         Route::get('/vouchers/{application}/url', [MswdoVoucherController::class, 'voucherUrl'])->name('vouchers.url');
@@ -123,22 +130,24 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
     Route::middleware('role:accountant')->prefix('accountant')->name('accountant.')->group(function () {
         Route::get('/dashboard', [AccountantDashboardController::class, 'index'])->name('dashboard');
         Route::get('/analytics', [AccountantAnalyticsController::class, 'index'])->name('analytics');
-        Route::get('/vouchers', [\App\Http\Controllers\Accountant\VoucherController::class, 'index'])->name('vouchers.index');
-        Route::get('/vouchers/{voucher}', [\App\Http\Controllers\Accountant\VoucherController::class, 'show'])->name('vouchers.show');
-        Route::post('/vouchers/{voucher}/approve', [\App\Http\Controllers\Accountant\VoucherController::class, 'approve'])->name('vouchers.approve');
-        Route::post('/vouchers/{voucher}/return', [\App\Http\Controllers\Accountant\VoucherController::class, 'return'])->name('vouchers.return');
+        Route::get('/vouchers', [AccountantVoucherController::class, 'index'])->name('vouchers.index');
+        Route::get('/vouchers/poll', [AccountantVoucherController::class, 'poll'])->name('vouchers.poll');
+        Route::get('/vouchers/{voucher}', [AccountantVoucherController::class, 'show'])->name('vouchers.show');
+        Route::post('/vouchers/{voucher}/approve', [AccountantVoucherController::class, 'approve'])->name('vouchers.approve');
+        Route::post('/vouchers/{voucher}/return', [AccountantVoucherController::class, 'return'])->name('vouchers.return');
     });
 
     // Treasurer panel
     Route::middleware('role:treasurer')->prefix('treasurer')->name('treasurer.')->group(function () {
         Route::get('/dashboard', [TreasurerDashboardController::class, 'index'])->name('dashboard');
         Route::get('/analytics', [TreasurerAnalyticsController::class, 'index'])->name('analytics');
-        Route::get('/cheques', [\App\Http\Controllers\Treasurer\ChequeController::class, 'index'])->name('cheques.index');
-        Route::get('/cheques/{voucher}', [\App\Http\Controllers\Treasurer\ChequeController::class, 'show'])->name('cheques.show');
-        Route::post('/cheques/{voucher}/acknowledge', [\App\Http\Controllers\Treasurer\ChequeController::class, 'acknowledge'])->name('cheques.acknowledge');
-        Route::post('/cheques/{voucher}/hold', [\App\Http\Controllers\Treasurer\ChequeController::class, 'hold'])->name('cheques.hold');
-        Route::post('/cheques/{voucher}/re-evaluate', [\App\Http\Controllers\Treasurer\ChequeController::class, 'reEvaluate'])->name('cheques.re-evaluate');
-        Route::post('/cheques/{voucher}/claim', [\App\Http\Controllers\Treasurer\ChequeController::class, 'claim'])->name('cheques.claim');
+        Route::get('/cheques', [TreasurerChequeController::class, 'index'])->name('cheques.index');
+        Route::get('/cheques/poll', [TreasurerChequeController::class, 'poll'])->name('cheques.poll');
+        Route::get('/cheques/{voucher}', [TreasurerChequeController::class, 'show'])->name('cheques.show');
+        Route::post('/cheques/{voucher}/acknowledge', [TreasurerChequeController::class, 'acknowledge'])->name('cheques.acknowledge');
+        Route::post('/cheques/{voucher}/hold', [TreasurerChequeController::class, 'hold'])->name('cheques.hold');
+        Route::post('/cheques/{voucher}/re-evaluate', [TreasurerChequeController::class, 'reEvaluate'])->name('cheques.re-evaluate');
+        Route::post('/cheques/{voucher}/claim', [TreasurerChequeController::class, 'claim'])->name('cheques.claim');
     });
 
     // Mayor's Office panel

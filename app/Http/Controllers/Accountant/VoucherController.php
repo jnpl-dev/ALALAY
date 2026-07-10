@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Accountant;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\HasPollCache;
 use App\Models\Application;
 use App\Models\Review;
 use App\Services\SignedUrlService;
@@ -14,9 +15,50 @@ use Inertia\Response;
 
 class VoucherController extends Controller
 {
+    use HasPollCache;
+
     public function __construct(
         protected SignedUrlService $signedUrlService,
     ) {}
+
+    protected function getPollData(Request $request): array
+    {
+        $tab = $request->query('tab', 'pending');
+        $search = $request->query('search');
+        $category = $request->query('category');
+
+        $query = Application::with('category', 'assistanceCode.reference', 'vouchers');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_code', 'like', "%{$search}%")
+                  ->orWhere('claimant_first_name', 'like', "%{$search}%")
+                  ->orWhere('claimant_last_name', 'like', "%{$search}%")
+                  ->orWhereHas('category', fn($q) => $q->where('category_name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($category) {
+            $query->whereHas('category', fn($q) => $q->where('category_name', $category));
+        }
+
+        $applications = match ($tab) {
+            'approved' => (clone $query)->where('status', 'with_treasurer'),
+            'returned' => (clone $query)->where('status', 'voucher_returned'),
+            default => (clone $query)->where('status', 'voucher_checking'),
+        };
+
+        return $applications->latest()->get()->map(fn ($app) => [
+            'id' => $app->id,
+            'reference_code' => $app->reference_code,
+            'status' => $app->status,
+            'category_name' => $app->category?->category_name,
+            'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
+            'code_type' => $app->assistanceCode?->reference?->code_type,
+            'amount' => $app->assistanceCode?->amount,
+            'created_at' => $app->created_at,
+        ])->values()->toArray();
+    }
 
     public function index(): Response
     {
@@ -171,6 +213,8 @@ class VoucherController extends Controller
 
         SendSmsJob::dispatch($application, 'application_under_review');
 
+        $this->bustPollCache();
+
         return redirect()
             ->route('accountant.vouchers.index')
             ->with('success', 'Voucher approved. Application forwarded to Treasurer.');
@@ -204,6 +248,8 @@ class VoucherController extends Controller
             'remarks' => $request->input('remarks'),
             'created_at' => now(),
         ]);
+
+        $this->bustPollCache();
 
         return redirect()
             ->route('accountant.vouchers.index')

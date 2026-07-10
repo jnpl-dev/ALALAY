@@ -249,7 +249,7 @@
 - [ ] Add `Cache::remember()` to all dashboard KPI queries (5 min)
 - [ ] Add `Cache::remember()` to all analytics chart queries (15 min)
 - [ ] Add `Cache::forget()` in all Admin controllers that update cached data
-- [ ] Add `bustPollCache()` calls to all status-changing controller actions
+- [x] Add `bustPollCache()` calls to all status-changing controller actions
 
 ### Database Indexes
 
@@ -589,26 +589,27 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### Backend — Poll Endpoints
 
-- [ ] Create `resources/js/Composables/usePolling.js`
-- [ ] Add `poll` method to `Aics/ApplicationController`
-- [ ] Add `poll` method to `Aics/AssistanceCodeController`
-- [ ] Add `poll` method to `Mswdo/ApplicationController`
-- [ ] Add `poll` method to `Mswdo/VoucherController`
-- [ ] Add `poll` method to `Accountant/VoucherController`
-- [ ] Add `poll` method to `Treasurer/ChequeController`
-- [ ] Add `trackPoll` method to `Public/ApplicationController`
-- [ ] Add poll routes to `web.php` per role
-- [ ] Add `bustPollCache()` call to every controller action that changes status
+- [x] Create `HasPollCache` trait (`app/Http/Controllers/Traits/HasPollCache.php`) with `poll()` and `bustPollCache()`
+- [x] Add `poll` method to `Aics/ApplicationController`
+- [x] Add `poll` method to `Aics/AssistanceCodeController`
+- [x] Add `poll` method to `Mswdo/ApplicationController`
+- [x] Add `poll` method to `Mswdo/VoucherController`
+- [x] Add `poll` method to `Accountant/VoucherController`
+- [x] Add `poll` method to `Treasurer/ChequeController`
+- [x] Add `trackPoll` method to `Public/ApplicationController`
+- [x] Add poll routes to `web.php` per role
+- [x] Add `bustPollCache()` call to every controller action that changes status
 
 ### Frontend — usePolling Integration
 
-- [ ] Integrate `usePolling` into `Aics/Applications/Index.vue`
-- [ ] Integrate `usePolling` into `Aics/AssistanceCodes/Index.vue`
-- [ ] Integrate `usePolling` into `Mswdo/Applications/Index.vue`
-- [ ] Integrate `usePolling` into `Mswdo/Vouchers/Index.vue`
-- [ ] Integrate `usePolling` into `Accountant/Vouchers/Index.vue`
-- [ ] Integrate `usePolling` into `Treasurer/Cheques/Index.vue`
-- [ ] Integrate `usePolling` into `Public/Track.vue` (with terminal status check)
+- [x] Create `resources/js/Composables/usePolling.js` (visibility-aware, reactive params, expose start/stop)
+- [x] Integrate `usePolling` into `Aics/Applications/Index.vue`
+- [x] Integrate `usePolling` into `Aics/AssistanceCodes/Index.vue`
+- [x] Integrate `usePolling` into `Mswdo/Applications/Index.vue`
+- [x] Integrate `usePolling` into `Mswdo/Vouchers/Index.vue`
+- [x] Integrate `usePolling` into `Accountant/Vouchers/Index.vue`
+- [x] Integrate `usePolling` into `Treasurer/Cheques/Index.vue`
+- [x] Integrate `usePolling` into `Public/Track.vue` (status change detection → `router.reload`)
 
 ---
 

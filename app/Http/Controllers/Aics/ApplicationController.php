@@ -3,16 +3,58 @@
 namespace App\Http\Controllers\Aics;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\HasPollCache;
 use App\Models\Application;
 use App\Models\AssistanceCategory;
 use App\Models\Review;
 use App\Jobs\SendSmsJob;
 use App\Services\SignedUrlService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ApplicationController extends Controller
 {
+    use HasPollCache;
+
+    protected function getPollData(Request $request): array
+    {
+        $tab = $request->query('tab', 'pending');
+        $search = $request->query('search');
+        $category = $request->query('category');
+
+        $query = Application::with('category', 'encoder');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_code', 'like', "%{$search}%")
+                  ->orWhere('claimant_first_name', 'like', "%{$search}%")
+                  ->orWhere('claimant_last_name', 'like', "%{$search}%")
+                  ->orWhereHas('category', fn($q) => $q->where('category_name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($category) {
+            $query->whereHas('category', fn($q) => $q->where('category_name', $category));
+        }
+
+        $applications = match ($tab) {
+            'screening' => (clone $query)->where('status', 'mswdo_review'),
+            'returned' => (clone $query)->where('status', 'returned_to_applicant'),
+            default => (clone $query)->whereIn('status', ['submitted', 'screening']),
+        };
+
+        return $applications->latest()->get()->map(fn ($app) => [
+            'id' => $app->id,
+            'reference_code' => $app->reference_code,
+            'status' => $app->status,
+            'category_name' => $app->category?->category_name,
+            'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
+            'submission_type' => $app->submission_type,
+            'created_at' => $app->created_at,
+        ])->values()->toArray();
+    }
+
     public function index()
     {
         $this->authorize('viewAny', Application::class);
@@ -170,6 +212,8 @@ class ApplicationController extends Controller
 
         SendSmsJob::dispatch($application, 'application_under_review');
 
+        $this->bustPollCache();
+
         return redirect()->route('aics.applications.index')
             ->with('success', 'Application approved and forwarded to MSWDO.');
     }
@@ -211,6 +255,8 @@ class ApplicationController extends Controller
         ]);
 
         SendSmsJob::dispatch($application, 'resubmission_needed');
+
+        $this->bustPollCache();
 
         return redirect()->route('aics.applications.index')
             ->with('success', 'Application returned to applicant.');

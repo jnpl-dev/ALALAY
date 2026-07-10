@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3'
+import { usePolling } from '@/Composables/usePolling'
 import DocumentScanner from '@/Components/Application/DocumentScanner.vue'
 
 const props = defineProps({
@@ -35,6 +36,25 @@ onBeforeUnmount(() => clearTimeout(toastTimer))
 
 const hasApplication = computed(() => !!props.application)
 const isReturned = computed(() => props.application?.status === 'returned_to_applicant')
+
+const pollParams = computed(() => {
+  if (!props.application?.reference_code) return { reference_code: '' }
+  return { reference_code: props.application.reference_code }
+})
+
+const { lastChecked } = usePolling(
+  route('track.poll'),
+  pollParams,
+  (data) => {
+    if (data.changed && props.application?.reference_code) {
+      router.reload({ only: ['application', 'reviews'] })
+    }
+  },
+)
+
+watch(() => props.application?.reference_code, () => {
+  lastChecked.value = null
+})
 
 const lookupForm = useForm({
   reference_code: '',

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Aics;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\HasPollCache;
 use App\Models\Application;
 use App\Models\AssistanceCategory;
 use App\Models\AssistanceCode;
@@ -15,6 +16,46 @@ use Inertia\Inertia;
 
 class AssistanceCodeController extends Controller
 {
+    use HasPollCache;
+
+    protected function getPollData(Request $request): array
+    {
+        $tab = $request->query('tab', 'pending');
+        $search = $request->query('search');
+        $category = $request->query('category');
+
+        $query = Application::with('category', 'assistanceCode.reference');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_code', 'like', "%{$search}%")
+                  ->orWhere('claimant_first_name', 'like', "%{$search}%")
+                  ->orWhere('claimant_last_name', 'like', "%{$search}%")
+                  ->orWhereHas('category', fn($q) => $q->where('category_name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($category) {
+            $query->whereHas('category', fn($q) => $q->where('category_name', $category));
+        }
+
+        $applications = match ($tab) {
+            'coded' => (clone $query)->where('status', 'voucher_creation'),
+            default => (clone $query)->where('status', 'assistance_coding'),
+        };
+
+        return $applications->latest()->get()->map(fn ($app) => [
+            'id' => $app->id,
+            'reference_code' => $app->reference_code,
+            'status' => $app->status,
+            'category_name' => $app->category?->category_name,
+            'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
+            'code_type' => $app->assistanceCode?->reference?->code_type,
+            'amount' => $app->assistanceCode?->amount,
+            'created_at' => $app->created_at,
+        ])->values()->toArray();
+    }
+
     public function index()
     {
         $this->authorize('viewAny', AssistanceCode::class);
@@ -199,6 +240,8 @@ class AssistanceCodeController extends Controller
             'to_status' => 'voucher_creation',
             'created_at' => now(),
         ]);
+
+        $this->bustPollCache();
 
         return redirect()->route('aics.assistance-codes.index')
             ->with('success', 'Assistance code assigned successfully.');

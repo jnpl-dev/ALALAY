@@ -12,6 +12,7 @@ use App\Services\FileUploadService;
 use App\Services\ReferenceCodeService;
 use App\Services\SignedUrlService;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -168,6 +169,33 @@ class ApplicationController extends Controller
             'documents' => $documents,
             'reviews' => $reviews,
             'resubmission_docs_required' => $resubmissionDocsRequired,
+        ]);
+    }
+
+    public function trackPoll(Request $request): JsonResponse
+    {
+        $referenceCode = $request->query('reference_code');
+        $since = $request->query('since');
+
+        $application = Application::where('reference_code', $referenceCode)
+            ->select('id', 'status', 'updated_at', 'claimed_at')
+            ->firstOrFail();
+
+        if ($since !== null && $application->updated_at->lte($since)) {
+            return response()->json([
+                'changed' => false,
+                'data' => [],
+                'last_checked' => now()->toIso8601String(),
+            ]);
+        }
+
+        return response()->json([
+            'changed' => true,
+            'data' => [
+                'status' => $application->status,
+                'claimed_at' => $application->claimed_at?->format('M d, Y g:i A'),
+            ],
+            'last_checked' => now()->toIso8601String(),
         ]);
     }
 

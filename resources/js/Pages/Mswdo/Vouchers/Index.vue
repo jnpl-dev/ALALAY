@@ -14,7 +14,8 @@ import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import Select from 'primevue/select'
 import Paginator from 'primevue/paginator'
-import { ref, toRaw, watch } from 'vue'
+import { ref, toRaw, watch, computed } from 'vue'
+import { usePolling } from '@/Composables/usePolling'
 import { formatDate } from '@/Utils/formatDate'
 import { formatCurrency } from '@/Utils/formatCurrency'
 
@@ -39,6 +40,26 @@ const categoryFilter = ref(props.category ?? '')
 let filterTimer = null
 
 const categoryOptions = [{ label: 'All Categories', value: '' }, ...props.categories.map(c => ({ label: c, value: c }))]
+
+const tableData = ref([...toRaw(props.applications.data)])
+
+watch(() => props.applications, (val) => {
+  tableData.value = val?.data ? [...toRaw(val.data)] : []
+}, { deep: true })
+
+const pollParams = computed(() => ({
+  tab: props.tab,
+  search: props.search || null,
+  category: props.category || null,
+}))
+
+usePolling(
+  route('mswdo.vouchers.poll'),
+  pollParams,
+  (data) => {
+    if (data.data) tableData.value = data.data
+  },
+)
 
 function applyFilters() {
   router.get(route('mswdo.vouchers.index'), {
@@ -92,7 +113,7 @@ function onPage(event) {
 
         <TabView :activeIndex="tabIndex" @tab-change="onTabChange">
           <TabPanel header="To Create">
-            <DataTable :value="toRaw(props.applications.data)" striped-rows class="w-full">
+            <DataTable :value="toRaw(tableData)" striped-rows class="w-full">
               <Column field="reference_code" header="Reference" sortable />
               <Column field="claimant_name" header="Claimant" sortable />
               <Column field="category_name" header="Category" sortable />
@@ -134,7 +155,7 @@ function onPage(event) {
           </TabPanel>
 
           <TabPanel header="Created">
-            <DataTable :value="toRaw(props.applications.data)" striped-rows class="w-full">
+            <DataTable :value="toRaw(tableData)" striped-rows class="w-full">
               <Column field="reference_code" header="Reference" sortable />
               <Column field="claimant_name" header="Claimant" sortable />
               <Column field="category_name" header="Category" sortable />
