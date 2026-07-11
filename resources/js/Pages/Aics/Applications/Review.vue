@@ -59,6 +59,8 @@ function confirmApprove() {
     acceptProps: { label: 'Approve', severity: 'success' },
     accept: () => {
       router.post(route('aics.applications.approve', props.application.id), {}, {
+        preserveState: true,
+        preserveScroll: true,
         onError: () => toast.error('Approval failed'),
       })
     },
@@ -84,6 +86,8 @@ function openReturnModal() {
 
 function onReturnConfirmed(data) {
   router.post(route('aics.applications.return', props.application.id), data, {
+    preserveState: true,
+    preserveScroll: true,
     onError: () => toast.error('Return failed'),
   })
   showReturnModal.value = false

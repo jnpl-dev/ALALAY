@@ -110,6 +110,8 @@ const confirmDelete = (user) => {
     acceptClass: 'p-button-danger',
     accept: () => {
       router.delete(window.route('admin.users.destroy', user.id), {
+        preserveState: true,
+        preserveScroll: true,
         onSuccess: () => toast.success('User deleted'),
         onError: () => toast.error('Delete failed'),
       })
@@ -129,6 +131,8 @@ const confirmToggleStatus = (user) => {
     acceptClass: user.status === 'active' ? 'p-button-warning' : 'p-button-success',
     accept: () => {
       router.patch(window.route('admin.users.toggle-status', user.id), {}, {
+        preserveState: true,
+        preserveScroll: true,
         onSuccess: () => toast.success('Status updated'),
         onError: () => toast.error('Status update failed'),
       })
@@ -147,6 +151,8 @@ const confirmRevokeSessions = (user) => {
     acceptClass: 'p-button-danger',
     accept: () => {
       router.delete(window.route('admin.users.revoke-sessions', user.id), {
+        preserveState: true,
+        preserveScroll: true,
         onSuccess: () => toast.success('Sessions revoked'),
         onError: () => toast.error('Revoke failed'),
       })

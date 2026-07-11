@@ -7,12 +7,20 @@ import Button from 'primevue/button'
 import FileUpload from 'primevue/fileupload'
 import Avatar from 'primevue/avatar'
 import { useToast } from 'primevue/usetoast'
+import { useFieldValidation } from '@/Composables/useFieldValidation'
 
 defineOptions({ layout: AppLayout })
 
 const user = computed(() => usePage().props.auth?.user)
 const toast = useToast()
 const isEditing = ref(false)
+
+const emailValid = useFieldValidation(
+  route('validate.email'),
+  () => form.email,
+  () => ({ exclude_id: user.value?.id }),
+  { debounceMs: 400 },
+)
 
 const form = useForm({
   first_name: user.value?.first_name || '',
@@ -28,6 +36,7 @@ const form = useForm({
 
 const submit = () => {
   form.post(route('account.update'), {
+    preserveState: true,
     preserveScroll: true,
     onSuccess: () => {
       form.reset('current_password', 'password', 'password_confirmation', 'profile_picture')
@@ -142,6 +151,8 @@ const profilePictureUrl = computed(() => {
             <label for="email" class="block text-muted-color font-medium mb-2">Email <span class="text-red-500">*</span></label>
             <InputText id="email" v-model="form.email" type="email" class="w-full" :invalid="!!form.errors.email" :disabled="!isEditing" />
             <p v-if="form.errors.email" class="text-xs text-red-500 mt-1">{{ form.errors.email }}</p>
+            <p v-else-if="emailValid.isChecking.value && form.email" class="text-xs text-gray-400 mt-1">Checking...</p>
+            <p v-else-if="emailValid.isValid.value === false" class="text-xs text-amber-600 mt-1">{{ emailValid.message.value }}</p>
           </div>
 
           <hr class="border-surface my-6">

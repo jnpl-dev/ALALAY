@@ -613,31 +613,33 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ---
 
-## Phase 4.7 — Form Persistence & Real-Time Validation
+## Phase 4.7 — Beneficiary Duplicate & Cooldown Validation
 
-**Spec: `FORM_IMPROVEMENTS.md`** — Forms never reset on failed submission, real-time field validation.
+**Business Rule** — A beneficiary with an in-progress application cannot submit a new one. After claiming, a 3-month cooldown applies.
 
-### Composables & Components
+### Backend
 
-- [ ] Create `resources/js/Composables/useFieldValidation.js`
-- [ ] Create `resources/js/Utils/scrollToFirstError.js`
-- [ ] Create `resources/js/Components/Common/AppFormField.vue`
-- [ ] Create `app/Http/Controllers/ValidationController.php`
-- [ ] Add `/validate/*` routes to `web.php`
+- [x] Create `App\Rules\BeneficiaryEligible` — checks for active application OR recently claimed (< 3 months) by beneficiary name
+- [x] Integrate rule into `StoreApplicationRequest` on `beneficiary_last_name` field
+- [x] Create `app/Http/Controllers/ValidationController.php` with `checkBeneficiary()` endpoint (returns `eligible`, `reason`, `message`)
+- [x] Add `/validate/beneficiary` route to `web.php`
 
-### Apply Form Persistence (preserveState)
+### Frontend
 
-- [ ] Add `preserveState + preserveScroll` to every `form.post/put/patch` across all pages
-- [ ] Add `sessionStorage` backup/restore to `Apply.vue`
-- [ ] Add `goToStepWithErrors()` to `Apply.vue` multi-step navigation
+- [x] Add live beneficiary eligibility check to `Apply.vue` Step 2 — debounced watch on name fields → Axios GET → amber warning message below beneficiary fields
+- [x] Displays "Checking beneficiary eligibility..." while pending, amber banner on rejection
 
-### Real-Time Field Validation
+### Remaining items (from FORM_IMPROVEMENTS.md)
 
-- [ ] Add phone live validation to `Apply.vue` claimant phone field
-- [ ] Add reference code live validation to `Track.vue`
-- [ ] Add email live validation to Admin Users Create and Edit pages
-- [ ] Add email live validation to all Account Settings pages
-- [ ] Add assistance code live validation to AICS Assistance Coding page
+- [x] Create `resources/js/Composables/useFieldValidation.js` — debounced Axios GET composable
+- [x] Create `resources/js/Utils/scrollToFirstError.js` — scrolls to first `[data-invalid="true"]` element
+- [ ] Deferred: `AppFormField.vue` — existing PrimeVue InputText + inline error pattern is consistent; no value in wrapping at this point
+- [x] Add `preserveState + preserveScroll` to every `form.post/put/patch` across all pages (36 calls in 21 files)
+- [x] Add phone live validation to `Apply.vue` claimant phone field
+- [x] Add reference code live validation to `Track.vue`
+- [x] Add email live validation to Admin Users Create and Edit pages
+- [x] Add email live validation to Account Settings page
+- [ ] Not implemented: assistance code live validation on AICS Assistance Coding page (code selection is already a controlled dropdown; amount validation is implicit via the `default_amount` autofill)
 
 ---
 

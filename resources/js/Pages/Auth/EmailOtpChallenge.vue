@@ -19,6 +19,7 @@ const submit = () => {
   form.otp_code = otpString.value
   form.post(route('otp.challenge'), {
     preserveState: false,
+    preserveScroll: true,
   })
 }
 

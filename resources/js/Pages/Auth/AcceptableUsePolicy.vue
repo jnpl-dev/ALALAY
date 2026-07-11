@@ -6,7 +6,7 @@ import Button from 'primevue/button'
 const form = useForm({})
 
 const accept = () => {
-  form.post(route('aup.accept'))
+  form.post(route('aup.accept'), { preserveState: true, preserveScroll: true })
 }
 </script>
 

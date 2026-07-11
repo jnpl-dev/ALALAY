@@ -30,6 +30,8 @@ const form = useForm({
 
 const submit = () => {
   form.put(route('admin.required-documents.update', props.document.id), {
+    preserveState: true,
+    preserveScroll: true,
     onSuccess: () => {
       toast.add({ severity: 'success', summary: 'Document updated', life: 3000 })
       router.get(route('admin.required-documents.index'))

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Public;
 
 use App\Models\AssistanceCategory;
 use App\Models\RequiredDocument;
+use App\Rules\BeneficiaryEligible;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreApplicationRequest extends FormRequest
@@ -24,10 +25,10 @@ class StoreApplicationRequest extends FormRequest
             'claimant_sex' => ['required', 'in:Male,Female'],
             'claimant_dob' => ['required', 'date', 'before:today'],
             'claimant_address' => ['required', 'string'],
-            'claimant_phone' => ['required', 'string', 'max:20'],
+            'claimant_phone' => ['required', 'digits:11'],
             'claimant_email' => ['nullable', 'email', 'max:255'],
             'claimant_relationship_to_beneficiary' => ['required', 'string', 'max:255'],
-            'beneficiary_last_name' => ['required', 'string', 'max:255'],
+            'beneficiary_last_name' => ['required', 'string', 'max:255', new BeneficiaryEligible],
             'beneficiary_first_name' => ['required', 'string', 'max:255'],
             'beneficiary_middle_name' => ['nullable', 'string', 'max:255'],
             'beneficiary_name_extension' => ['nullable', 'string', 'max:10'],

@@ -50,6 +50,7 @@ function confirmApprove() {
     acceptProps: { label: 'Approve', severity: 'success' },
     accept: () => {
       form.post(route('accountant.vouchers.approve', props.application.id), {
+        preserveState: true,
         preserveScroll: true,
         onSuccess: () => toast.success('Voucher approved'),
         onError: () => toast.error('Approval failed'),
@@ -61,6 +62,7 @@ function confirmApprove() {
 function submitReturn() {
   form.remarks = returnRemarks.value
   form.post(route('accountant.vouchers.return', props.application.id), {
+    preserveState: true,
     preserveScroll: true,
     onSuccess: () => {
       showReturnDialog.value = false
