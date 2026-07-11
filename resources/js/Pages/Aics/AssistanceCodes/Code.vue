@@ -81,6 +81,8 @@ function viewScs() {
 
 function submit() {
   form.post(route('aics.assistance-codes.store', props.application.id), {
+    preserveState: true,
+    preserveScroll: true,
     onSuccess: () => toast.success('Code assigned'),
     onError: () => toast.error('Validation error'),
   })

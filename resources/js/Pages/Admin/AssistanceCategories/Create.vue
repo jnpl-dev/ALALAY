@@ -20,6 +20,8 @@ const form = useForm({
 
 const submit = () => {
   form.post(route('admin.assistance-categories.store'), {
+    preserveState: true,
+    preserveScroll: true,
     onSuccess: () => {
       toast.add({ severity: 'success', summary: 'Category created', life: 3000 })
       router.get(route('admin.assistance-categories.index'))

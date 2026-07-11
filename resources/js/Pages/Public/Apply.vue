@@ -1,6 +1,7 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3'
+import axios from 'axios'
 import DocumentScanner from '@/Components/Application/DocumentScanner.vue'
 import { usePsgcAddress } from '@/Composables/usePsgcAddress.js'
 import { jsPDF } from 'jspdf'
@@ -90,6 +91,45 @@ watch(sameAddress, (val) => {
     }
   }
 })
+
+const beneficiaryEligible = ref(null)
+const beneficiaryEligibilityMsg = ref('')
+let eligibilityTimer = null
+
+watch([() => form.beneficiary_first_name, () => form.beneficiary_last_name, () => form.beneficiary_middle_name], () => {
+  clearTimeout(eligibilityTimer)
+  beneficiaryEligible.value = null
+  beneficiaryEligibilityMsg.value = ''
+
+  if (!form.beneficiary_first_name || !form.beneficiary_last_name) return
+
+  eligibilityTimer = setTimeout(async () => {
+    try {
+      const res = await axios.get(route('validate.beneficiary'), {
+        params: {
+          beneficiary_first_name: form.beneficiary_first_name,
+          beneficiary_last_name: form.beneficiary_last_name,
+          beneficiary_middle_name: form.beneficiary_middle_name || null,
+        }
+      })
+      beneficiaryEligible.value = res.data.eligible
+      if (!res.data.eligible) {
+        beneficiaryEligibilityMsg.value = res.data.message
+      }
+    } catch {
+      // silent fail
+    }
+  }, 500)
+})
+
+import { useFieldValidation } from '@/Composables/useFieldValidation'
+
+const phoneValid = useFieldValidation(
+  route('validate.phone'),
+  () => form.claimant_phone,
+  {},
+  { debounceMs: 400 },
+)
 
 onMounted(async () => {
   await claimantAddr.fetchProvinces()
@@ -308,6 +348,7 @@ async function submitApplication() {
   form.documents = pdfFiles
 
   form.post(route('apply'), {
+    preserveState: true,
     preserveScroll: true,
     onSuccess: () => {
       submitting.value = false
@@ -559,6 +600,8 @@ const statusLabel = (status) => ({
               <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number <span class="text-red-500">*</span></label>
               <input v-model="form.claimant_phone" type="tel" placeholder="0917xxxxxxx" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
               <p v-if="form.errors.claimant_phone" class="text-xs text-red-500 mt-1">{{ form.errors.claimant_phone }}</p>
+              <p v-else-if="phoneValid.isChecking.value && form.claimant_phone" class="text-xs text-gray-400 mt-1">Checking...</p>
+              <p v-else-if="phoneValid.isValid.value === false" class="text-xs text-amber-600 mt-1">{{ phoneValid.message.value }}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
@@ -612,6 +655,14 @@ const statusLabel = (status) => ({
                 <option value="Sr.">Sr.</option>
                 <option value="III">III</option>
               </select>
+            </div>
+            <div class="sm:col-span-3">
+              <p v-if="beneficiaryEligible === false" class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2">
+                {{ beneficiaryEligibilityMsg }}
+              </p>
+              <p v-else-if="beneficiaryEligible === null && (form.beneficiary_first_name || form.beneficiary_last_name)" class="text-xs text-gray-400">
+                Checking beneficiary eligibility...
+              </p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Sex <span class="text-red-500">*</span></label>

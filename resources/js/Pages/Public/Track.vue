@@ -2,6 +2,7 @@
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3'
 import { usePolling } from '@/Composables/usePolling'
+import { useFieldValidation } from '@/Composables/useFieldValidation'
 import DocumentScanner from '@/Components/Application/DocumentScanner.vue'
 
 const props = defineProps({
@@ -56,6 +57,13 @@ watch(() => props.application?.reference_code, () => {
   lastChecked.value = null
 })
 
+const refCodeValid = useFieldValidation(
+  route('validate.reference-code'),
+  () => lookupForm.reference_code,
+  {},
+  { debounceMs: 400 },
+)
+
 const lookupForm = useForm({
   reference_code: '',
 })
@@ -89,6 +97,7 @@ function submitResubmission() {
   })
 
   router.post(route('track.resubmit', props.application.reference_code), fd, {
+    preserveState: true,
     preserveScroll: true,
     onError: () => { isSubmitting.value = false },
     onFinish: () => { isSubmitting.value = false },
@@ -393,6 +402,8 @@ const timelineSteps = computed(() => {
             </button>
           </div>
           <p v-if="lookupForm.errors.reference_code" class="text-xs text-red-500 mt-2">{{ lookupForm.errors.reference_code }}</p>
+          <p v-else-if="refCodeValid.isChecking.value && lookupForm.reference_code" class="text-xs text-gray-400 mt-2">Checking...</p>
+          <p v-else-if="refCodeValid.isValid.value === false" class="text-xs text-amber-600 mt-2">{{ refCodeValid.message.value }}</p>
         </form>
       </div>
 

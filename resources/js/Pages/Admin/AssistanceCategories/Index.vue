@@ -72,7 +72,7 @@ function onPage(event) {
                 <Button icon="pi pi-pencil" severity="info" text rounded size="small"
                   @click="router.get(route('admin.assistance-categories.edit', data.id))" />
                 <Button icon="pi pi-trash" severity="danger" text rounded size="small"
-                  @click="router.delete(route('admin.assistance-categories.destroy', data.id), { preserveScroll: true })" />
+                  @click="router.delete(route('admin.assistance-categories.destroy', data.id), { preserveState: true, preserveScroll: true })" />
               </div>
             </template>
           </Column>

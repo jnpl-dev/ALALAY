@@ -29,6 +29,8 @@ const form = useForm({
 
 const submit = () => {
   form.post(route('admin.required-documents.store'), {
+    preserveState: true,
+    preserveScroll: true,
     onSuccess: () => {
       toast.add({ severity: 'success', summary: 'Document created', life: 3000 })
       router.get(route('admin.required-documents.index'))

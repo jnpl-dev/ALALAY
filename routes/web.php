@@ -16,6 +16,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Public\ApplicationController;
 use App\Http\Controllers\Public\CategoryController;
 use App\Http\Controllers\Shared\AccountController;
+use App\Http\Controllers\ValidationController;
 use App\Http\Controllers\Aics\AnalyticsController as AicsAnalyticsController;
 use App\Http\Controllers\Aics\ApplicationController as AicsApplicationController;
 use App\Http\Controllers\Aics\AssistanceCodeController;
@@ -46,6 +47,12 @@ Route::get('/track', [ApplicationController::class, 'track'])->name('track');
 Route::get('/track/poll', [ApplicationController::class, 'trackPoll'])->name('track.poll');
 Route::get('/track/{referenceCode}', [ApplicationController::class, 'show'])->name('track.show');
 Route::post('/track/{referenceCode}/resubmit', [ApplicationController::class, 'resubmit'])->name('track.resubmit');
+
+// Real-time validation (public)
+Route::get('/validate/beneficiary', [ValidationController::class, 'checkBeneficiary'])->name('validate.beneficiary');
+Route::get('/validate/phone', [ValidationController::class, 'checkPhone'])->name('validate.phone');
+Route::get('/validate/email', [ValidationController::class, 'checkEmail'])->name('validate.email');
+Route::get('/validate/reference-code', [ValidationController::class, 'checkReferenceCode'])->name('validate.reference-code');
 
 // Auth routes (guest only)
 Route::middleware('guest')->group(function () {

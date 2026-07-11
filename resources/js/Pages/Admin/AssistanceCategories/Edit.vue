@@ -24,6 +24,8 @@ const form = useForm({
 
 const submit = () => {
   form.put(route('admin.assistance-categories.update', props.category.id), {
+    preserveState: true,
+    preserveScroll: true,
     onSuccess: () => {
       toast.add({ severity: 'success', summary: 'Category updated', life: 3000 })
       router.get(route('admin.assistance-categories.index'))

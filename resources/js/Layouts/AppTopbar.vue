@@ -6,7 +6,7 @@ import AppConfigurator from './AppConfigurator.vue'
 const { toggleMenu, toggleDarkMode, isDarkTheme } = useLayout()
 
 const logout = () => {
-  router.post(route('logout'))
+  router.post(route('logout'), { preserveState: true, preserveScroll: true })
 }
 </script>
 
