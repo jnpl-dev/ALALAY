@@ -237,23 +237,34 @@
 
 Redis skipped by decision: at single-municipality scale the `file` cache driver is sufficient. Same `Cache::remember()` API, zero ops cost.
 
-- [ ] Add `Cache::remember()` to `Public/CategoryController@index` (1 hour TTL)
-- [ ] Add `Cache::remember()` to system settings queries (30 min TTL) — wrap in a `SystemSettingService` if one doesn't exist yet
-- [ ] Add `Cache::remember()` to assistance code reference dropdowns (1 hour TTL)
-- [ ] Add `Cache::remember()` to all dashboard KPI queries (5 min TTL)
-- [ ] Add `Cache::remember()` to all analytics chart queries (15 min TTL)
-- [ ] Add `Cache::forget()` in every controller action that updates cached data
-- [x] Add `bustPollCache()` calls to all status-changing controller actions
+- [x] Add `Cache::remember()` to `Public/CategoryController@index` (1 hour TTL)
+- [x] Add `Cache::remember()` to system settings queries (30 min TTL) — `FileUploadService` + `SendSmsJob`
+- [x] Add `Cache::remember()` to assistance code reference dropdowns (1 hour TTL)
+- [x] Add `Cache::remember()` to all dashboard KPI queries (5 min TTL)
+- [x] Add `Cache::remember()` to all analytics chart queries (15 min TTL)
+- [x] Add `Cache::forget()` in every controller action that updates cached data
+- [x] Add `bustPollCache()` to also bust dashboard + analytics caches
+- [x] Add `Cache::forget()` to `Public/ApplicationController@store` + `@resubmit`
 
 ### Database Indexes
 
-- [ ] `php artisan make:migration add_performance_indexes_to_alalay_tables`
-- [ ] Add composite indexes:
+- [x] `php artisan make:migration add_performance_indexes_to_alalay_tables`
+- [x] Add composite indexes (first batch):
   - `applications`: `(status, created_at)`, `(category_id, status)`
   - `reviews`: `(application_id, stage)`
   - `audit_logs`: `(user_id, created_at)`, `(entity_type, entity_id)`, `(module, action)`
-- [ ] `php artisan migrate`
-- [ ] Verify indexes in phpMyAdmin
+- [x] `php artisan make:migration add_additional_composite_indexes_to_alalay_tables`
+- [x] Add composite indexes (second batch):
+  - `users`: `(role, status)`
+  - `required_documents`: `(category_id, is_active)`
+  - `application_documents`: `(application_id, required_doc_id)`, `(application_id, is_resubmission)`
+  - `vouchers`: `(application_id, version)`, `(prepared_by, created_at)`
+  - `sms_notifications`: `(status, created_at)`
+  - `applications`: `(claimant_last_name, claimant_first_name)`
+  - `reviews`: `(reviewed_by, created_at)`
+  - `social_case_studies`: `(conducted_by, created_at)`
+- [x] `php artisan migrate` (both batches)
+- [x] Verify indexes in phpMyAdmin
 
 ### Security Headers
 
