@@ -46,6 +46,13 @@ trait HasPollCache
     {
         $cacheKey = 'poll:' . static::class;
         Cache::put($cacheKey, now(), now()->addDay());
+
+        $now = now()->format('YmdHi');
+        $prev = now()->subMinute()->format('YmdHi');
+        foreach (['admin', 'aics', 'mswdo', 'accountant', 'treasurer', 'mayors-office'] as $role) {
+            Cache::forget("dashboard.{$role}.{$now}");
+            Cache::forget("dashboard.{$role}.{$prev}");
+        }
     }
 
     abstract protected function getPollData(Request $request): array;

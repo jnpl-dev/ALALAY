@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AssistanceCodeReference;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 
 class AssistanceCodeReferenceController extends Controller
@@ -53,6 +54,7 @@ class AssistanceCodeReferenceController extends Controller
         ]);
 
         AssistanceCodeReference::create($validated);
+        Cache::forget('code_references.active');
 
         return redirect()->route('admin.assistance-code-references.index')
             ->with('success', 'Code reference created successfully.');
@@ -87,6 +89,7 @@ class AssistanceCodeReferenceController extends Controller
         ]);
 
         $ref->update($validated);
+        Cache::forget('code_references.active');
 
         return redirect()->route('admin.assistance-code-references.index')
             ->with('success', 'Code reference updated successfully.');
@@ -97,6 +100,7 @@ class AssistanceCodeReferenceController extends Controller
         $this->authorize('delete', AssistanceCodeReference::class);
         $ref = AssistanceCodeReference::findOrFail($id);
         $ref->delete();
+        Cache::forget('code_references.active');
 
         return redirect()->route('admin.assistance-code-references.index')
             ->with('success', 'Code reference deleted successfully.');

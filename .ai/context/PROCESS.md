@@ -233,28 +233,25 @@
 
 **Spec: `SYSTEM_DESIGN_IMPROVEMENTS.md`** — Performance, security hardening, and zero-day preparation.
 
-### Redis
+### Caching (File Driver — No Redis)
 
-- [ ] Install Redis (local: WSL2/Memurai or skip; production: Ubuntu apt)
-- [ ] `composer require predis/predis`
-- [ ] Update production `.env`: `CACHE_DRIVER=redis`, `SESSION_DRIVER=redis`, `QUEUE_CONNECTION=redis`, `REDIS_HOST`, `REDIS_PASSWORD`, `REDIS_PORT`
-- [ ] Update `config/database.php` Redis connection with separate DB for cache
-- [ ] Update Supervisor config to use redis queue driver in production
+Redis skipped by decision: at single-municipality scale the `file` cache driver is sufficient. Same `Cache::remember()` API, zero ops cost.
 
-### Caching
-
-- [ ] Add `Cache::remember()` to `Public/CategoryController@index` (1 hour)
-- [ ] Add `Cache::remember()` to `SystemSettingService` (30 min)
-- [ ] Add `Cache::remember()` to `AssistanceCodeReference` dropdown queries (1 hour)
-- [ ] Add `Cache::remember()` to all dashboard KPI queries (5 min)
-- [ ] Add `Cache::remember()` to all analytics chart queries (15 min)
-- [ ] Add `Cache::forget()` in all Admin controllers that update cached data
+- [ ] Add `Cache::remember()` to `Public/CategoryController@index` (1 hour TTL)
+- [ ] Add `Cache::remember()` to system settings queries (30 min TTL) — wrap in a `SystemSettingService` if one doesn't exist yet
+- [ ] Add `Cache::remember()` to assistance code reference dropdowns (1 hour TTL)
+- [ ] Add `Cache::remember()` to all dashboard KPI queries (5 min TTL)
+- [ ] Add `Cache::remember()` to all analytics chart queries (15 min TTL)
+- [ ] Add `Cache::forget()` in every controller action that updates cached data
 - [x] Add `bustPollCache()` calls to all status-changing controller actions
 
 ### Database Indexes
 
 - [ ] `php artisan make:migration add_performance_indexes_to_alalay_tables`
-- [ ] Add composite indexes per spec (applications, reviews, audit_logs, sms_notifications)
+- [ ] Add composite indexes:
+  - `applications`: `(status, created_at)`, `(category_id, status)`
+  - `reviews`: `(application_id, stage)`
+  - `audit_logs`: `(user_id, created_at)`, `(entity_type, entity_id)`, `(module, action)`
 - [ ] `php artisan migrate`
 - [ ] Verify indexes in phpMyAdmin
 
@@ -275,7 +272,7 @@
 ### Query Optimization
 
 - [ ] Add slow query logger to `AppServiceProvider@boot` (local env only)
-- [ ] Audit all controller list methods — confirm `with()` on all relationships
+- [x] Eager loading (`->with()`) — already implemented in all index/show methods
 - [ ] Add `Inertia::lazy()` to all analytics controllers
 
 ### Backup
