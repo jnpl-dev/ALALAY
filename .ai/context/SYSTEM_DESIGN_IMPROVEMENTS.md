@@ -646,9 +646,9 @@ Improvements** section, between Phase 2 and Phase 3:
 - [x] Confirm CSP connect-src includes Supabase and PSGC API URLs
 
 ### Login Security
-- [ ] Add login lockout logging to audit_logs in FortifyServiceProvider
-- [ ] Create app/Notifications/NewLoginDetected.php
-- [ ] Add new-IP login notification in OTP verification controller
+- [x] Add login lockout logging to audit_logs in FortifyServiceProvider (rate limiter response callback)
+- [x] Create app/Notifications/NewLoginDetected.php
+- [x] Add new-IP login notification in OTP verification controller (after successful OTP verify)
 
 ### Query Optimization
 - [ ] Add slow query logger to AppServiceProvider@boot (local env only)
