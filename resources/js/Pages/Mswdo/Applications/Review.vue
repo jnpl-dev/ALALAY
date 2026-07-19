@@ -76,6 +76,7 @@ function confirmApprove() {
     acceptProps: { label: 'Approve', severity: 'success' },
     accept: () => {
       form.post(route('mswdo.applications.approve', props.application.id), {
+        preserveState: true,
         preserveScroll: true,
         onError: () => toast.error('Approval failed. Check that the social case study PDF is attached.'),
       })
@@ -102,6 +103,8 @@ function openReturnModal() {
 
 function onReturnConfirmed(data) {
   router.post(route('mswdo.applications.return', props.application.id), data, {
+    preserveState: true,
+    preserveScroll: true,
     onError: () => toast.error('Return failed'),
   })
   showReturnModal.value = false

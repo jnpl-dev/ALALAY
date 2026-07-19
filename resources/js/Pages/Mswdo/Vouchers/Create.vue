@@ -59,6 +59,7 @@ function confirmSubmit() {
     acceptProps: { label: 'Submit', severity: 'success' },
     accept: () => {
       form.post(route('mswdo.vouchers.store', props.application.id), {
+        preserveState: true,
         preserveScroll: true,
         onSuccess: () => toast.success('Voucher submitted'),
         onError: () => toast.error('Validation error'),

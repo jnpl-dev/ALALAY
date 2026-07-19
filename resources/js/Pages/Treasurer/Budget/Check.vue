@@ -52,6 +52,7 @@ function confirmMarkReady() {
     acceptProps: { label: 'Approve & Ready', severity: 'success' },
     accept: () => {
       form.post(route('treasurer.budget.mark-ready', props.application.id), {
+        preserveState: true,
         preserveScroll: true,
         onSuccess: () => toast.success('Marked as cheque ready'),
         onError: () => toast.error('Failed to mark as ready'),
@@ -63,6 +64,7 @@ function confirmMarkReady() {
 function submitHold() {
   form.remarks = holdRemarks.value
   form.post(route('treasurer.budget.hold', props.application.id), {
+    preserveState: true,
     preserveScroll: true,
     onSuccess: () => {
       showHoldDialog.value = false
@@ -82,6 +84,7 @@ function confirmReEvaluate() {
     acceptProps: { label: 'Re-evaluate', severity: 'success' },
     accept: () => {
       form.post(route('treasurer.budget.re-evaluate', props.application.id), {
+        preserveState: true,
         preserveScroll: true,
         onSuccess: () => toast.success('Application re-evaluated and marked as cheque ready'),
         onError: () => toast.error('Failed to re-evaluate'),

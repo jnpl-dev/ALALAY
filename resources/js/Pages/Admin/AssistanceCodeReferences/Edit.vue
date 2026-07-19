@@ -26,6 +26,8 @@ const form = useForm({
 
 const submit = () => {
   form.put(route('admin.assistance-code-references.update', props.reference.id), {
+    preserveState: true,
+    preserveScroll: true,
     onSuccess: () => {
       toast.add({ severity: 'success', summary: 'Code reference updated', life: 3000 })
       router.get(route('admin.assistance-code-references.index'))

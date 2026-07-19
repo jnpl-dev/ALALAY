@@ -234,7 +234,17 @@ tell me you are ready for my first task.
 
 ---
 
-## CURRENT SESSION STATE (July 10, 2026)
+## CURRENT SESSION STATE (July 11, 2026)
+
+### Phase 4.6 — Real-Time Table Polling (COMPLETE)
+- Created `HasPollCache` trait with `poll()` + `bustPollCache()` — shared by 6 role controllers
+- Added `poll()` to all 6 role index controllers and `trackPoll()` to Public/ApplicationController
+- Added `bustPollCache()` calls to every status-changing controller action (12 total)
+- Registered 7 poll routes in `web.php`
+- Created `usePolling.js` composable (visibility-aware via `useDocumentVisibility`, reactive params, expose start/stop)
+- Integrated `usePolling` into all 6 role index Vue pages (`tableData` ref, computed `pollParams`)
+- Integrated `usePolling` into `Public/Track.vue` (auto-reloads on status change)
+- Build verified: `npm run build` passes
 
 ### Phase 5 Progress
 - **5.1** — End-to-end workflow tested and marked done. SMS verifications skipped (SMS not configured yet). Walk-in encoding not started.

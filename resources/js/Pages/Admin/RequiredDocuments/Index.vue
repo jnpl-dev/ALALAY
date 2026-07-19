@@ -86,7 +86,7 @@ function onPage(event) {
                 <Button icon="pi pi-pencil" severity="info" text rounded size="small"
                   @click="router.get(route('admin.required-documents.edit', data.id))" />
                 <Button icon="pi pi-trash" severity="danger" text rounded size="small"
-                  @click="router.delete(route('admin.required-documents.destroy', data.id), { preserveScroll: true })" />
+                  @click="router.delete(route('admin.required-documents.destroy', data.id), { preserveState: true, preserveScroll: true })" />
               </div>
             </template>
           </Column>

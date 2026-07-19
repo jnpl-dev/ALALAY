@@ -5,10 +5,18 @@ import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'
+import { useFieldValidation } from '@/Composables/useFieldValidation'
 
 defineOptions({ layout: AppLayout })
 
 const toast = useToast()
+
+const emailValid = useFieldValidation(
+  route('validate.email'),
+  () => form.email,
+  {},
+  { debounceMs: 400 },
+)
 
 const roleOptions = [
   { label: 'Admin', value: 'admin' },
@@ -36,6 +44,8 @@ const goBack = () => {
 
 const submit = () => {
   form.post(route('admin.users.store'), {
+    preserveState: true,
+    preserveScroll: true,
     onSuccess: () => {
       toast.add({ severity: 'success', summary: 'User created', life: 3000 })
       router.get(route('admin.users.index'))
@@ -84,6 +94,8 @@ const submit = () => {
               <label for="email" class="block text-muted-color font-medium mb-2">Email <span class="text-red-500">*</span></label>
               <InputText id="email" v-model="form.email" type="email" class="w-full" :invalid="!!form.errors.email" />
               <p v-if="form.errors.email" class="text-xs text-red-500 mt-1">{{ form.errors.email }}</p>
+              <p v-else-if="emailValid.isChecking.value && form.email" class="text-xs text-gray-400 mt-1">Checking...</p>
+              <p v-else-if="emailValid.isValid.value === false" class="text-xs text-amber-600 mt-1">{{ emailValid.message.value }}</p>
             </div>
             <div>
               <label for="role" class="block text-muted-color font-medium mb-2">Role <span class="text-red-500">*</span></label>

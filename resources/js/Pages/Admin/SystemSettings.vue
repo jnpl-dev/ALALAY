@@ -30,6 +30,7 @@ function updateSetting(key, value) {
 
 function submit() {
   form.put(route('admin.settings.update'), {
+    preserveState: true,
     preserveScroll: true,
     onSuccess: () => {
       isEditing.value = false
