@@ -6,6 +6,7 @@ use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
+use App\Models\AuditLog;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -45,7 +46,22 @@ class FortifyServiceProvider extends ServiceProvider
         RateLimiter::for('login', function (Request $request) {
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
 
-            return Limit::perMinute(5)->by($throttleKey);
+            return Limit::perMinute(5)->by($throttleKey)->response(function (Request $request) {
+                AuditLog::create([
+                    'user_id' => null,
+                    'role' => null,
+                    'module' => 'auth',
+                    'action' => 'login_lockout',
+                    'description' => 'Login rate limited after 5 failed attempts for: ' . $request->input('email'),
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'created_at' => now(),
+                ]);
+
+                return back()->withErrors([
+                    'email' => 'Too many login attempts. Please try again in 60 seconds.',
+                ]);
+            });
         });
     }
 }

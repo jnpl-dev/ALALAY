@@ -1,22 +1,22 @@
 <script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
+import { computed, ref } from 'vue'
 
 const form = useForm({
-  email: '',
+  email: usePage().props.email || '',
   password: '',
   remember: false,
 })
 
 const showPassword = ref(false)
 
+const pageErrors = computed(() => usePage().props.errors || {})
+
 const homeUrl = route('home')
 const forgotUrl = route('password.request')
 
 const submit = () => {
-  form.post(route('login'), {
-    preserveState: false,
-  })
+  form.post(route('login'))
 }
 </script>
 
@@ -38,8 +38,8 @@ const submit = () => {
       <div class="bg-white rounded-2xl shadow-lg border border-emerald-100 p-8">
         <form @submit.prevent="submit" class="space-y-5">
 
-          <div v-if="form.errors.email" class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-            {{ form.errors.email }}
+          <div v-if="form.errors.email || pageErrors.email" class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+            {{ form.errors.email || pageErrors.email }}
           </div>
 
           <div>

@@ -276,15 +276,16 @@ Redis skipped by decision: at single-municipality scale the `file` cache driver 
 
 ### Login Security
 
-- [ ] Add login lockout logging to `audit_logs` in FortifyServiceProvider
-- [ ] Create `app/Notifications/NewLoginDetected.php`
-- [ ] Add new-IP login notification in OTP verification controller
+- [x] Add login lockout logging to `audit_logs` in FortifyServiceProvider
+- [x] Create `app/Notifications/NewLoginDetected.php`
+- [x] Add new-IP login notification in OTP verification controller
 
 ### Query Optimization
 
 - [ ] Add slow query logger to `AppServiceProvider@boot` (local env only)
 - [x] Eager loading (`->with()`) — already implemented in all index/show methods
 - [ ] Add `Inertia::lazy()` to all analytics controllers
+- [x] Fix: Login errors now return `Inertia::render()` with errors instead of `throw ValidationException` (Inertia v3 XHR compatibility)
 
 ### Backup
 

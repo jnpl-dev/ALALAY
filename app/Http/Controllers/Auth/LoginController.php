@@ -8,7 +8,6 @@ use App\Services\EmailOtpService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 use App\Models\AuditLog;
@@ -30,14 +29,17 @@ class LoginController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
+            return Inertia::render('Auth/Login', [
+                'email' => $request->email,
+                'password' => $request->password,
+                'errors' => (object) ['email' => 'The provided credentials are incorrect.'],
             ]);
         }
 
         if ($user->status !== 'active') {
-            throw ValidationException::withMessages([
-                'email' => ['This account has been deactivated.'],
+            return Inertia::render('Auth/Login', [
+                'email' => $request->email,
+                'errors' => (object) ['email' => 'This account has been deactivated.'],
             ]);
         }
 
