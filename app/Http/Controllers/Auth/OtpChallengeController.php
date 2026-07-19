@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Notifications\NewLoginDetected;
 use App\Services\EmailOtpService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -63,6 +65,20 @@ class OtpChallengeController extends Controller
         ]);
 
         $request->session()->regenerate();
+
+        $knownIps = DB::table('sessions')
+            ->where('user_id', $user->id)
+            ->where('ip_address', '!=', $request->ip())
+            ->pluck('ip_address')
+            ->toArray();
+
+        if (empty($knownIps)) {
+            $user->notify(new NewLoginDetected(
+                ip: $request->ip(),
+                userAgent: $request->userAgent(),
+                loginAt: now(),
+            ));
+        }
 
         if ($user->acceptable_use_policy_accepted_at === null) {
             return redirect()->route('aup.show');
