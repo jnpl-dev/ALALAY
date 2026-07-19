@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\SystemSetting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 
 class SystemSettingController extends Controller
@@ -41,6 +42,7 @@ class SystemSettingController extends Controller
                     'updated_by' => $request->user()->id,
                 ]
             );
+            Cache::forget("settings.{$key}");
         }
 
         return redirect()->route('admin.settings')

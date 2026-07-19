@@ -12,6 +12,7 @@ use App\Models\Review;
 use App\Jobs\SendSmsJob;
 use App\Services\SignedUrlService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 
 class AssistanceCodeController extends Controller
@@ -96,7 +97,9 @@ class AssistanceCodeController extends Controller
                 'created_at' => $app->created_at,
             ]);
 
-        $categories = AssistanceCategory::where('is_active', true)->pluck('category_name');
+        $categories = Cache::remember('categories.active_names', 3600, fn () =>
+            AssistanceCategory::where('is_active', true)->pluck('category_name')
+        );
 
         return Inertia::render('Aics/AssistanceCodes/Index', [
             'applications' => $apps,
@@ -146,15 +149,17 @@ class AssistanceCodeController extends Controller
             ? $signedUrl->generate($application->socialCaseStudy->file_path)
             : null;
 
-        $codeReferences = AssistanceCodeReference::active()
-            ->orderBy('code_type')
-            ->get()
-            ->map(fn ($ref) => [
-                'id' => $ref->id,
-                'code_type' => $ref->code_type,
-                'default_amount' => $ref->default_amount,
-                'description' => $ref->description,
-            ]);
+        $codeReferences = Cache::remember('code_references.active', 3600, fn () =>
+            AssistanceCodeReference::active()
+                ->orderBy('code_type')
+                ->get()
+                ->map(fn ($ref) => [
+                    'id' => $ref->id,
+                    'code_type' => $ref->code_type,
+                    'default_amount' => $ref->default_amount,
+                    'description' => $ref->description,
+                ])
+        );
 
         return Inertia::render('Aics/AssistanceCodes/Code', [
             'application' => [
@@ -242,6 +247,7 @@ class AssistanceCodeController extends Controller
         ]);
 
         $this->bustPollCache();
+        Cache::forget('code_references.active');
 
         return redirect()->route('aics.assistance-codes.index')
             ->with('success', 'Assistance code assigned successfully.');
