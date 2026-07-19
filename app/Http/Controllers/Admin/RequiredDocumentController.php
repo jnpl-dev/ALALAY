@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AssistanceCategory;
 use App\Models\RequiredDocument;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 
 class RequiredDocumentController extends Controller
@@ -68,6 +69,7 @@ class RequiredDocumentController extends Controller
         ]);
 
         RequiredDocument::create($validated);
+        Cache::forget('categories.with_docs');
 
         return redirect()->route('admin.required-documents.index')
             ->with('success', 'Required document created successfully.');
@@ -108,6 +110,7 @@ class RequiredDocumentController extends Controller
         ]);
 
         $doc->update($validated);
+        Cache::forget('categories.with_docs');
 
         return redirect()->route('admin.required-documents.index')
             ->with('success', 'Required document updated successfully.');
@@ -118,6 +121,7 @@ class RequiredDocumentController extends Controller
         $this->authorize('delete', RequiredDocument::class);
         $doc = RequiredDocument::findOrFail($id);
         $doc->delete();
+        Cache::forget('categories.with_docs');
 
         return redirect()->route('admin.required-documents.index')
             ->with('success', 'Required document deleted successfully.');
