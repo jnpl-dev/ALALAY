@@ -268,11 +268,11 @@ Redis skipped by decision: at single-municipality scale the `file` cache driver 
 
 ### Security Headers
 
-- [ ] Create `app/Http/Middleware/SecurityHeaders.php`
-- [ ] Register in `bootstrap/app.php` web middleware group
-- [ ] Verify headers in browser DevTools
-- [ ] Confirm `Permissions-Policy` allows camera (needed for DocumentScanner)
-- [ ] Confirm CSP `connect-src` includes Supabase and PSGC API URLs
+- [x] Create `app/Http/Middleware/SecurityHeaders.php`
+- [x] Register in `bootstrap/app.php` web middleware group
+- [x] Verify headers in browser DevTools (curl confirmed all 5 headers)
+- [x] Confirm `Permissions-Policy` allows camera (`camera=self`)
+- [x] Confirm CSP `connect-src` includes Supabase and PSGC API URLs
 
 ### Login Security
 

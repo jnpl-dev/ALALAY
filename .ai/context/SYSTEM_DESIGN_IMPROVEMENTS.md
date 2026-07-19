@@ -12,348 +12,133 @@ Composer:       2.9.5
 Laravel:        12 (bootstrap/app.php — not Kernel.php)
 Session driver: database
 Queue driver:   database
-Cache driver:   file (default — not yet optimized)
+Cache driver:   file
 Mail:           Gmail SMTP
 File storage:   Supabase Storage
 Auth:           Laravel Fortify + OTP via email
-Redis:          NOT YET INSTALLED
+Redis:          NOT USED (decision: file cache sufficient for single-municipality scale)
 ```
 
 ---
 
-## IMPROVEMENT 1 — Redis (Highest Impact)
+## IMPROVEMENT 1 — Redis (Skipped by Decision)
 
-### What Changes
+Redis was evaluated but skipped after analysis. At single-municipality
+scale (6–7 staff, ~hundreds of applications/month), the `file` cache
+driver is adequate. Same `Cache::remember()` API, zero ops cost.
 
-Replace three file/database-based drivers with Redis:
+The `QUEUE_CONNECTION=database` and `SESSION_DRIVER=database` remain
+as-is — database-backed queues and sessions handle the current volume
+without contention.
 
-| Driver | Current | After Redis |
-|---|---|---|
-| Cache | `file` | `redis` |
-| Session | `database` | `redis` |
-| Queue | `database` | `redis` |
-
-### Why This Matters for ALALAY
-
-- **Cache (file → redis):** File cache reads/writes to disk on every
-  request. Redis stores everything in memory — orders of magnitude faster.
-  Every cached category list, system setting, and dashboard KPI reads
-  from RAM instead of disk.
-
-- **Session (database → redis):** Every page load currently runs a MySQL
-  query to read the session. With Redis, session reads are memory lookups.
-  On a busy office day with 6–7 staff members active simultaneously,
-  this removes significant MySQL pressure.
-
-- **Queue (database → redis):** The database queue driver polls MySQL
-  every few seconds with `SELECT ... FOR UPDATE` queries. Redis uses a
-  push model — jobs are processed the moment they arrive. SMS
-  notifications dispatch faster. No constant MySQL polling overhead.
-
-### Local Installation (XAMPP Windows)
-
-Redis does not have an official Windows build but works via WSL2 or
-a Windows port:
-
-**Option A — WSL2 (Recommended for Windows dev):**
-```bash
-# In WSL2 terminal
-sudo apt update
-sudo apt install redis-server -y
-sudo service redis-server start
-
-# Verify
-redis-cli ping  # should return PONG
-```
-
-**Option B — Memurai (Windows Redis-compatible server):**
-Download from https://www.memurai.com — free developer edition.
-Runs as a Windows service, no WSL needed.
-
-**Option C — Use file cache locally, Redis only in production:**
-Simplest approach for local dev. Keep `CACHE_DRIVER=file` in your
-local `.env` and only switch to Redis in the production `.env`.
-This is acceptable since local dev performance is not critical.
-
-### Production Installation (Ubuntu — VPS or office desktop)
-
-```bash
-sudo apt update
-sudo apt install redis-server -y
-sudo systemctl enable redis-server
-sudo systemctl start redis-server
-
-# Verify
-redis-cli ping  # PONG
-
-# Secure Redis — bind to localhost only (no external access)
-sudo nano /etc/redis/redis.conf
-# Set: bind 127.0.0.1
-# Set: requirepass your_strong_redis_password
-
-sudo systemctl restart redis-server
-```
-
-### Laravel Configuration
-
-**Install PHP Redis client:**
-```bash
-composer require predis/predis
-```
-
-**Update `.env` (production):**
-```env
-REDIS_HOST=127.0.0.1
-REDIS_PASSWORD=your_strong_redis_password
-REDIS_PORT=6379
-
-CACHE_DRIVER=redis
-SESSION_DRIVER=redis
-QUEUE_CONNECTION=redis
-```
-
-**Update `.env` (local — optional, keep file/database if no Redis locally):**
-```env
-CACHE_DRIVER=file
-SESSION_DRIVER=database
-QUEUE_CONNECTION=database
-```
-
-**Update `config/database.php` Redis connection:**
-```php
-'redis' => [
-    'client' => env('REDIS_CLIENT', 'predis'),
-    'default' => [
-        'host'     => env('REDIS_HOST', '127.0.0.1'),
-        'password' => env('REDIS_PASSWORD', null),
-        'port'     => env('REDIS_PORT', 6379),
-        'database' => 0,
-    ],
-    'cache' => [
-        'host'     => env('REDIS_HOST', '127.0.0.1'),
-        'password' => env('REDIS_PASSWORD', null),
-        'port'     => env('REDIS_PORT', 6379),
-        'database' => 1,  // separate DB from session
-    ],
-],
-```
-
-### Laravel 12 bootstrap/app.php — Queue Driver Note
-
-In Laravel 12, queue configuration is in `config/queue.php`. No
-bootstrap/app.php change needed for Redis queues — only `.env` change:
-
-```env
-QUEUE_CONNECTION=redis
-```
-
-### Supervisor Update for Redis Queue (Production)
-
-Update Supervisor config to use Redis instead of database:
-
-```ini
-[program:alalay-worker]
-command=php /var/www/alalay/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
-```
+If scale grows significantly in the future, Redis can be added without
+changing any application code — only `.env` driver values need to
+change since all caching uses the standard `Cache::remember()` facade.
 
 ---
 
-## IMPROVEMENT 2 — Caching Strategy
+## IMPROVEMENT 2 — Caching Strategy (Completed)
 
-### What to Cache in ALALAY
+### What is Cached
 
-With Redis in place, add explicit caching to these areas:
+All caching uses Laravel's `Cache::remember()` facade with the `file`
+driver. No Redis required. Same API, zero ops overhead.
 
-#### 2.1 Assistance Categories + Required Documents
+#### 2.1 Assistance Categories (1 hour TTL)
 
-Fetched on every Apply page load. Changes only when Admin edits them.
+`Public/CategoryController@index` — categories eager-loaded with
+active required documents. Key: `categories.with_docs`.
 
-```php
-// In Public/CategoryController@index
-$categories = Cache::remember('categories.active', 3600, function () {
-    return AssistanceCategory::where('is_active', true)
-        ->with(['requiredDocuments' => fn($q) => $q->where('is_active', true)
-            ->orderBy('is_mandatory', 'desc')])
-        ->get();
-});
-```
+Busted by: `Admin/AssistanceCategoryController`,
+`Admin/RequiredDocumentController` on store/update/destroy.
 
-Bust when Admin updates a category or required document:
-```php
-// In Admin/AssistanceCategoryController — after any create/update/toggle
-Cache::forget('categories.active');
-```
+#### 2.2 System Settings (30 min TTL)
 
-#### 2.2 System Settings
+`FileUploadService` — caches `max_file_size_kb` and
+`allowed_mime_types`. Key: `settings.max_file_size_kb`,
+`settings.allowed_mime_types`.
 
-Fetched on every page load via `HandleInertiaRequests` shared props.
+`SendSmsJob` — caches SMS notification templates.
+Key: `settings.sms.{key}`.
 
-```php
-// In App/Services/SystemSettingService.php
-public function getAll(): array
-{
-    return Cache::remember('system_settings.all', 1800, function () {
-        return SystemSetting::pluck('setting_value', 'setting_key')->toArray();
-    });
-}
-```
+Busted by: `Admin/SystemSettingController` on update.
 
-Bust when Admin saves settings:
-```php
-Cache::forget('system_settings.all');
-```
+#### 2.3 Assistance Code References (1 hour TTL)
 
-#### 2.3 Assistance Code References
+`Aics/AssistanceCodeController` — dropdown data for coding page.
+Keys: `categories.active_names`, `code_references.active`.
 
-Fetched for the AICS Staff coding page dropdown. Rarely changes.
+Busted by: `Admin/AssistanceCodeReferenceController`,
+`Aics/AssistanceCodeController` on mutation.
 
-```php
-$codeReferences = Cache::remember('code_references.active', 3600, function () {
-    return AssistanceCodeReference::where('is_active', true)->get();
-});
-```
+#### 2.4 Dashboard KPI Counts (5 min TTL)
 
-#### 2.4 Dashboard KPI Counts
+All 6 role dashboard controllers. Key pattern:
+`dashboard.{role}.{YmdHi}` (time-windowed, no user-specific key).
 
-Expensive COUNT queries. Acceptable to be 5 minutes behind.
+Busted automatically by `bustPollCache()` in `HasPollCache` trait
+(forget current and previous minute for all 6 roles). Also busted
+by `Public/ApplicationController@store` and `@resubmit`.
 
-```php
-// In Aics/DashboardController@index
-$kpis = Cache::remember("dashboard.aics.kpis." . auth()->id(), 300, function () {
-    return [
-        'new_today'      => Application::where('status', 'submitted')
-                              ->whereDate('created_at', today())->count(),
-        'total_pending'  => Application::where('status', 'submitted')->count(),
-        'total_screened' => Application::where('status', 'mswdo_review')->count(),
-        'total_returned' => Application::whereIn('status', ['returned_to_applicant'])->count(),
-        'pending_coding' => Application::where('status', 'assistance_coding')->count(),
-    ];
-});
-```
+#### 2.5 Analytics Chart Data (15 min TTL)
 
-Bust when any application status changes:
-```php
-// In bustPollCache() — already defined in polling spec
-Cache::forget("dashboard.aics.kpis.*");  // wildcard bust via Redis tags
-```
+All 6 role analytics controllers. Key pattern:
+`analytics.{role}.{md5(from-to)}` (date-range-aware).
 
-#### 2.5 Analytics Chart Data
-
-Heavy GROUP BY queries. 15 minutes is acceptable.
-
-```php
-$chartData = Cache::remember(
-    "analytics.aics.applications_over_time.{$period}",
-    900,
-    fn() => $this->getApplicationsOverTime($period)
-);
-```
+Busted by same `bustPollCache()` mechanism above.
 
 ### Cache Key Naming Convention
 
 ```
-{panel}.{resource}.{type}.{variant}
+{resource}.{variant}
+dashboard.{role}.{YmdHi}
+analytics.{role}.{md5(from-to)}
 
 Examples:
-  categories.active
-  system_settings.all
-  code_references.active
-  dashboard.aics.kpis.{user_id}
-  dashboard.mswdo.kpis.{user_id}
-  analytics.aics.applications_over_time.{period}
-  poll.aics.applications.submitted.latest_update
+  categories.with_docs           — categories + required docs
+  categories.active_names         — category ID/name pairs
+  code_references.active          — code reference dropdown
+  settings.max_file_size_kb       — file upload limit
+  settings.allowed_mime_types     — allowed upload types
+  settings.sms.submission_complete — SMS template
+  dashboard.aics.202607190510    — AICS dashboard KPIs
+  analytics.admin.a1b2c3d4       — Admin analytics (date-range keyed)
 ```
 
 ---
 
-## IMPROVEMENT 3 — Database Indexes
+## IMPROVEMENT 3 — Database Indexes (Completed)
 
-### Additional Composite Indexes
+### Composite Indexes Added
 
-Add these to existing migration files or as new standalone migrations.
-These cover the most common query patterns in ALALAY:
+Two migrations were created and applied. Existing single-column indexes
+on FK columns were kept (MySQL requires them for foreign key constraints).
 
-```php
-// applications table
-$table->index(['status', 'created_at']);           // dashboard + poll queries
-$table->index(['category_id', 'status']);          // analytics by category
-$table->index(['submission_type', 'created_at']); // online vs walk-in reports
-$table->index(['reviewed_by', 'status']);          // per-staff analytics
+#### Migration 1: `add_performance_indexes_to_alalay_tables`
 
-// reviews table
-$table->index(['application_id', 'created_at']);  // review trail ordered by date
-$table->index(['stage', 'decision']);             // analytics by stage/decision
-$table->index(['reviewed_by', 'created_at']);     // per-staff review history
+| Table | Composite Index | Purpose |
+|---|---|---|
+| **applications** | `(status, created_at)` | Dashboard KPI counts + poll queries sorted by date |
+| **applications** | `(category_id, status)` | Analytics breakdown by category |
+| **reviews** | `(application_id, stage)` | Review trail filtered by stage |
+| **audit_logs** | `(user_id, created_at)` | Per-user activity timeline |
+| **audit_logs** | `(entity_type, entity_id)` | Entity-specific audit trail |
+| **audit_logs** | `(module, action)` | Admin audit log filtering |
 
-// audit_logs table
-$table->index(['user_id', 'created_at']);         // per-user audit filter
-$table->index(['module', 'action', 'created_at']); // admin audit filter
-$table->index(['entity_type', 'entity_id']);      // filter by specific record
+#### Migration 2: `add_additional_composite_indexes_to_alalay_tables`
 
-// sms_notifications table
-$table->index(['status', 'created_at']);          // failed SMS retry queries
-$table->index(['application_id', 'status']);      // per-application SMS history
-```
-
-### Create as a Standalone Migration
-
-```php
-// php artisan make:migration add_performance_indexes_to_alalay_tables
-
-public function up(): void
-{
-    Schema::table('applications', function (Blueprint $table) {
-        $table->index(['status', 'created_at'], 'idx_applications_status_created');
-        $table->index(['category_id', 'status'], 'idx_applications_category_status');
-        $table->index(['submission_type', 'created_at'], 'idx_applications_type_created');
-        $table->index(['reviewed_by', 'status'], 'idx_applications_reviewer_status');
-    });
-
-    Schema::table('reviews', function (Blueprint $table) {
-        $table->index(['application_id', 'created_at'], 'idx_reviews_app_created');
-        $table->index(['stage', 'decision'], 'idx_reviews_stage_decision');
-        $table->index(['reviewed_by', 'created_at'], 'idx_reviews_reviewer_created');
-    });
-
-    Schema::table('audit_logs', function (Blueprint $table) {
-        $table->index(['user_id', 'created_at'], 'idx_audit_user_created');
-        $table->index(['module', 'action', 'created_at'], 'idx_audit_module_action');
-        $table->index(['entity_type', 'entity_id'], 'idx_audit_entity');
-    });
-
-    Schema::table('sms_notifications', function (Blueprint $table) {
-        $table->index(['status', 'created_at'], 'idx_sms_status_created');
-        $table->index(['application_id', 'status'], 'idx_sms_app_status');
-    });
-}
-
-public function down(): void
-{
-    Schema::table('applications', function (Blueprint $table) {
-        $table->dropIndex('idx_applications_status_created');
-        $table->dropIndex('idx_applications_category_status');
-        $table->dropIndex('idx_applications_type_created');
-        $table->dropIndex('idx_applications_reviewer_status');
-    });
-
-    Schema::table('reviews', function (Blueprint $table) {
-        $table->dropIndex('idx_reviews_app_created');
-        $table->dropIndex('idx_reviews_stage_decision');
-        $table->dropIndex('idx_reviews_reviewer_created');
-    });
-
-    Schema::table('audit_logs', function (Blueprint $table) {
-        $table->dropIndex('idx_audit_user_created');
-        $table->dropIndex('idx_audit_module_action');
-        $table->dropIndex('idx_audit_entity');
-    });
-
-    Schema::table('sms_notifications', function (Blueprint $table) {
-        $table->dropIndex('idx_sms_status_created');
-        $table->dropIndex('idx_sms_app_status');
-    });
-}
-```
+| Table | Composite Index | Purpose |
+|---|---|---|
+| **users** | `(role, status)` | User listing filters (Admin panel) |
+| **required_documents** | `(category_id, is_active)` | Document listing per category |
+| **application_documents** | `(application_id, required_doc_id)` | De-facto unique lookup per app/doc |
+| **application_documents** | `(application_id, is_resubmission)` | Resubmission filtering per app |
+| **vouchers** | `(application_id, version)` | Latest voucher version lookup |
+| **vouchers** | `(prepared_by, created_at)` | Staff workload reports |
+| **sms_notifications** | `(status, created_at)` | Failed/pending SMS dashboard |
+| **applications** | `(claimant_last_name, claimant_first_name)` | Name search (no name index existed) |
+| **reviews** | `(reviewed_by, created_at)` | Staff review activity timeline |
+| **social_case_studies** | `(conducted_by, created_at)` | Staff workload reports |
 
 ---
 
@@ -834,36 +619,31 @@ Improvements** section, between Phase 2 and Phase 3:
 ## Phase 2b — System Design Improvements
 
 ### Redis
-- [ ] Install Redis (local: WSL2/Memurai or skip; production: Ubuntu apt)
-- [ ] composer require predis/predis
-- [ ] Update production .env: CACHE_DRIVER=redis, SESSION_DRIVER=redis,
-      QUEUE_CONNECTION=redis, REDIS_HOST, REDIS_PASSWORD, REDIS_PORT
-- [ ] Update config/database.php Redis connection with separate DB for cache
-- [ ] Update Supervisor config to use redis queue driver in production
-- [ ] Verify: php artisan cache:clear && php artisan config:cache
+- [x] Skipped by decision — file cache sufficient for single-municipality scale
 
 ### Caching
-- [ ] Add Cache::remember() to Public/CategoryController@index (1 hour)
-- [ ] Add Cache::remember() to SystemSettingService (30 min)
-- [ ] Add Cache::remember() to AssistanceCodeReference dropdown queries (1 hour)
-- [ ] Add Cache::remember() to all dashboard KPI queries (5 min)
-- [ ] Add Cache::remember() to all analytics chart queries (15 min)
-- [ ] Add Cache::forget() in all Admin controllers that update cached data
-- [ ] Add bustPollCache() calls to all status-changing controller actions
-      (already in polling spec — combine with cache bust here)
+- [x] Add Cache::remember() to Public/CategoryController@index (1 hour)
+- [x] Add Cache::remember() to system settings in FileUploadService + SendSmsJob (30 min)
+- [x] Add Cache::remember() to AssistanceCodeReference dropdown queries (1 hour)
+- [x] Add Cache::remember() to all dashboard KPI queries (5 min)
+- [x] Add Cache::remember() to all analytics chart queries (15 min)
+- [x] Add Cache::forget() in all controllers that update cached data
+- [x] Add Cache::forget() to Public/ApplicationController@store + @resubmit
+- [x] bustPollCache() also busts dashboard + analytics caches
 
 ### Database Indexes
-- [ ] php artisan make:migration add_performance_indexes_to_alalay_tables
-- [ ] Add composite indexes per spec above
-- [ ] php artisan migrate
-- [ ] Verify indexes in phpMyAdmin (Structure tab per table)
+- [x] Migration 1: (status, created_at), (category_id, status) on applications
+      + reviews(application_id, stage) + audit_logs composite indexes
+- [x] Migration 2: Additional composites on users, required_documents,
+      application_documents, vouchers, sms_notifications, social_case_studies
+- [x] php artisan migrate (both batches)
 
 ### Security Headers
-- [ ] Create app/Http/Middleware/SecurityHeaders.php
-- [ ] Register in bootstrap/app.php web middleware group
-- [ ] Verify headers in browser DevTools (Network tab → response headers)
-- [ ] Confirm Permissions-Policy allows camera (needed for DocumentScanner)
-- [ ] Confirm CSP connect-src includes Supabase and PSGC API URLs
+- [x] Create app/Http/Middleware/SecurityHeaders.php
+- [x] Register in bootstrap/app.php web middleware group
+- [x] Verify headers in browser DevTools (curl confirmed all 5 headers)
+- [x] Confirm Permissions-Policy allows camera (`camera=self`)
+- [x] Confirm CSP connect-src includes Supabase and PSGC API URLs
 
 ### Login Security
 - [ ] Add login lockout logging to audit_logs in FortifyServiceProvider
@@ -872,7 +652,7 @@ Improvements** section, between Phase 2 and Phase 3:
 
 ### Query Optimization
 - [ ] Add slow query logger to AppServiceProvider@boot (local env only)
-- [ ] Audit all controller list methods — confirm with() on all relationships
+- [x] Eager loading already implemented in all index/show methods
 - [ ] Add Inertia::lazy() to all analytics controllers
 
 ### Backup
@@ -898,20 +678,20 @@ Improvements** section, between Phase 2 and Phase 3:
 
 ## Priority Order
 
-If you cannot do everything at once, implement in this order:
+Items marked **[DONE]** are already implemented.
 
-| Priority | Improvement | Why First |
+| Priority | Improvement | Status |
 |---|---|---|
-| 1 | Redis installation + driver switch | Highest impact, enables everything else |
-| 2 | Caching (categories, settings, KPIs) | Immediate query reduction |
-| 3 | Composite database indexes | Fixes slow queries before more data accumulates |
-| 4 | Security headers middleware | One file, immediate security improvement |
-| 5 | Login lockout logging | NPC compliance + audit trail completeness |
-| 6 | Inertia lazy loading for analytics | Faster dashboard experience |
-| 7 | Offsite backup to Supabase | Disaster recovery |
-| 8 | Emergency maintenance toggle | Incident response speed |
-| 9 | Query optimizer / slow query logger | Dev-time quality assurance |
-| 10 | Backup verify command | Long-term reliability assurance |
+| 1 | Redis installation + driver switch | **SKIPPED** — file cache sufficient |
+| 2 | Caching (categories, settings, KPIs, dashboard, analytics) | **[DONE]** |
+| 3 | Composite database indexes | **[DONE]** |
+| 4 | Security headers middleware | Pending |
+| 5 | Login lockout logging | Pending |
+| 6 | Inertia lazy loading for analytics | Pending |
+| 7 | Offsite backup to Supabase | Pending |
+| 8 | Emergency maintenance toggle | Pending |
+| 9 | Query optimizer / slow query logger | Pending |
+| 10 | Backup verify command | Pending |
 
 ---
 
