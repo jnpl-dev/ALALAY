@@ -345,4 +345,9 @@ Every controller now calls `$this->authorize()`:
 - Branded 503 maintenance page
 - Tested: toggle on → 503 page shown → `/test123` bypass → toggle off works
 
-- Phase 2b Zero-Day items not started.
+### Zero-Day (COMPLETE)
+- `scripts/deploy.sh` — composer audit fails build on PHP vulns, npm audit warns
+- PII redaction in `AuditLogger::log()` — phone numbers stripped from descriptions
+- `INCIDENT_RESPONSE.md` — emergency commands, breach/corruption/SMS procedures, contacts template
+
+## Phase 2b — ALL COMPLETE ✅

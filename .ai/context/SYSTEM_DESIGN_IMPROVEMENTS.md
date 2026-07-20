@@ -673,9 +673,9 @@ Improvements** section, between Phase 2 and Phase 3:
 - [ ] Print emergency command reference — store physically in IT office
 
 ### Zero-Day
-- [ ] Add composer audit check to deploy.sh
-- [ ] Add PII redaction to AuditLogger::log() description field
-- [ ] Document incident response procedure in .ai/context/
+- [x] Add composer audit check to scripts/deploy.sh
+- [x] Add PII redaction to AuditLogger::log() description field
+- [x] Create .ai/context/INCIDENT_RESPONSE.md with emergency commands and incident procedures
 ```
 
 ---
@@ -696,6 +696,9 @@ Items marked **[DONE]** are already implemented.
 | 8 | Offsite backup to Supabase | **[DONE]** |
 | 9 | Emergency maintenance toggle | **[DONE]** |
 | 10 | Backup verify command | **[DONE]** |
+| 11 | Deploy script with security audit | **[DONE]** |
+| 12 | PII redaction in audit logs | **[DONE]** |
+| 13 | Incident response documentation | **[DONE]** |
 
 ---
 
