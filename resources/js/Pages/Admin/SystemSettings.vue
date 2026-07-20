@@ -14,6 +14,7 @@ const isEditing = ref(false)
 
 const props = defineProps({
   groups: { type: Array, default: () => [] },
+  isDownForMaintenance: { type: Boolean, default: false },
 })
 
 const form = useForm({ settings: {} })
@@ -31,6 +32,13 @@ watch(() => props.groups, (newGroups) => {
     form.settings = values
   }
 })
+
+function toggleMaintenance() {
+  form.post(route('admin.maintenance.toggle'), {
+    preserveState: true,
+    preserveScroll: true,
+  })
+}
 
 function updateSetting(key, value) {
   form.settings[key] = value
@@ -85,6 +93,20 @@ function handleButtonClick() {
               @click="handleButtonClick"
             />
           </div>
+        </div>
+
+        <div class="mb-6 p-4 border border-surface rounded-lg flex items-center justify-between">
+          <div>
+            <div class="font-medium">Maintenance Mode</div>
+            <div class="text-sm text-muted-color">{{ isDownForMaintenance ? 'System is currently offline' : 'System is running normally' }}</div>
+          </div>
+          <Button
+            :label="isDownForMaintenance ? 'Bring System Online' : 'Enable Maintenance Mode'"
+            :icon="isDownForMaintenance ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'"
+            :severity="isDownForMaintenance ? 'success' : 'danger'"
+            :loading="form.processing"
+            @click="toggleMaintenance"
+          />
         </div>
 
         <Deferred data="groups">

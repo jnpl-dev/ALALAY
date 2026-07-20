@@ -94,6 +94,7 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/audit-logs/export', [AuditLogController::class, 'export'])->name('audit-logs.export');
         Route::get('/settings', [SystemSettingController::class, 'index'])->name('settings');
         Route::put('/settings', [SystemSettingController::class, 'update'])->name('settings.update');
+        Route::post('/maintenance/toggle', [SystemSettingController::class, 'toggleMaintenance'])->name('maintenance.toggle');
         Route::resource('assistance-categories', AssistanceCategoryController::class);
         Route::resource('required-documents', RequiredDocumentController::class);
         Route::resource('assistance-code-references', AssistanceCodeReferenceController::class);

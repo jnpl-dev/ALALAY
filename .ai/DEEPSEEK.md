@@ -340,4 +340,9 @@ Every controller now calls `$this->authorize()`:
 - `backup:verify` scheduled weekly Sundays at 03:00 — restore latest backup to test database
 - Manual step: set `BACKUP_ENCRYPT_PASS` in production `.env`
 
-- Phase 2b Emergency Maintenance and Zero-Day items not started.
+### Emergency Maintenance (COMPLETE — TESTED ✅)
+- Maintenance toggle in Admin System Settings — red/green button, calls `php artisan up`/`down`, logs to audit_logs
+- Branded 503 maintenance page
+- Tested: toggle on → 503 page shown → `/test123` bypass → toggle off works
+
+- Phase 2b Zero-Day items not started.
