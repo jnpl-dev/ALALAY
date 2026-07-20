@@ -656,10 +656,13 @@ Improvements** section, between Phase 2 and Phase 3:
 - [x] Add Inertia::lazy() to all analytics controllers
 
 ### Backup
-- [ ] Create alalay-backups private bucket in Supabase Storage
-- [ ] Add offsite backup upload to scripts/backup.sh
-- [ ] Create app/Console/Commands/VerifyBackup.php
-- [ ] Register weekly backup:verify schedule
+- [x] Create config/backup.php — centralized config for path, encryption, retention, Supabase bucket
+- [x] Create scripts/backup.sh — full backup script (mysqldump → gzip → AES-256-CBC encrypt → local save → S3-compatible upload to Supabase → prune old)
+- [x] Create app/Console/Commands/VerifyBackup.php — decrypts + restores latest backup to test database
+- [x] Create app/Console/Commands/BackupDatabase.php — Laravel command for daily backup (mysqldump → encrypt → upload → prune)
+- [x] Register daily backup:run schedule in routes/console.php (daily 02:00)
+- [x] Register weekly backup:verify schedule in routes/console.php (Sundays 03:00)
+- [x] Manual: Create alalay-backups private bucket in Supabase Storage
 
 ### Emergency Maintenance
 - [ ] Add APP_MAINTENANCE_SECRET to .env
@@ -689,9 +692,9 @@ Items marked **[DONE]** are already implemented.
 | 5 | Login lockout logging / New IP notification | **[DONE]** |
 | 6 | Inertia lazy loading for analytics | **[DONE]** |
 | 7 | Slow query logger (local dev) | **[DONE]** |
-| 8 | Offsite backup to Supabase | Pending |
+| 8 | Offsite backup to Supabase | **[DONE]** |
 | 9 | Emergency maintenance toggle | Pending |
-| 10 | Backup verify command | Pending |
+| 10 | Backup verify command | **[DONE]** |
 
 ---
 
