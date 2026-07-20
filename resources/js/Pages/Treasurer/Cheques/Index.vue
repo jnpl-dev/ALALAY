@@ -1,5 +1,5 @@
 <script setup>
-import { Head, router } from '@inertiajs/vue3'
+import { Head, router, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
@@ -14,6 +14,7 @@ import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import Select from 'primevue/select'
 import Paginator from 'primevue/paginator'
+import Skeleton from 'primevue/skeleton'
 import { ref, toRaw, watch, computed } from 'vue'
 import { usePolling } from '@/Composables/usePolling'
 import { formatDate } from '@/Utils/formatDate'
@@ -22,14 +23,14 @@ import { formatCurrency } from '@/Utils/formatCurrency'
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
-  applications: { type: Object, required: true },
+  applications: { type: Object, default: () => ({ data: [], total: 0, per_page: 10, current_page: 1, from: 0, to: 0 }) },
   tab: { type: String, default: 'pending' },
   search: { type: String, default: '' },
   category: { type: String, default: '' },
   categories: { type: Array, default: () => [] },
 })
 
-const total = props.applications?.total ?? 0
+const total = computed(() => props.applications?.total ?? 0)
 const route = window.route
 
 const tabIndex = ['pending', 'ready', 'hold'].indexOf(props.tab)
@@ -39,7 +40,7 @@ let filterTimer = null
 
 const categoryOptions = [{ label: 'All Categories', value: '' }, ...props.categories.map(c => ({ label: c, value: c }))]
 
-const tableData = ref([...toRaw(props.applications.data)])
+const tableData = ref(props.applications?.data ? [...toRaw(props.applications.data)] : [])
 
 watch(() => props.applications, (val) => {
   tableData.value = val?.data ? [...toRaw(val.data)] : []
@@ -111,6 +112,7 @@ function onPage(event) {
 
         <TabView :activeIndex="tabIndex" @tab-change="onTabChange">
           <TabPanel header="Pending">
+            <Deferred data="applications">
             <DataTable :value="toRaw(tableData)" striped-rows class="w-full">
               <Column field="reference_code" header="Reference" sortable />
               <Column field="claimant_name" header="Claimant" sortable />
@@ -140,19 +142,28 @@ function onPage(event) {
             </DataTable>
 
             <Paginator
-              v-if="total > props.applications.per_page"
-              :first="(props.applications.current_page - 1) * props.applications.per_page"
-              :rows="props.applications.per_page"
+              v-if="total > (props.applications?.per_page ?? 10)"
+              :first="((props.applications?.current_page ?? 1) - 1) * (props.applications?.per_page ?? 10)"
+              :rows="props.applications?.per_page ?? 10"
               :total-records="total"
               @page="onPage"
               template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
               class="mt-4"
             />
 
-            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-inbox" message="No pending cheques" />
+            <AppEmptyState v-if="!props.applications?.data?.length" icon="pi pi-inbox" message="No pending cheques" />
+
+            <template #fallback>
+              <div class="space-y-3">
+                <Skeleton width="100%" height="2.5rem" />
+                <Skeleton width="100%" height="2rem" v-for="i in 5" :key="i" />
+              </div>
+            </template>
+            </Deferred>
           </TabPanel>
 
           <TabPanel header="Ready">
+            <Deferred data="applications">
             <DataTable :value="toRaw(tableData)" striped-rows class="w-full">
               <Column field="reference_code" header="Reference" sortable />
               <Column field="claimant_name" header="Claimant" sortable />
@@ -182,19 +193,28 @@ function onPage(event) {
             </DataTable>
 
             <Paginator
-              v-if="total > props.applications.per_page"
-              :first="(props.applications.current_page - 1) * props.applications.per_page"
-              :rows="props.applications.per_page"
+              v-if="total > (props.applications?.per_page ?? 10)"
+              :first="((props.applications?.current_page ?? 1) - 1) * (props.applications?.per_page ?? 10)"
+              :rows="props.applications?.per_page ?? 10"
               :total-records="total"
               @page="onPage"
               template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
               class="mt-4"
             />
 
-            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-check-circle" message="No ready cheques" />
+            <AppEmptyState v-if="!props.applications?.data?.length" icon="pi pi-check-circle" message="No ready cheques" />
+
+            <template #fallback>
+              <div class="space-y-3">
+                <Skeleton width="100%" height="2.5rem" />
+                <Skeleton width="100%" height="2rem" v-for="i in 5" :key="i" />
+              </div>
+            </template>
+            </Deferred>
           </TabPanel>
 
           <TabPanel header="On Hold">
+            <Deferred data="applications">
             <DataTable :value="toRaw(tableData)" striped-rows class="w-full">
               <Column field="reference_code" header="Reference" sortable />
               <Column field="claimant_name" header="Claimant" sortable />
@@ -224,16 +244,24 @@ function onPage(event) {
             </DataTable>
 
             <Paginator
-              v-if="total > props.applications.per_page"
-              :first="(props.applications.current_page - 1) * props.applications.per_page"
-              :rows="props.applications.per_page"
+              v-if="total > (props.applications?.per_page ?? 10)"
+              :first="((props.applications?.current_page ?? 1) - 1) * (props.applications?.per_page ?? 10)"
+              :rows="props.applications?.per_page ?? 10"
               :total-records="total"
               @page="onPage"
               template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
               class="mt-4"
             />
 
-            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-pause-circle" message="No applications on hold" />
+            <AppEmptyState v-if="!props.applications?.data?.length" icon="pi pi-pause-circle" message="No applications on hold" />
+
+            <template #fallback>
+              <div class="space-y-3">
+                <Skeleton width="100%" height="2.5rem" />
+                <Skeleton width="100%" height="2rem" v-for="i in 5" :key="i" />
+              </div>
+            </template>
+            </Deferred>
           </TabPanel>
         </TabView>
       </div>

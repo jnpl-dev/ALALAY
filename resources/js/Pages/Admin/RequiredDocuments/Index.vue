@@ -1,5 +1,5 @@
 <script setup>
-import { Head, router } from '@inertiajs/vue3'
+import { Head, router, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Tag from 'primevue/tag'
 import Button from 'primevue/button'
@@ -8,20 +8,19 @@ import Select from 'primevue/select'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Paginator from 'primevue/paginator'
+import Skeleton from 'primevue/skeleton'
 import { ref, toRaw } from 'vue'
 
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
-  documents: { type: Object, required: true },
+  documents: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) },
   categories: { type: Array, default: () => [] },
 })
 
 const search = ref(props.filters.search || '')
 const category_id = ref(props.filters.category_id || '')
-const total = props.documents?.total ?? 0
-
 const categoryOptions = [{ label: 'All Categories', value: '' }, ...props.categories.map(c => ({ label: c.category_name, value: c.id }))]
 
 const route = window.route
@@ -62,45 +61,53 @@ function onPage(event) {
           </div>
         </div>
 
-        <DataTable :value="toRaw(props.documents.data)" striped-rows class="w-full">
-          <Column field="doc_name" header="Name" sortable />
-          <Column field="category_name" header="Category" sortable />
-          <Column field="doc_description" header="Description">
-            <template #body="{ data }">
-              <span class="text-sm">{{ data.doc_description || '—' }}</span>
-            </template>
-          </Column>
-          <Column field="is_mandatory" header="Mandatory" sortable>
-            <template #body="{ data }">
-              <Tag :value="data.is_mandatory ? 'Yes' : 'No'" :severity="data.is_mandatory ? 'info' : 'contrast'" />
-            </template>
-          </Column>
-          <Column field="is_active" header="Status" sortable>
-            <template #body="{ data }">
-              <Tag :value="data.is_active ? 'Active' : 'Inactive'" :severity="data.is_active ? 'success' : 'danger'" />
-            </template>
-          </Column>
-          <Column header="Actions" style="width: 8rem">
-            <template #body="{ data }">
-              <div class="flex gap-2">
-                <Button icon="pi pi-pencil" severity="info" text rounded size="small"
-                  @click="router.get(route('admin.required-documents.edit', data.id))" />
-                <Button icon="pi pi-trash" severity="danger" text rounded size="small"
-                  @click="router.delete(route('admin.required-documents.destroy', data.id), { preserveState: true, preserveScroll: true })" />
-              </div>
-            </template>
-          </Column>
-        </DataTable>
+        <Deferred data="documents">
+          <DataTable :value="toRaw(documents?.data ?? [])" striped-rows class="w-full">
+            <Column field="doc_name" header="Name" sortable />
+            <Column field="category_name" header="Category" sortable />
+            <Column field="doc_description" header="Description">
+              <template #body="{ data }">
+                <span class="text-sm">{{ data.doc_description || '—' }}</span>
+              </template>
+            </Column>
+            <Column field="is_mandatory" header="Mandatory" sortable>
+              <template #body="{ data }">
+                <Tag :value="data.is_mandatory ? 'Yes' : 'No'" :severity="data.is_mandatory ? 'info' : 'contrast'" />
+              </template>
+            </Column>
+            <Column field="is_active" header="Status" sortable>
+              <template #body="{ data }">
+                <Tag :value="data.is_active ? 'Active' : 'Inactive'" :severity="data.is_active ? 'success' : 'danger'" />
+              </template>
+            </Column>
+            <Column header="Actions" style="width: 8rem">
+              <template #body="{ data }">
+                <div class="flex gap-2">
+                  <Button icon="pi pi-pencil" severity="info" text rounded size="small"
+                    @click="router.get(route('admin.required-documents.edit', data.id))" />
+                  <Button icon="pi pi-trash" severity="danger" text rounded size="small"
+                    @click="router.delete(route('admin.required-documents.destroy', data.id), { preserveState: true, preserveScroll: true })" />
+                </div>
+              </template>
+            </Column>
+          </DataTable>
 
-        <Paginator
-          v-if="total > props.documents.per_page"
-          :first="(props.documents.current_page - 1) * props.documents.per_page"
-          :rows="props.documents.per_page"
-          :total-records="total"
-          @page="onPage"
-          template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
-          class="mt-4"
-        />
+          <Paginator
+            v-if="(documents?.total ?? 0) > (documents?.per_page ?? 10)"
+            :first="((documents?.current_page ?? 1) - 1) * (documents?.per_page ?? 10)"
+            :rows="documents?.per_page ?? 10"
+            :total-records="documents?.total ?? 0"
+            @page="onPage"
+            template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+            class="mt-4"
+          />
+
+          <template #fallback>
+            <div class="space-y-3">
+              <Skeleton v-for="i in 5" :key="i" width="100%" height="3.5rem" />
+            </div>
+          </template>
+        </Deferred>
       </div>
     </div>
   </div>

@@ -86,7 +86,7 @@ class AuditLogController extends Controller
         $actions = AuditLog::distinct()->pluck('action')->sort()->values();
 
         return Inertia::render('Admin/AuditLogs', [
-            'logs' => $logs,
+            'logs' => Inertia::defer(fn () => $logs),
             'filters' => request()->only(['search', 'module', 'action', 'from', 'to']),
             'modules' => $modules,
             'actions' => $actions,

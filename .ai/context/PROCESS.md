@@ -282,10 +282,25 @@ Redis skipped by decision: at single-municipality scale the `file` cache driver 
 
 ### Query Optimization
 
-- [ ] Add slow query logger to `AppServiceProvider@boot` (local env only)
+- [x] Add slow query logger to `AppServiceProvider@boot` (local env only)
 - [x] Eager loading (`->with()`) — already implemented in all index/show methods
-- [ ] Add `Inertia::lazy()` to all analytics controllers
+- [x] Migrate `Inertia::lazy()` + `router.reload()` → `Inertia::defer()` + `<Deferred #fallback>` skeleton pattern across all analytics, admin sidebar, and dashboard controllers/pages
+- [x] Consolidate multiple individual lazy props into single deferred object per page (`analyticsData`, `dashboardData`, `groups`, `users`, `documents`, `categories`, `references`, `logs`, `userData`)
+- [x] Add `<Deferred>` inside each `<TabPanel>` (not wrapping entire `<TabView>`) so tab headers stay visible during loading
+- [x] Change index page list props from `required: true` to `default: []` + optional chaining (`data?.total`)
+- [x] Add full KPI skeleton cards in `#fallback` on all analytics pages
+- [x] Add skeleton row fallback on all admin sidebar index pages
+- [x] Fix: SystemSettings empty form bug — replaced compile-time `initialValues` loop with `watch(() => props.groups)` (ran before deferred data loaded)
 - [x] Fix: Login errors now return `Inertia::render()` with errors instead of `throw ValidationException` (Inertia v3 XHR compatibility)
+- [x] Replace `whereMonth()` (non-sargable, wraps column in `MONTH()`) with `whereBetween(column, [startOfMonth, endOfMonth])` — 9 occurrences across 6 dashboard + analytics controllers
+- [x] Fix: MayorsOffice Dashboard — `sum('amount_granted')` threw SQL error (column doesn't exist); replaced with `count()` + proper `whereBetween` + join to `assistance_codes.amount`
+- [x] Fix: Cache key precision `YmdHi` → `YmdH` so full 300s TTL is honored (was regenerating every minute)
+- [x] Add Admin Dashboard 4th KPI `totalUsers` for 4-card KPI row
+
+### Database Indexes (covering index)
+
+- [x] Create migration `add_assistance_codes_covering_index` — `(application_id, amount)` composite index for index-only SUM queries on analytics
+- [x] `php artisan migrate`
 
 ### Backup
 

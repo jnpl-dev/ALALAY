@@ -16,7 +16,16 @@ class AccountController extends Controller
     public function edit()
     {
         $this->authorize('update', request()->user());
-        return Inertia::render('Auth/AccountSettings');
+        $user = request()->user();
+        return Inertia::render('Auth/AccountSettings', [
+            'userData' => Inertia::defer(fn () => [
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'middle_name' => $user->middle_name,
+                'name_extension' => $user->name_extension,
+                'email' => $user->email,
+            ]),
+        ]);
     }
 
     public function update(UpdateAccountRequest $request)

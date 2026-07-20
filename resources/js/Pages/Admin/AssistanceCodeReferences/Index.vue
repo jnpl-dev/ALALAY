@@ -1,5 +1,5 @@
 <script setup>
-import { Head, router } from '@inertiajs/vue3'
+import { Head, router, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Tag from 'primevue/tag'
 import Button from 'primevue/button'
@@ -7,18 +7,18 @@ import InputText from 'primevue/inputtext'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Paginator from 'primevue/paginator'
+import Skeleton from 'primevue/skeleton'
 import { ref, toRaw } from 'vue'
 import { formatCurrency } from '@/Utils/formatCurrency'
 
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
-  references: { type: Object, required: true },
+  references: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) },
 })
 
 const search = ref(props.filters.search || '')
-const total = props.references?.total ?? 0
 
 const route = window.route
 
@@ -53,44 +53,52 @@ function onPage(event) {
           </div>
         </div>
 
-        <DataTable :value="toRaw(props.references.data)" striped-rows class="w-full">
-          <Column field="code_type" header="Code Type" sortable />
-          <Column field="default_amount" header="Default Amount" sortable>
-            <template #body="{ data }">
-              <span class="font-medium">{{ formatCurrency(data.default_amount) }}</span>
-            </template>
-          </Column>
-          <Column field="description" header="Description">
-            <template #body="{ data }">
-              <span class="text-sm">{{ data.description || '—' }}</span>
-            </template>
-          </Column>
-          <Column field="is_active" header="Status" sortable>
-            <template #body="{ data }">
-              <Tag :value="data.is_active ? 'Active' : 'Inactive'" :severity="data.is_active ? 'success' : 'danger'" />
-            </template>
-          </Column>
-          <Column header="Actions" style="width: 8rem">
-            <template #body="{ data }">
-              <div class="flex gap-2">
-                <Button icon="pi pi-pencil" severity="info" text rounded size="small"
-                  @click="router.get(route('admin.assistance-code-references.edit', data.id))" />
-                <Button icon="pi pi-trash" severity="danger" text rounded size="small"
-                  @click="router.delete(route('admin.assistance-code-references.destroy', data.id), { preserveState: true, preserveScroll: true })" />
-              </div>
-            </template>
-          </Column>
-        </DataTable>
+        <Deferred data="references">
+          <DataTable :value="toRaw(references?.data ?? [])" striped-rows class="w-full">
+            <Column field="code_type" header="Code Type" sortable />
+            <Column field="default_amount" header="Default Amount" sortable>
+              <template #body="{ data }">
+                <span class="font-medium">{{ formatCurrency(data.default_amount) }}</span>
+              </template>
+            </Column>
+            <Column field="description" header="Description">
+              <template #body="{ data }">
+                <span class="text-sm">{{ data.description || '—' }}</span>
+              </template>
+            </Column>
+            <Column field="is_active" header="Status" sortable>
+              <template #body="{ data }">
+                <Tag :value="data.is_active ? 'Active' : 'Inactive'" :severity="data.is_active ? 'success' : 'danger'" />
+              </template>
+            </Column>
+            <Column header="Actions" style="width: 8rem">
+              <template #body="{ data }">
+                <div class="flex gap-2">
+                  <Button icon="pi pi-pencil" severity="info" text rounded size="small"
+                    @click="router.get(route('admin.assistance-code-references.edit', data.id))" />
+                  <Button icon="pi pi-trash" severity="danger" text rounded size="small"
+                    @click="router.delete(route('admin.assistance-code-references.destroy', data.id), { preserveState: true, preserveScroll: true })" />
+                </div>
+              </template>
+            </Column>
+          </DataTable>
 
-        <Paginator
-          v-if="total > props.references.per_page"
-          :first="(props.references.current_page - 1) * props.references.per_page"
-          :rows="props.references.per_page"
-          :total-records="total"
-          @page="onPage"
-          template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
-          class="mt-4"
-        />
+          <Paginator
+            v-if="(references?.total ?? 0) > (references?.per_page ?? 10)"
+            :first="((references?.current_page ?? 1) - 1) * (references?.per_page ?? 10)"
+            :rows="references?.per_page ?? 10"
+            :total-records="references?.total ?? 0"
+            @page="onPage"
+            template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+            class="mt-4"
+          />
+
+          <template #fallback>
+            <div class="space-y-3">
+              <Skeleton v-for="i in 5" :key="i" width="100%" height="3.5rem" />
+            </div>
+          </template>
+        </Deferred>
       </div>
     </div>
   </div>
