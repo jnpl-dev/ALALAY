@@ -66,6 +66,19 @@ class VoucherController extends Controller
         $search = request('search');
         $category = request('category');
 
+        $categories = \App\Models\AssistanceCategory::where('is_active', true)->pluck('category_name');
+
+        return Inertia::render('Accountant/Vouchers/Index', [
+            'tab' => $tab,
+            'search' => $search,
+            'category' => $category,
+            'categories' => $categories,
+            'applications' => Inertia::defer(fn () => $this->loadApplications($tab, $search, $category)),
+        ]);
+    }
+
+    protected function loadApplications(string $tab, ?string $search, ?string $category)
+    {
         $query = Application::with('category', 'assistanceCode.reference', 'vouchers');
 
         if ($search) {
@@ -87,7 +100,7 @@ class VoucherController extends Controller
             default => (clone $query)->where('status', 'voucher_checking'),
         };
 
-        $apps = $applications->latest()
+        return $applications->latest()
             ->paginate(10)
             ->through(fn ($app) => [
                 'id' => $app->id,
@@ -99,16 +112,6 @@ class VoucherController extends Controller
                 'amount' => $app->assistanceCode?->amount,
                 'created_at' => $app->created_at,
             ]);
-
-        $categories = \App\Models\AssistanceCategory::where('is_active', true)->pluck('category_name');
-
-        return Inertia::render('Accountant/Vouchers/Index', [
-            'applications' => $apps,
-            'tab' => $tab,
-            'search' => $search,
-            'category' => $category,
-            'categories' => $categories,
-        ]);
     }
 
     public function show($id): Response

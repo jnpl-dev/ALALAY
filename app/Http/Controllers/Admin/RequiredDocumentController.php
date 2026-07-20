@@ -40,7 +40,7 @@ class RequiredDocumentController extends Controller
             ->get(['id', 'category_name']);
 
         return Inertia::render('Admin/RequiredDocuments/Index', [
-            'documents' => $documents,
+            'documents' => Inertia::defer(fn () => $documents),
             'filters' => request()->only(['search', 'category_id']),
             'categories' => $categories,
         ]);

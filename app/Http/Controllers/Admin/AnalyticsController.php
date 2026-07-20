@@ -17,34 +17,23 @@ class AnalyticsController extends Controller
         $to = request('to', now()->toDateString());
         $cacheKey = 'analytics.admin.' . md5("{$from}-{$to}");
 
-        $data = Cache::remember($cacheKey, 900, function () {
-            $totalUsers = User::count();
-            $activeUsers = User::active()->count();
-            $inactiveUsers = User::where('status', '!=', 'active')->count();
-            $totalApplications = Application::count();
-
-            $applicationsByStatus = Application::selectRaw('status, count(*) as count')
-                ->groupBy('status')
-                ->pluck('count', 'status');
-
-            $recentActivity = AuditLog::with('user')
-                ->latest()
-                ->take(10)
-                ->get()
-                ->map(fn ($log) => [
+        return Inertia::render('Admin/Analytics', [
+            'analyticsData' => Inertia::defer(fn () => [
+                'totalUsers' => Cache::remember("{$cacheKey}.totalUsers", 900, fn () => User::count()),
+                'activeUsers' => Cache::remember("{$cacheKey}.activeUsers", 900, fn () => User::active()->count()),
+                'inactiveUsers' => Cache::remember("{$cacheKey}.inactiveUsers", 900, fn () => User::where('status', '!=', 'active')->count()),
+                'totalApplications' => Cache::remember("{$cacheKey}.totalApplications", 900, fn () => Application::count()),
+                'applicationsByStatus' => Cache::remember("{$cacheKey}.status", 900, fn () => Application::selectRaw('status, count(*) as count')->groupBy('status')->pluck('count', 'status')),
+                'recentActivity' => Cache::remember("{$cacheKey}.activity", 900, fn () => AuditLog::with('user')->latest()->take(10)->get()->map(fn ($log) => [
                     'id' => $log->id,
                     'action' => $log->action,
                     'module' => $log->module,
                     'user_name' => $log->user?->full_name ?? 'System',
                     'created_at' => $log->created_at,
-                ]);
-
-            return compact('totalUsers', 'activeUsers', 'inactiveUsers', 'totalApplications', 'applicationsByStatus', 'recentActivity');
-        });
-
-        return Inertia::render('Admin/Analytics', array_merge($data, [
+                ])),
+            ]),
             'dateFrom' => $from,
             'dateTo' => $to,
-        ]));
+        ]);
     }
 }

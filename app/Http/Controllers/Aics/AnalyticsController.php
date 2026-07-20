@@ -15,48 +15,25 @@ class AnalyticsController extends Controller
         $to = request('to', now()->toDateString());
         $cacheKey = 'analytics.aics.' . md5("{$from}-{$to}");
 
-        $data = Cache::remember($cacheKey, 900, function () use ($from, $to) {
-            $totalApplications = Application::count();
-            $pendingReview = Application::whereIn('status', ['submitted', 'screening'])->count();
-            $forwarded = Application::where('status', 'mswdo_review')->count();
-            $returned = Application::where('status', 'returned_to_applicant')->count();
-
-            $applicationsByStatus = Application::selectRaw('status, count(*) as count')
-                ->groupBy('status')
-                ->pluck('count', 'status');
-
-            $monthlyTrends = Application::selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, count(*) as count")
-                ->whereBetween('created_at', [$from, $to . ' 23:59:59'])
-                ->groupBy('month')
-                ->orderBy('month')
-                ->pluck('count', 'month');
-
-            $recentApplications = Application::with('category')
-                ->latest()
-                ->take(10)
-                ->get()
-                ->map(fn ($app) => [
+        return Inertia::render('Aics/Analytics', [
+            'analyticsData' => Inertia::defer(fn () => [
+                'totalApplications' => Cache::remember("{$cacheKey}.total", 900, fn () => Application::count()),
+                'pendingApplications' => Cache::remember("{$cacheKey}.pending", 900, fn () => Application::whereIn('status', ['submitted', 'screening'])->count()),
+                'forwardedApplications' => Cache::remember("{$cacheKey}.forwarded", 900, fn () => Application::where('status', 'mswdo_review')->count()),
+                'returnedApplications' => Cache::remember("{$cacheKey}.returned", 900, fn () => Application::where('status', 'returned_to_applicant')->count()),
+                'applicationsByStatus' => Cache::remember("{$cacheKey}.status", 900, fn () => Application::selectRaw('status, count(*) as count')->groupBy('status')->pluck('count', 'status')),
+                'monthlyTrends' => Cache::remember("{$cacheKey}.trends", 900, fn () => Application::selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, count(*) as count")->whereBetween('created_at', [$from, $to . ' 23:59:59'])->groupBy('month')->orderBy('month')->pluck('count', 'month')),
+                'recentApplications' => Cache::remember("{$cacheKey}.recent", 900, fn () => Application::with('category')->latest()->take(10)->get()->map(fn ($app) => [
                     'id' => $app->id,
                     'reference_code' => $app->reference_code,
                     'status' => $app->status,
                     'category_name' => $app->category?->category_name,
                     'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
                     'created_at' => $app->created_at,
-                ]);
-
-            return compact('totalApplications', 'pendingReview', 'forwarded', 'returned', 'applicationsByStatus', 'monthlyTrends', 'recentApplications');
-        });
-
-        return Inertia::render('Aics/Analytics', [
-            'totalApplications' => $data['totalApplications'],
-            'pendingApplications' => $data['pendingReview'],
-            'forwardedApplications' => $data['forwarded'],
-            'returnedApplications' => $data['returned'],
-            'applicationsByStatus' => $data['applicationsByStatus'],
-            'monthlyTrends' => $data['monthlyTrends'],
+                ])),
+            ]),
             'dateFrom' => $from,
             'dateTo' => $to,
-            'recentApplications' => $data['recentApplications'],
         ]);
     }
 }

@@ -1,5 +1,5 @@
 <script setup>
-import { Head, router } from '@inertiajs/vue3'
+import { Head, router, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Button from 'primevue/button'
 import Avatar from 'primevue/avatar'
@@ -10,6 +10,7 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import Paginator from 'primevue/paginator'
 import Popover from 'primevue/popover'
+import Skeleton from 'primevue/skeleton'
 import AppConfirmModal from '@/Components/Common/AppConfirmModal.vue'
 import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
@@ -19,7 +20,7 @@ import { ref, toRaw } from 'vue'
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
-  users: { type: Object, required: true },
+  users: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) },
 })
 
@@ -194,40 +195,48 @@ const onPage = (event) => {
           </div>
         </div>
 
-        <DataTable :value="toRaw(props.users.data)" striped-rows class="w-full">
-          <Column style="width: 4rem">
-            <template #body="{ data }">
-              <Avatar :image="profilePictureUrl(data)" :label="initials(data)" class="font-semibold" size="large" shape="circle" />
-            </template>
-          </Column>
-          <Column field="full_name" header="Name" sortable />
-          <Column field="email" header="Email" sortable />
-          <Column field="role" header="Role" sortable>
-            <template #body="{ data }">
-              <Tag :value="roleLabel(data.role)" :severity="roleSeverity(data.role)" />
-            </template>
-          </Column>
-          <Column field="status" header="Status" sortable>
-            <template #body="{ data }">
-              <Tag :value="data.status" :severity="statusSeverity(data.status)" />
-            </template>
-          </Column>
-          <Column field="created_at" header="Created" sortable>
-            <template #body="{ data }">
-              {{ formatDate(data.created_at) }}
-            </template>
-          </Column>
-          <Column header="Actions" style="min-width: 8rem">
-            <template #body="{ data }">
-              <Button icon="pi pi-ellipsis-h" severity="secondary" text rounded
-                @click="toggleActions($event, data)" />
-            </template>
-          </Column>
-        </DataTable>
+        <Deferred data="users">
+          <DataTable :value="toRaw(users?.data ?? [])" striped-rows class="w-full">
+            <Column style="width: 4rem">
+              <template #body="{ data }">
+                <Avatar :image="profilePictureUrl(data)" :label="initials(data)" class="font-semibold" size="large" shape="circle" />
+              </template>
+            </Column>
+            <Column field="full_name" header="Name" sortable />
+            <Column field="email" header="Email" sortable />
+            <Column field="role" header="Role" sortable>
+              <template #body="{ data }">
+                <Tag :value="roleLabel(data.role)" :severity="roleSeverity(data.role)" />
+              </template>
+            </Column>
+            <Column field="status" header="Status" sortable>
+              <template #body="{ data }">
+                <Tag :value="data.status" :severity="statusSeverity(data.status)" />
+              </template>
+            </Column>
+            <Column field="created_at" header="Created" sortable>
+              <template #body="{ data }">
+                {{ formatDate(data.created_at) }}
+              </template>
+            </Column>
+            <Column header="Actions" style="min-width: 8rem">
+              <template #body="{ data }">
+                <Button icon="pi pi-ellipsis-h" severity="secondary" text rounded
+                  @click="toggleActions($event, data)" />
+              </template>
+            </Column>
+          </DataTable>
 
-        <Paginator :first="(props.users.current_page - 1) * props.users.per_page" :rows="props.users.per_page"
-          :total-records="props.users.total" @page="onPage"
-          template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink" class="mt-4" />
+          <Paginator v-if="(users?.total ?? 0) > (users?.per_page ?? 10)" :first="((users?.current_page ?? 1) - 1) * (users?.per_page ?? 10)" :rows="users?.per_page ?? 10"
+            :total-records="users?.total ?? 0" @page="onPage"
+            template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink" class="mt-4" />
+
+          <template #fallback>
+            <div class="space-y-3">
+              <Skeleton v-for="i in 5" :key="i" width="100%" height="3.5rem" />
+            </div>
+          </template>
+        </Deferred>
 
         <Popover ref="op">
           <div class="flex flex-col gap-1 min-w-40">

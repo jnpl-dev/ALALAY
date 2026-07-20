@@ -12,34 +12,25 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $cacheKey = 'dashboard.treasurer.' . now()->format('YmdHi');
-        $data = Cache::remember($cacheKey, 300, function () {
-            $totalCheques = Application::whereIn('status', ['with_treasurer', 'cheque_ready', 'claimed'])->count();
-            $pendingProcessing = Application::where('status', 'with_treasurer')->count();
-            $acknowledgedThisMonth = Application::where('status', 'cheque_ready')
-                ->whereMonth('created_at', now()->month)
-                ->count();
-
-            $recentActivity = AuditLog::with('user')
-                ->latest()
-                ->take(5)
-                ->get()
-                ->map(fn ($log) => [
-                    'id' => $log->id,
-                    'action' => $log->action,
-                    'module' => $log->module,
-                    'user_name' => $log->user?->full_name ?? 'System',
-                    'created_at' => $log->created_at,
-                ]);
-
-            return compact('totalCheques', 'pendingProcessing', 'acknowledgedThisMonth', 'recentActivity');
-        });
-
         return Inertia::render('Dashboard', [
-            'totalApplications' => $data['totalCheques'],
-            'pendingApplications' => $data['pendingProcessing'],
-            'approvedThisMonth' => $data['acknowledgedThisMonth'],
-            'recentActivity' => $data['recentActivity'],
+            'dashboardData' => Inertia::defer(fn () => Cache::remember(
+                'dashboard.treasurer.' . now()->format('YmdH'), 300,
+                fn () => [
+                    'totalApplications' => Application::whereIn('status', ['with_treasurer', 'cheque_ready', 'claimed'])->count(),
+                    'pendingApplications' => Application::where('status', 'with_treasurer')->count(),
+                    'approvedThisMonth' => Application::where('status', 'cheque_ready')
+                        ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])->count(),
+                    'recentActivity' => AuditLog::with('user')
+                        ->latest()->take(5)->get()
+                        ->map(fn ($log) => [
+                            'id' => $log->id,
+                            'action' => $log->action,
+                            'module' => $log->module,
+                            'user_name' => $log->user?->full_name ?? 'System',
+                            'created_at' => $log->created_at,
+                        ]),
+                ]
+            )),
         ]);
     }
 }

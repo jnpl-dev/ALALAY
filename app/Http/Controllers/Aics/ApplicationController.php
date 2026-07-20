@@ -83,22 +83,22 @@ class ApplicationController extends Controller
             default => (clone $query)->whereIn('status', ['submitted', 'screening']),
         };
 
-        $apps = $applications->latest()
-            ->paginate(10)
-            ->through(fn ($app) => [
-                'id' => $app->id,
-                'reference_code' => $app->reference_code,
-                'status' => $app->status,
-                'category_name' => $app->category?->category_name,
-                'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
-                'submission_type' => $app->submission_type,
-                'created_at' => $app->created_at,
-            ]);
-
         $categories = AssistanceCategory::where('is_active', true)->pluck('category_name');
 
         return Inertia::render('Aics/Applications/Index', [
-            'applications' => $apps,
+            'applications' => Inertia::defer(fn () =>
+                $applications->latest()
+                    ->paginate(10)
+                    ->through(fn ($app) => [
+                        'id' => $app->id,
+                        'reference_code' => $app->reference_code,
+                        'status' => $app->status,
+                        'category_name' => $app->category?->category_name,
+                        'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
+                        'submission_type' => $app->submission_type,
+                        'created_at' => $app->created_at,
+                    ])
+            ),
             'tab' => $tab,
             'search' => $search,
             'category' => $category,

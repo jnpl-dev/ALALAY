@@ -651,9 +651,9 @@ Improvements** section, between Phase 2 and Phase 3:
 - [x] Add new-IP login notification in OTP verification controller (after successful OTP verify)
 
 ### Query Optimization
-- [ ] Add slow query logger to AppServiceProvider@boot (local env only)
+- [x] Add slow query logger to AppServiceProvider@boot (local env only)
 - [x] Eager loading already implemented in all index/show methods
-- [ ] Add Inertia::lazy() to all analytics controllers
+- [x] Add Inertia::lazy() to all analytics controllers
 
 ### Backup
 - [ ] Create alalay-backups private bucket in Supabase Storage
@@ -681,16 +681,16 @@ Improvements** section, between Phase 2 and Phase 3:
 Items marked **[DONE]** are already implemented.
 
 | Priority | Improvement | Status |
-|---|---|---|
+|---|---|---|---|
 | 1 | Redis installation + driver switch | **SKIPPED** — file cache sufficient |
 | 2 | Caching (categories, settings, KPIs, dashboard, analytics) | **[DONE]** |
 | 3 | Composite database indexes | **[DONE]** |
-| 4 | Security headers middleware | Pending |
-| 5 | Login lockout logging | Pending |
-| 6 | Inertia lazy loading for analytics | Pending |
-| 7 | Offsite backup to Supabase | Pending |
-| 8 | Emergency maintenance toggle | Pending |
-| 9 | Query optimizer / slow query logger | Pending |
+| 4 | Security headers middleware | **[DONE]** |
+| 5 | Login lockout logging / New IP notification | **[DONE]** |
+| 6 | Inertia lazy loading for analytics | **[DONE]** |
+| 7 | Slow query logger (local dev) | **[DONE]** |
+| 8 | Offsite backup to Supabase | Pending |
+| 9 | Emergency maintenance toggle | Pending |
 | 10 | Backup verify command | Pending |
 
 ---

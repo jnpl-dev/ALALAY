@@ -1,5 +1,5 @@
 <script setup>
-import { Head, router } from '@inertiajs/vue3'
+import { Head, router, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
@@ -14,6 +14,7 @@ import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import Select from 'primevue/select'
 import Paginator from 'primevue/paginator'
+import Skeleton from 'primevue/skeleton'
 import { ref, toRaw, watch, computed } from 'vue'
 import { usePolling } from '@/Composables/usePolling'
 import { formatDate } from '@/Utils/formatDate'
@@ -22,7 +23,7 @@ import { formatCurrency } from '@/Utils/formatCurrency'
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
-  applications: { type: Object, required: true },
+  applications: { type: Object, default: () => ({}) },
   tab: { type: String, default: 'pending' },
   search: { type: String, default: '' },
   category: { type: String, default: '' },
@@ -39,7 +40,7 @@ let filterTimer = null
 
 const categoryOptions = [{ label: 'All Categories', value: '' }, ...props.categories.map(c => ({ label: c, value: c }))]
 
-const tableData = ref([...toRaw(props.applications.data)])
+const tableData = ref([])
 
 watch(() => props.applications, (val) => {
   tableData.value = val?.data ? [...toRaw(val.data)] : []
@@ -111,76 +112,92 @@ function onPage(event) {
 
         <TabView :activeIndex="tabIndex" @tab-change="onTabChange">
           <TabPanel header="Pending">
-            <DataTable :value="toRaw(tableData)" striped-rows class="w-full">
-              <Column field="reference_code" header="Reference" sortable />
-              <Column field="claimant_name" header="Claimant" sortable />
-              <Column field="category_name" header="Category" sortable />
-              <Column field="status" header="Status" sortable>
-                <template #body="{ data }">
-                  <AppStatusBadge :status="data.status" />
-                </template>
-              </Column>
-              <Column field="created_at" header="Submitted" sortable>
-                <template #body="{ data }">
-                  {{ formatDate(data.created_at) }}
-                </template>
-              </Column>
-              <Column header="Actions" style="width: 6rem">
-                <template #body="{ data }">
-                  <Button icon="pi pi-pencil" severity="info" text rounded size="small"
-                    @click="router.get(route('aics.assistance-codes.show', data.id))" />
-                </template>
-              </Column>
-            </DataTable>
+            <Deferred data="applications">
+              <DataTable :value="toRaw(tableData)" striped-rows class="w-full">
+                <Column field="reference_code" header="Reference" sortable />
+                <Column field="claimant_name" header="Claimant" sortable />
+                <Column field="category_name" header="Category" sortable />
+                <Column field="status" header="Status" sortable>
+                  <template #body="{ data }">
+                    <AppStatusBadge :status="data.status" />
+                  </template>
+                </Column>
+                <Column field="created_at" header="Submitted" sortable>
+                  <template #body="{ data }">
+                    {{ formatDate(data.created_at) }}
+                  </template>
+                </Column>
+                <Column header="Actions" style="width: 6rem">
+                  <template #body="{ data }">
+                    <Button icon="pi pi-pencil" severity="info" text rounded size="small"
+                      @click="router.get(route('aics.assistance-codes.show', data.id))" />
+                  </template>
+                </Column>
+              </DataTable>
 
-            <Paginator
-              v-if="total > props.applications.per_page"
-              :first="(props.applications.current_page - 1) * props.applications.per_page"
-              :rows="props.applications.per_page"
-              :total-records="total"
-              @page="onPage"
-              template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
-              class="mt-4"
-            />
+              <Paginator
+                v-if="total > (props.applications?.per_page ?? 10)"
+                :first="((props.applications?.current_page ?? 1) - 1) * (props.applications?.per_page ?? 10)"
+                :rows="props.applications?.per_page ?? 10"
+                :total-records="total"
+                @page="onPage"
+                template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+                class="mt-4"
+              />
 
-            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-inbox" message="No applications pending coding" />
+              <AppEmptyState v-if="!props.applications?.data?.length" icon="pi pi-inbox" message="No applications pending coding" />
+
+              <template #fallback>
+                <div class="flex flex-col gap-2">
+                  <Skeleton v-for="i in 5" :key="i" height="3rem" />
+                </div>
+              </template>
+            </Deferred>
           </TabPanel>
 
           <TabPanel header="Coded">
-            <DataTable :value="toRaw(tableData)" striped-rows class="w-full">
-              <Column field="reference_code" header="Reference" sortable />
-              <Column field="claimant_name" header="Claimant" sortable />
-              <Column field="category_name" header="Category" sortable />
-              <Column field="code_type" header="Code" sortable />
-              <Column field="amount" header="Amount" sortable>
-                <template #body="{ data }">
-                  {{ data.amount ? formatCurrency(data.amount) : '—' }}
-                </template>
-              </Column>
-              <Column field="status" header="Status" sortable>
-                <template #body="{ data }">
-                  <Tag value="Coded" severity="info" />
-                </template>
-              </Column>
-              <Column header="Actions" style="width: 6rem">
-                <template #body="{ data }">
-                  <Button icon="pi pi-eye" severity="info" text rounded size="small"
-                    @click="router.get(route('aics.assistance-codes.show', data.id))" />
-                </template>
-              </Column>
-            </DataTable>
+            <Deferred data="applications">
+              <DataTable :value="toRaw(tableData)" striped-rows class="w-full">
+                <Column field="reference_code" header="Reference" sortable />
+                <Column field="claimant_name" header="Claimant" sortable />
+                <Column field="category_name" header="Category" sortable />
+                <Column field="code_type" header="Code" sortable />
+                <Column field="amount" header="Amount" sortable>
+                  <template #body="{ data }">
+                    {{ data.amount ? formatCurrency(data.amount) : '—' }}
+                  </template>
+                </Column>
+                <Column field="status" header="Status" sortable>
+                  <template #body="{ data }">
+                    <Tag value="Coded" severity="info" />
+                  </template>
+                </Column>
+                <Column header="Actions" style="width: 6rem">
+                  <template #body="{ data }">
+                    <Button icon="pi pi-eye" severity="info" text rounded size="small"
+                      @click="router.get(route('aics.assistance-codes.show', data.id))" />
+                  </template>
+                </Column>
+              </DataTable>
 
-            <Paginator
-              v-if="total > props.applications.per_page"
-              :first="(props.applications.current_page - 1) * props.applications.per_page"
-              :rows="props.applications.per_page"
-              :total-records="total"
-              @page="onPage"
-              template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
-              class="mt-4"
-            />
+              <Paginator
+                v-if="total > (props.applications?.per_page ?? 10)"
+                :first="((props.applications?.current_page ?? 1) - 1) * (props.applications?.per_page ?? 10)"
+                :rows="props.applications?.per_page ?? 10"
+                :total-records="total"
+                @page="onPage"
+                template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+                class="mt-4"
+              />
 
-            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-check-circle" message="No coded applications" />
+              <AppEmptyState v-if="!props.applications?.data?.length" icon="pi pi-check-circle" message="No coded applications" />
+
+              <template #fallback>
+                <div class="flex flex-col gap-2">
+                  <Skeleton v-for="i in 5" :key="i" height="3rem" />
+                </div>
+              </template>
+            </Deferred>
           </TabPanel>
         </TabView>
       </div>

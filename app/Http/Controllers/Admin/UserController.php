@@ -44,7 +44,7 @@ class UserController extends Controller
             ]);
 
         return Inertia::render('Admin/Users/Index', [
-            'users' => $users,
+            'users' => Inertia::defer(fn () => $users),
             'filters' => request()->only(['search', 'role', 'status']),
         ]);
     }

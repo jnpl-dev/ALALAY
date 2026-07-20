@@ -1,5 +1,5 @@
 <script setup>
-import { Head, router } from '@inertiajs/vue3'
+import { Head, router, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
@@ -12,11 +12,12 @@ import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import Paginator from 'primevue/paginator'
+import Skeleton from 'primevue/skeleton'
 
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
-  logs: { type: Object, required: true },
+  logs: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) },
   modules: { type: Array, default: () => [] },
   actions: { type: Array, default: () => [] },
@@ -32,7 +33,6 @@ const moduleOptions = [{ label: 'All Modules', value: '' }, ...props.modules.map
 const actionOptions = [{ label: 'All Actions', value: '' }, ...props.actions.map(a => ({ label: a, value: a }))]
 
 const route = window.route
-const totalLogs = props.logs?.total ?? 0
 
 function applyFilters() {
   router.get(route('admin.audit-logs'), {
@@ -124,42 +124,50 @@ const actionSeverity = (action) => ({
           </div>
         </div>
 
-        <DataTable :value="toRaw(props.logs.data)" striped-rows class="w-full">
-          <Column field="created_at" header="Date" sortable>
-            <template #body="{ data }">
-              <span class="text-sm whitespace-nowrap">{{ formatDateTime(data.created_at) }}</span>
-            </template>
-          </Column>
-          <Column field="user_name" header="User" sortable />
-          <Column field="role_label" header="Role" sortable>
-            <template #body="{ data }">
-              <Tag :value="data.role_label" :severity="roleSeverity(data.role)" />
-            </template>
-          </Column>
-          <Column field="module_label" header="Module" sortable>
-            <template #body="{ data }">
-              <Tag :value="data.module_label" :severity="moduleSeverity(data.module)" />
-            </template>
-          </Column>
-          <Column field="action_label" header="Action" sortable>
-            <template #body="{ data }">
-              <Tag :value="data.action_label" :severity="actionSeverity(data.action)" />
-            </template>
-          </Column>
-          <Column field="description" header="Description" style="min-width: 12rem" />
-          <Column field="entity_type" header="Entity" sortable />
-          <Column field="ip_address" header="IP" sortable />
-        </DataTable>
+        <Deferred data="logs">
+          <DataTable :value="toRaw(logs?.data ?? [])" striped-rows class="w-full">
+            <Column field="created_at" header="Date" sortable>
+              <template #body="{ data }">
+                <span class="text-sm whitespace-nowrap">{{ formatDateTime(data.created_at) }}</span>
+              </template>
+            </Column>
+            <Column field="user_name" header="User" sortable />
+            <Column field="role_label" header="Role" sortable>
+              <template #body="{ data }">
+                <Tag :value="data.role_label" :severity="roleSeverity(data.role)" />
+              </template>
+            </Column>
+            <Column field="module_label" header="Module" sortable>
+              <template #body="{ data }">
+                <Tag :value="data.module_label" :severity="moduleSeverity(data.module)" />
+              </template>
+            </Column>
+            <Column field="action_label" header="Action" sortable>
+              <template #body="{ data }">
+                <Tag :value="data.action_label" :severity="actionSeverity(data.action)" />
+              </template>
+            </Column>
+            <Column field="description" header="Description" style="min-width: 12rem" />
+            <Column field="entity_type" header="Entity" sortable />
+            <Column field="ip_address" header="IP" sortable />
+          </DataTable>
 
-        <Paginator
-          v-if="totalLogs > props.logs.per_page"
-          :first="(props.logs.current_page - 1) * props.logs.per_page"
-          :rows="props.logs.per_page"
-          :total-records="totalLogs"
-          @page="onPage"
-          template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
-          class="mt-4"
-        />
+          <Paginator
+            v-if="(logs?.total ?? 0) > (logs?.per_page ?? 20)"
+            :first="((logs?.current_page ?? 1) - 1) * (logs?.per_page ?? 20)"
+            :rows="logs?.per_page ?? 20"
+            :total-records="logs?.total ?? 0"
+            @page="onPage"
+            template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+            class="mt-4"
+          />
+
+          <template #fallback>
+            <div class="space-y-3">
+              <Skeleton v-for="i in 5" :key="i" width="100%" height="3.5rem" />
+            </div>
+          </template>
+        </Deferred>
       </div>
     </div>
   </div>

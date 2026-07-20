@@ -13,19 +13,19 @@ class SystemSettingController extends Controller
     public function index()
     {
         $this->authorize('viewAny', SystemSetting::class);
-        $settings = SystemSetting::all()->groupBy('setting_group');
-
-        $groups = $settings->map(fn ($items, $group) => [
-            'group' => $group,
-            'settings' => $items->map(fn ($item) => [
-                'key' => $item->setting_key,
-                'value' => $item->setting_value,
-                'label' => str($item->setting_key)->replace('_', ' ')->title(),
-            ]),
-        ])->values();
 
         return Inertia::render('Admin/SystemSettings', [
-            'groups' => $groups,
+            'groups' => Inertia::defer(fn () =>
+                SystemSetting::all()->groupBy('setting_group')
+                    ->map(fn ($items, $group) => [
+                        'group' => $group,
+                        'settings' => $items->map(fn ($item) => [
+                            'key' => $item->setting_key,
+                            'value' => $item->setting_value,
+                            'label' => str($item->setting_key)->replace('_', ' ')->title(),
+                        ]),
+                    ])->values()
+            ),
         ]);
     }
 

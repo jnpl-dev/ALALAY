@@ -32,7 +32,7 @@ class AssistanceCodeReferenceController extends Controller
             ]);
 
         return Inertia::render('Admin/AssistanceCodeReferences/Index', [
-            'references' => $references,
+            'references' => Inertia::defer(fn () => $references),
             'filters' => request()->only(['search']),
         ]);
     }
