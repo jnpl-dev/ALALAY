@@ -665,10 +665,11 @@ Improvements** section, between Phase 2 and Phase 3:
 - [x] Manual: Create alalay-backups private bucket in Supabase Storage
 
 ### Emergency Maintenance
-- [ ] Add APP_MAINTENANCE_SECRET to .env
-- [ ] Add toggleMaintenance() to Admin/SystemSettingController
-- [ ] Add maintenance toggle route to web.php
-- [ ] Add maintenance toggle button to Admin/SystemSettings.vue
+- [x] Add APP_MAINTENANCE_SECRET to .env + maintenance_secret to config/app.php
+- [x] Add toggleMaintenance() to Admin/SystemSettingController
+- [x] Add maintenance toggle route to web.php
+- [x] Add maintenance toggle button to Admin/SystemSettings.vue
+- [x] Create resources/views/errors/503.blade.php
 - [ ] Print emergency command reference — store physically in IT office
 
 ### Zero-Day
@@ -693,7 +694,7 @@ Items marked **[DONE]** are already implemented.
 | 6 | Inertia lazy loading for analytics | **[DONE]** |
 | 7 | Slow query logger (local dev) | **[DONE]** |
 | 8 | Offsite backup to Supabase | **[DONE]** |
-| 9 | Emergency maintenance toggle | Pending |
+| 9 | Emergency maintenance toggle | **[DONE]** |
 | 10 | Backup verify command | **[DONE]** |
 
 ---

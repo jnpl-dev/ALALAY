@@ -314,10 +314,11 @@ Redis skipped by decision: at single-municipality scale the `file` cache driver 
 
 ### Emergency Maintenance
 
-- [ ] Add `APP_MAINTENANCE_SECRET` to `.env`
-- [ ] Add `toggleMaintenance()` to `Admin/SystemSettingController`
-- [ ] Add maintenance toggle route to `web.php`
-- [ ] Add maintenance toggle button to `Admin/SystemSettings.vue`
+- [x] Add `maintenance_secret` to `config/app.php` + `APP_MAINTENANCE_SECRET` to `.env` / `.env.example`
+- [x] Add `toggleMaintenance()` to `Admin/SystemSettingController` — calls `php artisan up`/`down`, logs to `audit_logs`
+- [x] Add maintenance toggle route `admin.maintenance.toggle` to `web.php` (POST)
+- [x] Add maintenance toggle button to `Admin/SystemSettings.vue` — red "Enable" / green "Bring Online"
+- [x] Create `resources/views/errors/503.blade.php` — branded maintenance page
 - [ ] Print emergency command reference — store physically in IT office
 
 ### Zero-Day
