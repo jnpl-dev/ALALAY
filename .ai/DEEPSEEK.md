@@ -234,7 +234,25 @@ tell me you are ready for my first task.
 
 ---
 
-## CURRENT SESSION STATE (July 11, 2026)
+## CURRENT SESSION STATE (July 20, 2026)
+
+### Phase 2b — System Design Improvements (Query Optimization COMPLETE)
+
+#### Deferred/Skeleton Pattern Migration
+- Migrated ALL analytics controllers (6), admin sidebar controllers (5), and dashboard pages (shared + Aics) from `Inertia::lazy()` + `router.reload()` to `Inertia::defer()` + `<Deferred #fallback>` skeleton pattern
+- Consolidated multiple individual lazy props into single deferred object per page (`analyticsData`, `dashboardData`, `groups`, `users`, `documents`, `categories`, `references`, `logs`, `userData`)
+- `<Deferred>` placed inside each `<TabPanel>` (not wrapping entire `<TabView>`) so tab headers stay visible during loading
+- All index page list props changed from `required: true` to `default: []` + optional chaining (`data?.total`)
+- Added full KPI skeleton cards in `#fallback` on all 6 analytics pages
+- Added skeleton row fallback on all 5 admin sidebar index pages
+- Fixed SystemSettings empty form bug: replaced compile-time `initialValues` loop with `watch(() => props.groups)` (ran before deferred data loaded)
+
+#### Query Performance Fixes
+- Replaced `whereMonth()` (non-sargable, wraps column in `MONTH()`) with `whereBetween(column, [startOfMonth, endOfMonth])` — 9 occurrences across 6 dashboard + analytics controllers so `(status, created_at)` composite index is usable
+- Created migration `add_assistance_codes_covering_index` — `(application_id, amount)` composite index for index-only SUM queries
+- Fixed cache key precision: `YmdHi` → `YmdH` so full 300s TTL is honored (was regenerating every minute)
+- Fixed MayorsOffice Dashboard: `sum('amount_granted')` threw SQL error (column doesn't exist on `applications`); replaced with `count()` + proper `whereBetween` + join to `assistance_codes.amount`
+- Added Admin Dashboard 4th KPI (`totalUsers`) for 4-card KPI row
 
 ### Phase 4.6 — Real-Time Table Polling (COMPLETE)
 - Created `HasPollCache` trait with `poll()` + `bustPollCache()` — shared by 6 role controllers
@@ -316,3 +334,10 @@ Every controller now calls `$this->authorize()`:
 ### Missing
 - Walk-in submission (AICS Staff encode) — not yet built.
 - SMS configuration — driver is `log`, not wired to PhilSMS API token.
+- [x] Manual: Create `alalay-backups` private bucket in Supabase Storage
+### Backup (AUTOMATIC)
+- `backup:run` scheduled daily at 02:00 — mysqldump → gzip → AES-256-CBC encrypt → local save → Supabase upload → prune old
+- `backup:verify` scheduled weekly Sundays at 03:00 — restore latest backup to test database
+- Manual step: set `BACKUP_ENCRYPT_PASS` in production `.env`
+
+- Phase 2b Emergency Maintenance and Zero-Day items not started.

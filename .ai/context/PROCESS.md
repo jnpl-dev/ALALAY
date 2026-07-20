@@ -304,10 +304,13 @@ Redis skipped by decision: at single-municipality scale the `file` cache driver 
 
 ### Backup
 
-- [ ] Create `alalay-backups` private bucket in Supabase Storage
-- [ ] Add offsite backup upload to `scripts/backup.sh`
-- [ ] Create `app/Console/Commands/VerifyBackup.php`
-- [ ] Register weekly `backup:verify` schedule
+- [x] Create `config/backup.php` — centralized config for path, encryption pass, retention, Supabase bucket
+- [x] Create `scripts/backup.sh` — full backup script (mysqldump → gzip → AES-256-CBC encrypt → local save → S3 PUT to Supabase → prune old backups)
+- [x] Create `app/Console/Commands/BackupDatabase.php` — Laravel command wrapping mysqldump + encrypt + Supabase upload + prune
+- [x] Create `app/Console/Commands/VerifyBackup.php` — decrypt + restore latest backup to test database, log result
+- [x] Schedule `backup:run` daily at 02:00 in `routes/console.php`
+- [x] Schedule `backup:verify` weekly on Sundays at 03:00 in `routes/console.php`
+- [x] Manual: Create `alalay-backups` private bucket in Supabase Storage via dashboard
 
 ### Emergency Maintenance
 
