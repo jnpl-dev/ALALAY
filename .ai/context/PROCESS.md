@@ -323,9 +323,9 @@ Redis skipped by decision: at single-municipality scale the `file` cache driver 
 
 ### Zero-Day
 
-- [ ] Add `composer audit` check to `deploy.sh`
-- [ ] Add PII redaction to `AuditLogger::log()` description field
-- [ ] Document incident response procedure in `.ai/context/`
+- [x] Create `scripts/deploy.sh` — full deploy script with `composer audit --no-dev` (fails on vuln), `npm audit`, cache, migrate
+- [x] Add PII redaction to `AuditLogger::log()` — strips `09xxxxxxxxx` / `+639xxxxxxxxx` from description
+- [x] Create `.ai/context/INCIDENT_RESPONSE.md` — emergency commands, incident types (breach/compromise/corruption/SMS), contacts, documentation requirements
 
 ---
 
