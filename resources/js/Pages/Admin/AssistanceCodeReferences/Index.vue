@@ -4,10 +4,14 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import Tag from 'primevue/tag'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
+import IconField from 'primevue/iconfield'
+import InputIcon from 'primevue/inputicon'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Paginator from 'primevue/paginator'
 import Skeleton from 'primevue/skeleton'
+import { useToast } from '@/Composables/useToast'
+import { useConfirm } from '@/Composables/useConfirm'
 import { ref, toRaw } from 'vue'
 import { formatCurrency } from '@/Utils/formatCurrency'
 
@@ -17,6 +21,9 @@ const props = defineProps({
   references: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) },
 })
+
+const toast = useToast()
+const confirm = useConfirm()
 
 const search = ref(props.filters.search || '')
 
@@ -34,6 +41,17 @@ function onPage(event) {
     page: event.page + 1,
   }, { preserveState: true, replace: true })
 }
+
+function confirmDelete(data) {
+  confirm.destroy('Confirm Delete', `Delete code reference "${data.code_type}"? This cannot be undone.`, () => {
+    router.delete(route('admin.assistance-code-references.destroy', data.id), {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: () => toast.success('Code reference deleted'),
+      onError: () => toast.error('Delete failed'),
+    })
+  })
+}
 </script>
 
 <template>
@@ -49,7 +67,10 @@ function onPage(event) {
 
         <div class="flex mb-6">
           <div class="w-72">
-            <InputText v-model="search" placeholder="Search code types..." class="w-full" @keyup.enter="applyFilters" />
+            <IconField>
+              <InputIcon class="pi pi-search" />
+              <InputText v-model="search" placeholder="Search code types..." class="w-full" @keyup.enter="applyFilters" />
+            </IconField>
           </div>
         </div>
 
@@ -74,14 +95,17 @@ function onPage(event) {
             <Column header="Actions" style="width: 8rem">
               <template #body="{ data }">
                 <div class="flex gap-2">
-                  <Button icon="pi pi-pencil" severity="info" text rounded size="small"
+                  <Button icon="pi pi-pencil" severity="info" text rounded size="small" v-tooltip="'Edit'"
                     @click="router.get(route('admin.assistance-code-references.edit', data.id))" />
-                  <Button icon="pi pi-trash" severity="danger" text rounded size="small"
-                    @click="router.delete(route('admin.assistance-code-references.destroy', data.id), { preserveState: true, preserveScroll: true })" />
+                  <Button icon="pi pi-trash" severity="danger" text rounded size="small" v-tooltip="'Delete'"
+                    @click="confirmDelete(data)" />
                 </div>
               </template>
             </Column>
           </DataTable>
+          <template #empty>
+            <div class="text-center py-8 text-muted-color">No code references found</div>
+          </template>
 
           <Paginator
             v-if="(references?.total ?? 0) > (references?.per_page ?? 10)"

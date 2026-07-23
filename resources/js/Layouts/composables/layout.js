@@ -1,5 +1,7 @@
 import { computed, reactive } from 'vue';
 
+const STORAGE_KEY = 'alay_dark'
+
 const layoutConfig = reactive({
     preset: 'Aura',
     primary: 'emerald',
@@ -23,17 +25,32 @@ export function useLayout() {
     const toggleDarkMode = () => {
         if (!document.startViewTransition) {
             executeDarkModeToggle();
-
             return;
         }
-
-        document.startViewTransition(() => executeDarkModeToggle(event));
+        document.startViewTransition(() => executeDarkModeToggle());
     };
 
     const executeDarkModeToggle = () => {
         layoutConfig.darkTheme = !layoutConfig.darkTheme;
         document.documentElement.classList.toggle('app-dark');
+        localStorage.setItem(STORAGE_KEY, layoutConfig.darkTheme);
     };
+
+    const applyPanelDarkMode = () => {
+        const stored = localStorage.getItem(STORAGE_KEY)
+        if (stored === 'true') {
+            layoutConfig.darkTheme = true
+            document.documentElement.classList.add('app-dark')
+        } else {
+            layoutConfig.darkTheme = false
+            document.documentElement.classList.remove('app-dark')
+        }
+    }
+
+    const removePanelDarkMode = () => {
+        layoutConfig.darkTheme = false
+        document.documentElement.classList.remove('app-dark')
+    }
 
     const toggleMenu = () => {
         if (isDesktop()) {
@@ -81,6 +98,8 @@ export function useLayout() {
         hideMobileMenu,
         changeMenuMode,
         isDesktop,
-        hasOpenOverlay
+        hasOpenOverlay,
+        applyPanelDarkMode,
+        removePanelDarkMode
     };
 }

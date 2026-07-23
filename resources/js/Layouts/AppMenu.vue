@@ -2,10 +2,20 @@
 import { computed } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import AppMenuItem from './AppMenuItem.vue'
+import { usePendingCounts } from '@/Composables/usePendingCounts'
 
 const page = usePage()
 const user = page.props.auth?.user
 const role = user?.role
+
+const { counts } = usePendingCounts()
+
+const badgeLabelMap = {
+  Applications: 'applications',
+  Vouchers: 'vouchers',
+  Cheques: 'cheques',
+  Analytics: 'analytics',
+}
 
 const model = computed(() => {
   const roleRoutes = {
@@ -67,9 +77,17 @@ const model = computed(() => {
   ]
 
   if (role && roleRoutes[role]) {
+    const roleItems = roleRoutes[role].map(item => {
+      const key = badgeLabelMap[item.label]
+      if (key && counts.value[key]) {
+        return { ...item, badge: counts.value[key] }
+      }
+      return item
+    })
+
     items.push({
       label: roleLabel,
-      items: roleRoutes[role],
+      items: roleItems,
     })
   }
 

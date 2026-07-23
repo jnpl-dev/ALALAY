@@ -1,4 +1,5 @@
 <script setup>
+import Divider from 'primevue/divider'
 import { formatDateTime } from '@/Utils/formatDate'
 
 defineProps({
@@ -14,7 +15,7 @@ defineProps({
 </script>
 
 <template>
-  <div class="bg-surface-50 rounded-lg border border-surface p-4 space-y-2 text-sm">
+  <div class="card space-y-2 text-sm">
     <div v-if="uploadedBy" class="flex items-center justify-between">
       <span class="text-muted-color">Uploaded by</span>
       <span class="font-medium text-surface-900">{{ uploadedBy }}</span>
@@ -37,8 +38,8 @@ defineProps({
     </div>
 
     <template v-if="returnedBy">
-      <hr class="border-surface" />
-      <div class="text-orange-600 text-xs font-medium flex items-center gap-1">
+      <Divider />
+      <div class="text-warning text-xs font-medium flex items-center gap-1">
         <i class="pi pi-exclamation-triangle"></i>
         <span>This document was returned</span>
       </div>

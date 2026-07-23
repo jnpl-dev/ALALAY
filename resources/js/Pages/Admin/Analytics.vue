@@ -1,15 +1,29 @@
 <script setup>
+import { computed } from 'vue'
 import { Head, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
+import DataView from 'primevue/dataview'
 import Skeleton from 'primevue/skeleton'
+import { getStatusLabel } from '@/Utils/statusLabels'
 
 defineOptions({ layout: AppLayout })
 
-defineProps({
+const props = defineProps({
   analyticsData: { type: Object, default: () => ({}) },
+})
+
+const statusEntries = computed(() => {
+  const data = props.analyticsData?.applicationsByStatus ?? {}
+  return Object.entries(data).map(([key, count]) => ({
+    status: key,
+    label: getStatusLabel(key).label,
+    count,
+  }))
 })
 </script>
 
@@ -27,47 +41,45 @@ defineProps({
         <AppKpiCard title="Inactive" :value="analyticsData?.inactiveUsers ?? 0" icon="pi pi-ban" color="warn" subtitle="deactivated accounts" />
       </div>
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Applications" :value="analyticsData?.totalApplications ?? 0" icon="pi pi-file" color="purple" subtitle="total submitted" />
+        <AppKpiCard title="Applications" :value="analyticsData?.totalApplications ?? 0" icon="pi pi-file" color="info" subtitle="total submitted" />
       </div>
 
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Applications by Status</div>
-          <div v-if="Object.keys(analyticsData?.applicationsByStatus ?? {}).length" class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="text-muted-color border-b border-surface">
-                  <th class="text-left py-2">Status</th>
-                  <th class="text-right py-2">Count</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(count, status) in analyticsData.applicationsByStatus" :key="status" class="border-b border-surface">
-                  <td class="py-2"><AppStatusBadge :status="status" /></td>
-                  <td class="text-right py-2 font-medium">{{ count }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <AppEmptyState v-else icon="pi pi-chart-bar" message="No data available" />
+          <DataTable :value="statusEntries" striped-rows class="w-full">
+            <Column field="label" header="Status">
+              <template #body="{ data }">
+                <AppStatusBadge :status="data.status" />
+              </template>
+            </Column>
+            <Column field="count" header="Count" sortable />
+            <template #empty>
+              <AppEmptyState icon="pi pi-chart-bar" message="No data available" />
+            </template>
+          </DataTable>
         </div>
       </div>
 
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Recent Activity</div>
-          <ul v-if="analyticsData?.recentActivity?.length" class="p-0 mx-0 mt-0 mb-6 list-none">
-            <li v-for="entry in analyticsData.recentActivity" :key="entry.id" class="flex items-center py-2 border-b border-surface">
-              <div class="w-12 h-12 flex items-center justify-center bg-blue-100 dark:bg-blue-400/10 rounded-full mr-4 shrink-0">
-                <i class="pi pi-history text-xl! text-blue-500"></i>
+          <DataView :value="analyticsData?.recentActivity ?? []">
+            <template #list="{ items }">
+              <div v-for="item in items" :key="item.id" class="flex items-center py-2">
+                <div class="w-12 h-12 flex items-center justify-center rounded-full mr-4 shrink-0" :style="{ backgroundColor: 'var(--color-primary-surface)' }">
+                  <i class="pi pi-history text-xl!" :style="{ color: 'var(--color-primary)' }"></i>
+                </div>
+                <span class="text-surface-900 leading-normal">
+                  {{ item.user_name }}
+                  <span class="text-surface-700"> &middot; {{ item.action }} / {{ item.module }}</span>
+                </span>
               </div>
-              <span class="text-surface-900 leading-normal">
-                {{ entry.user_name }}
-                <span class="text-surface-700"> &middot; {{ entry.action }} / {{ entry.module }}</span>
-              </span>
-            </li>
-          </ul>
-          <AppEmptyState v-else icon="pi pi-inbox" message="No recent activity" />
+            </template>
+            <template #empty>
+              <AppEmptyState icon="pi pi-inbox" message="No recent activity" />
+            </template>
+          </DataView>
         </div>
       </div>
     </div>

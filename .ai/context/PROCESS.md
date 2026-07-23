@@ -353,7 +353,7 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 ### 3.3 Shared Controllers
 
 - [x] `Shared/AccountController@edit` — renders `Auth/AccountSettings.vue` with user data
-- [x] `Shared/AccountController@update` — handles profile + password + profile picture update (uploads to Supabase S3 bucket; avatar display via proxy endpoint → signed URL redirect — ON HOLD: browser shows initial letter instead of image)
+- [x] `Shared/AccountController@update` — handles profile + password + profile picture update (uploads to Supabase S3 bucket; avatar served via controller proxy returning raw image bytes; PrimeVue Avatar v-if/v-else fix for null→image transition; cache-busting via `updated_at` timestamp)
 
 ### 3.4 Admin Controllers
 
@@ -767,6 +767,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [ ] Verify: reference code validation shows error immediately on blur if code does not exist
 - [ ] Verify: live validation errors disappear when user edits the field
 - [ ] Verify: live validation never prevents form submission
+
+---
 
 ---
 

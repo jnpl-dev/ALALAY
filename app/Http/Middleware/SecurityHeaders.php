@@ -23,6 +23,7 @@ class SecurityHeaders
         $viteWsOrigins = $viteOrigins
             ? 'ws://localhost:5173 ws://127.0.0.1:5173'
             : '';
+        $viteAll = ($viteOrigins ? " $viteOrigins" : '') . ($viteWsOrigins ? " $viteWsOrigins" : '');
 
         $scriptSrc = "'self' 'unsafe-inline'" . ($viteOrigins ? " $viteOrigins" : '');
         $styleSrc = "'self' 'unsafe-inline'" . ($viteOrigins ? " $viteOrigins" : '');
@@ -32,11 +33,13 @@ class SecurityHeaders
         $response->headers->set('Content-Security-Policy', implode('; ', [
             "default-src 'self'",
             "script-src $scriptSrc",
+            "worker-src 'self' blob:$viteAll",
             "style-src $styleSrc",
             "font-src $fontSrc",
-            "img-src 'self' data: blob:",
+            "img-src 'self' data: blob: https://*.supabase.co",
             "media-src 'self' blob:",
             "connect-src $connectSrc",
+            "frame-src 'self' blob: https://*.supabase.co" . ($viteOrigins ? " $viteOrigins" : ''),
             "object-src 'none'",
             "frame-ancestors 'none'",
         ]));

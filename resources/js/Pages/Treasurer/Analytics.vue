@@ -3,14 +3,49 @@ import { Head, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
+import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
+import Chart from 'primevue/chart'
 import Skeleton from 'primevue/skeleton'
+import { computed, toRaw } from 'vue'
 import { formatCurrency } from '@/Utils/formatCurrency'
 
 defineOptions({ layout: AppLayout })
 
-defineProps({
+const props = defineProps({
   analyticsData: { type: Object, default: () => ({}) },
 })
+
+const chartData = computed(() => {
+  const trends = props.analyticsData?.monthlyTrends ?? []
+  if (!trends.length) return null
+  return {
+    labels: trends.map(t => t.month),
+    datasets: [
+      {
+        label: 'Cheques',
+        backgroundColor: '#42A5F5',
+        borderRadius: 4,
+        data: trends.map(t => t.count),
+      },
+    ],
+  }
+})
+
+const chartOptions = computed(() => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+      ticks: { stepSize: 1 },
+    },
+  },
+}))
 </script>
 
 <template>
@@ -24,56 +59,37 @@ defineProps({
         <AppKpiCard title="Acknowledged" :value="analyticsData?.acknowledgedThisMonth ?? 0" icon="pi pi-check-circle" color="success" subtitle="this month" />
       </div>
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Total Amount" :value="formatCurrency(analyticsData?.totalAmount ?? 0)" icon="pi pi-calculator" color="purple" subtitle="total value" />
+        <AppKpiCard title="Total Amount" :value="formatCurrency(analyticsData?.totalAmount ?? 0)" icon="pi pi-calculator" color="info" subtitle="total value" />
       </div>
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
         <AppKpiCard title="Pending" :value="analyticsData?.pendingCheques ?? 0" icon="pi pi-clock" color="warn" subtitle="not yet acknowledged" />
       </div>
 
-      <div class="col-span-12 xl:col-span-6">
+      <div class="col-span-12 xl:col-span-6 transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Disbursement Overview</div>
-          <table v-if="analyticsData?.monthlyTrends?.length" class="w-full">
-            <thead>
-              <tr class="text-muted-color font-medium text-sm">
-                <th class="text-left pb-2">Month</th>
-                <th class="text-left pb-2">Cheques</th>
-                <th class="text-left pb-2">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in analyticsData.monthlyTrends" :key="row.month" class="border-t border-surface">
-                <td class="py-2 text-surface-900">{{ row.month }}</td>
-                <td class="py-2 text-surface-900">{{ row.count }}</td>
-                <td class="py-2 text-surface-900">{{ formatCurrency(row.total) }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <Chart v-if="chartData" type="bar" :data="chartData" :options="chartOptions" class="h-64" />
           <AppEmptyState v-else icon="pi pi-chart-bar" message="Analytics data will appear here" />
         </div>
       </div>
 
-      <div class="col-span-12 xl:col-span-6">
+      <div class="col-span-12 xl:col-span-6 transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Recent Cheques</div>
-          <table v-if="analyticsData?.recentCheques?.length" class="w-full">
-            <thead>
-              <tr class="text-muted-color font-medium text-sm">
-                <th class="text-left pb-2">Reference</th>
-                <th class="text-left pb-2">Claimant</th>
-                <th class="text-left pb-2">Status</th>
-                <th class="text-left pb-2">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="cheque in analyticsData.recentCheques" :key="cheque.id" class="border-t border-surface">
-                <td class="py-2 text-surface-900">{{ cheque.reference_code }}</td>
-                <td class="py-2 text-surface-900">{{ cheque.claimant_name }}</td>
-                <td class="py-2"><span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full" :class="cheque.status === 'claimed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'">{{ cheque.status.replace(/_/g, ' ') }}</span></td>
-                <td class="py-2 text-surface-900">{{ formatCurrency(cheque.amount) }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <DataTable v-if="(analyticsData?.recentCheques ?? []).length" :value="toRaw(analyticsData.recentCheques)" striped-rows class="w-full">
+            <Column field="reference_code" header="Reference" sortable />
+            <Column field="claimant_name" header="Claimant" sortable />
+            <Column field="status" header="Status" sortable>
+              <template #body="{ data }">
+                <AppStatusBadge :status="data.status" />
+              </template>
+            </Column>
+            <Column field="amount" header="Amount" sortable>
+              <template #body="{ data }">
+                {{ data.amount ? formatCurrency(data.amount) : '—' }}
+              </template>
+            </Column>
+          </DataTable>
           <AppEmptyState v-else icon="pi pi-inbox" message="No recent cheques" />
         </div>
       </div>
@@ -95,9 +111,7 @@ defineProps({
         <div class="col-span-12 xl:col-span-6">
           <div class="card">
             <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <div class="space-y-3">
-              <Skeleton v-for="i in 3" :key="i" width="100%" height="1rem" />
-            </div>
+            <Skeleton width="100%" height="16rem" />
           </div>
         </div>
         <div class="col-span-12 xl:col-span-6">

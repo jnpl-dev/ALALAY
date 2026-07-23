@@ -63,6 +63,8 @@ class AssistanceCodeController extends Controller
         $tab = request('tab', 'pending');
         $search = request('search');
         $category = request('category');
+        $from = request('from');
+        $to = request('to');
 
         $query = Application::with('category', 'assistanceCode.reference');
 
@@ -77,6 +79,14 @@ class AssistanceCodeController extends Controller
 
         if ($category) {
             $query->whereHas('category', fn($q) => $q->where('category_name', $category));
+        }
+
+        if ($from) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+
+        if ($to) {
+            $query->whereDate('created_at', '<=', $to);
         }
 
         $applications = match ($tab) {
@@ -103,11 +113,76 @@ class AssistanceCodeController extends Controller
                         'created_at' => $app->created_at,
                     ])
             ),
+            'filters' => request()->only(['search', 'category', 'from', 'to']),
             'tab' => $tab,
-            'search' => $search,
-            'category' => $category,
             'categories' => $categories,
         ]);
+    }
+
+    public function export()
+    {
+        $this->authorize('viewAny', AssistanceCode::class);
+        $tab = request('tab', 'pending');
+        $search = request('search');
+        $category = request('category');
+        $from = request('from');
+        $to = request('to');
+
+        $query = Application::with('category', 'assistanceCode.reference');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_code', 'like', "%{$search}%")
+                  ->orWhere('claimant_first_name', 'like', "%{$search}%")
+                  ->orWhere('claimant_last_name', 'like', "%{$search}%")
+                  ->orWhereHas('category', fn($q) => $q->where('category_name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($category) {
+            $query->whereHas('category', fn($q) => $q->where('category_name', $category));
+        }
+
+        if ($from) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+
+        if ($to) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
+        $applications = (match ($tab) {
+            'coded' => (clone $query)->where('status', 'voucher_creation'),
+            default => (clone $query)->where('status', 'assistance_coding'),
+        })->latest()->get();
+
+        $filename = 'alalay-assistance-codes-' . $tab . '-' . now()->format('Y-m-d') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function () use ($applications) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Reference Code', 'Beneficiary Name', 'Category', 'Code Type', 'Amount', 'Status', 'Date Submitted']);
+
+            foreach ($applications as $app) {
+                fputcsv($handle, [
+                    $app->reference_code,
+                    $app->claimant_first_name . ' ' . $app->claimant_last_name,
+                    $app->category?->category_name,
+                    $app->assistanceCode?->reference?->code_type,
+                    $app->assistanceCode?->amount,
+                    $app->status,
+                    $app->created_at?->toDateTimeString(),
+                ]);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     public function show($id, SignedUrlService $signedUrl)
@@ -141,6 +216,7 @@ class AssistanceCodeController extends Controller
             'doc_name' => $d->requiredDocument?->doc_name ?? 'Document',
             'file_name' => $d->file_name,
             'file_path' => $d->file_path,
+            'signed_url' => $signedUrl->generate($d->file_path),
             'mime_type' => $d->mime_type,
             'is_resubmission' => $d->is_resubmission,
         ]);

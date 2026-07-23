@@ -52,6 +52,8 @@ const { lastChecked } = usePolling(
       router.reload({ only: ['application', 'reviews'] })
     }
   },
+  20,
+  { enabled: () => !!props.application?.reference_code },
 )
 
 watch(() => props.application?.reference_code, () => {

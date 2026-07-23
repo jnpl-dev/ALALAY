@@ -5,12 +5,16 @@ import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
 import AppExportButton from '@/Components/Common/AppExportButton.vue'
 import { formatDateTime } from '@/Utils/formatDate'
-import { ref, toRaw } from 'vue'
+import { roleSeverity, moduleSeverity, actionSeverity } from '@/Utils/severityMappings'
+import { ref, toRaw, watch, computed } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import InputText from 'primevue/inputtext'
+import IconField from 'primevue/iconfield'
+import InputIcon from 'primevue/inputicon'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
+import DatePicker from 'primevue/datepicker'
 import Paginator from 'primevue/paginator'
 import Skeleton from 'primevue/skeleton'
 
@@ -23,24 +27,46 @@ const props = defineProps({
   actions: { type: Array, default: () => [] },
 })
 
+function parseDate(str) {
+  if (!str) return null
+  const [y, m, d] = String(str).split('-')
+  return new Date(parseInt(y), parseInt(m) - 1, parseInt(d))
+}
+
+function formatDateParam(date) {
+  if (!date) return null
+  const d = new Date(date)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 const search = ref(props.filters.search || '')
 const module = ref(props.filters.module || '')
 const action = ref(props.filters.action || '')
-const from = ref(props.filters.from || '')
-const to = ref(props.filters.to || '')
+const from = ref(parseDate(props.filters.from))
+const to = ref(parseDate(props.filters.to))
 
 const moduleOptions = [{ label: 'All Modules', value: '' }, ...props.modules.map(m => ({ label: m, value: m }))]
 const actionOptions = [{ label: 'All Actions', value: '' }, ...props.actions.map(a => ({ label: a, value: a }))]
 
 const route = window.route
 
+const exportParams = computed(() => ({
+  search: search.value,
+  module: module.value,
+  action: action.value,
+  from: formatDateParam(from.value),
+  to: formatDateParam(to.value),
+}))
+
+watch([from, to], applyFilters)
+
 function applyFilters() {
   router.get(route('admin.audit-logs'), {
     search: search.value,
     module: module.value,
     action: action.value,
-    from: from.value,
-    to: to.value,
+    from: formatDateParam(from.value),
+    to: formatDateParam(to.value),
   }, { replace: true })
 }
 
@@ -49,48 +75,11 @@ function onPage(event) {
     search: search.value,
     module: module.value,
     action: action.value,
-    from: from.value,
-    to: to.value,
+    from: formatDateParam(from.value),
+    to: formatDateParam(to.value),
     page: event.page + 1,
   }, { preserveState: true, replace: true })
 }
-
-const roleSeverity = (role) => ({
-  admin: 'danger',
-  aics_staff: 'info',
-  mswdo: 'success',
-  accountant: 'warn',
-  treasurer: 'contrast',
-  mayors_office: 'info',
-}[role] || 'info')
-
-const moduleSeverity = (module) => ({
-  auth: 'info',
-  users: 'info',
-  admin: 'warn',
-  aics: 'success',
-  mswdo: 'success',
-  accountant: 'warn',
-  treasurer: 'contrast',
-  mayors_office: 'info',
-  applications: 'info',
-}[module] || 'info')
-
-const actionSeverity = (action) => ({
-  login: 'success',
-  logout: 'contrast',
-  aup_accepted: 'info',
-  store: 'success',
-  update: 'info',
-  destroy: 'danger',
-  'toggle-status': 'warn',
-  'revoke-sessions': 'danger',
-  index: 'info',
-  show: 'info',
-  export: 'warn',
-  verify: 'info',
-  accept: 'success',
-}[action] || 'info')
 </script>
 
 <template>
@@ -101,13 +90,19 @@ const actionSeverity = (action) => ({
       <div class="card">
         <div class="flex items-center justify-between mb-6">
           <div class="font-semibold text-xl">Audit Logs</div>
-          <AppExportButton :url="route('admin.audit-logs.export')" />
+          <AppExportButton
+            :url="route('admin.audit-logs.export')"
+            :params="exportParams"
+          />
         </div>
 
         <div class="flex flex-wrap gap-4 mb-6">
           <div class="flex-1 min-w-48">
-            <InputText v-model="search" placeholder="Search description, module, action, IP..." class="w-full"
-              @keyup.enter="applyFilters" />
+            <IconField>
+              <InputIcon class="pi pi-search" />
+              <InputText v-model="search" placeholder="Search description, module, action, IP..." class="w-full"
+                @keyup.enter="applyFilters" />
+            </IconField>
           </div>
           <div class="w-44">
             <Select v-model="module" :options="moduleOptions" option-label="label" option-value="value" placeholder="All Modules" class="w-full" @change="applyFilters" />
@@ -116,11 +111,9 @@ const actionSeverity = (action) => ({
             <Select v-model="action" :options="actionOptions" option-label="label" option-value="value" placeholder="All Actions" class="w-full" @change="applyFilters" />
           </div>
           <div class="flex items-center gap-2">
-            <input v-model="from" type="date" @change="applyFilters"
-              class="px-3 py-2 rounded-lg border border-surface-300 text-sm outline-none focus:ring-2 focus:ring-primary" />
+            <DatePicker v-model="from" dateFormat="yy-mm-dd" placeholder="From" :showIcon="true" showClear />
             <span class="text-muted-color">—</span>
-            <input v-model="to" type="date" @change="applyFilters"
-              class="px-3 py-2 rounded-lg border border-surface-300 text-sm outline-none focus:ring-2 focus:ring-primary" />
+            <DatePicker v-model="to" dateFormat="yy-mm-dd" placeholder="To" :showIcon="true" showClear />
           </div>
         </div>
 

@@ -6,9 +6,12 @@ import DocumentViewer from '@/Components/Application/DocumentViewer.vue'
 import DocumentMeta from '@/Components/Application/DocumentMeta.vue'
 import ReviewTrail from '@/Components/Application/ReviewTrail.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
+import DocumentThumbnail from '@/Components/Common/DocumentThumbnail.vue'
 import Select from 'primevue/select'
 import InputNumber from 'primevue/inputnumber'
 import Button from 'primevue/button'
+import Divider from 'primevue/divider'
+import Fieldset from 'primevue/fieldset'
 import { useToast } from '@/Composables/useToast'
 import { formatCurrency } from '@/Utils/formatCurrency'
 import { ref, computed } from 'vue'
@@ -106,24 +109,16 @@ function submit() {
 
         <ApplicationInfo :application="application" />
 
-        <hr class="border-surface my-6" />
+        <Divider />
 
         <div>
           <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Documents</h3>
-          <div v-if="documents.length" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div v-if="documents.length" class="grid grid-cols-2 sm:grid-cols-3 gap-3 transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]">
             <div v-for="(doc, idx) in documents" :key="doc.id"
-              class="relative group border border-surface rounded-lg overflow-hidden cursor-pointer hover:border-primary transition-colors"
+              class="relative group border border-surface rounded-lg overflow-hidden cursor-pointer hover:border-primary transition-colors duration-200"
               @click="viewDocument(doc, idx)">
               <div class="aspect-[3/4] flex items-center justify-center bg-surface-50 dark:bg-surface-800 overflow-hidden">
-                <template v-if="doc.signed_url">
-                  <div v-if="doc.mime_type === 'application/pdf'" class="flex flex-col items-center gap-2 text-muted-color">
-                    <i class="pi pi-file-pdf text-4xl"></i>
-                    <span class="text-[10px] font-medium">PDF</span>
-                  </div>
-                  <img v-else :src="doc.signed_url" :alt="doc.doc_name"
-                    class="w-full h-full object-cover" loading="lazy" />
-                </template>
-                <i v-else class="pi pi-file text-3xl text-muted-color"></i>
+                <DocumentThumbnail :doc="doc" />
               </div>
               <div class="px-2 py-1.5">
                 <p class="text-xs text-surface-700 truncate">{{ doc.doc_name }}</p>
@@ -140,7 +135,7 @@ function submit() {
           </div>
         </div>
 
-        <hr v-if="hasScs" class="border-surface my-6" />
+        <Divider v-if="hasScs" />
 
         <div v-if="hasScs">
           <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Social Case Study</h3>
@@ -156,27 +151,26 @@ function submit() {
         </div>
 
         <template v-if="!application.assistance_code">
-          <hr class="border-surface my-6" />
+          <Divider />
 
-          <div>
-            <h3 class="font-semibold text-surface-900 mb-4 text-sm uppercase tracking-wide text-muted-color">Assign Assistance Code</h3>
-            <form @submit.prevent="submit" class="space-y-4 max-w-lg">
+          <Fieldset legend="Assign Assistance Code">
+            <form @submit.prevent="submit" class="space-y-4">
               <div>
-                <label class="block text-muted-color font-medium mb-2">Code Type <span class="text-red-500">*</span></label>
+                <label class="block text-muted-color font-medium mb-2">Code Type <span class="text-red-400">*</span></label>
                 <Select v-model="selectedCode" :options="codeOptions" option-label="label" placeholder="Select code type" class="w-full" :invalid="!!form.errors.assistance_code_reference_id" />
-                <p v-if="form.errors.assistance_code_reference_id" class="text-xs text-red-500 mt-1">{{ form.errors.assistance_code_reference_id }}</p>
+                <p v-if="form.errors.assistance_code_reference_id" class="text-xs text-red-400 mt-1">{{ form.errors.assistance_code_reference_id }}</p>
               </div>
               <div>
-                <label class="block text-muted-color font-medium mb-2">Amount <span class="text-red-500">*</span></label>
+                <label class="block text-muted-color font-medium mb-2">Amount <span class="text-red-400">*</span></label>
                 <InputNumber v-model="form.amount" :min="0" :step="100" placeholder="0.00" inputClass="w-full" class="w-full" :invalid="!!form.errors.amount" mode="currency" currency="PHP" locale="en-PH" />
-                <p v-if="form.errors.amount" class="text-xs text-red-500 mt-1">{{ form.errors.amount }}</p>
+                <p v-if="form.errors.amount" class="text-xs text-red-400 mt-1">{{ form.errors.amount }}</p>
               </div>
               <Button type="submit" label="Assign Code" icon="pi pi-check" :loading="form.processing" />
             </form>
-          </div>
+          </Fieldset>
         </template>
 
-        <div v-else class="mt-6 p-4 bg-surface-50 rounded-lg border border-surface">
+        <div v-else class="mt-6 p-4 bg-surface-section rounded-lg border border-surface">
           <h3 class="font-semibold text-surface-900 mb-2 text-sm uppercase tracking-wide text-muted-color">Assigned Code</h3>
           <div class="grid grid-cols-2 gap-3 text-sm">
             <div>
@@ -197,7 +191,7 @@ function submit() {
     </div>
 
     <div class="col-span-12 lg:col-span-4">
-      <div class="card" style="min-width: 300px;">
+      <div class="card sticky top-24 min-w-72">
         <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Review Trail</h3>
         <ReviewTrail :reviews="reviews" />
       </div>

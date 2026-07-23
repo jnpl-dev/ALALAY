@@ -3,13 +3,33 @@ import { Head, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
+import BarChart from '@/Components/Charts/BarChart.vue'
+import Timeline from 'primevue/timeline'
 import Skeleton from 'primevue/skeleton'
+import { computed } from 'vue'
 import { formatDate } from '@/Utils/formatDate'
 
 defineOptions({ layout: AppLayout })
 
-defineProps({
+const props = defineProps({
   analyticsData: { type: Object, default: () => ({}) },
+})
+
+const trendChartData = computed(() => {
+  const trends = props.analyticsData?.monthlyTrends ?? {}
+  const labels = Object.keys(trends)
+  const values = Object.values(trends)
+  if (!labels.length) return { labels: [], datasets: [] }
+  return {
+    labels,
+    datasets: [{
+      label: 'Applications',
+      data: values,
+      backgroundColor: 'rgba(59, 130, 246, 0.5)',
+      borderColor: 'rgb(59, 130, 246)',
+      borderWidth: 1,
+    }],
+  }
 })
 </script>
 
@@ -27,55 +47,30 @@ defineProps({
         <AppKpiCard title="Returned" :value="analyticsData?.returned ?? 0" icon="pi pi-undo" color="warn" subtitle="needs revision" />
       </div>
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Vouchers" :value="analyticsData?.vouchersPrepared ?? 0" icon="pi pi-receipt" color="purple" subtitle="prepared" />
+        <AppKpiCard title="Vouchers" :value="analyticsData?.vouchersPrepared ?? 0" icon="pi pi-receipt" color="info" subtitle="prepared" />
       </div>
 
       <div class="col-span-12 xl:col-span-6">
-        <div class="card">
-          <div class="font-semibold text-xl mb-4">Monthly Trends</div>
-          <div v-if="Object.keys(analyticsData?.monthlyTrends ?? {}).length" class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="text-muted-color border-b border-surface">
-                  <th class="text-left py-2">Month</th>
-                  <th class="text-right py-2">Applications</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(count, month) in analyticsData.monthlyTrends" :key="month" class="border-b border-surface">
-                  <td class="py-2">{{ month }}</td>
-                  <td class="text-right py-2 font-medium">{{ count }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <AppEmptyState v-else icon="pi pi-chart-line" message="No trend data available" />
-        </div>
+        <BarChart :data="trendChartData" title="Monthly Trends" />
       </div>
 
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Pending Actions</div>
-          <div v-if="analyticsData?.pendingActions?.length" class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="text-muted-color border-b border-surface">
-                  <th class="text-left py-2">Action</th>
-                  <th class="text-left py-2">Module</th>
-                  <th class="text-left py-2">User</th>
-                  <th class="text-right py-2">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="action in analyticsData.pendingActions" :key="action.id" class="border-b border-surface">
-                  <td class="py-2">{{ action.action }}</td>
-                  <td class="py-2">{{ action.module }}</td>
-                  <td class="py-2">{{ action.user_name }}</td>
-                  <td class="text-right py-2 text-muted-color">{{ formatDate(action.created_at) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <Timeline v-if="analyticsData?.pendingActions?.length" :value="analyticsData.pendingActions" align="left" class="text-sm">
+            <template #opposite="{ item }">
+              <div class="text-xs text-muted-color text-right pr-4 whitespace-nowrap">
+                <div>{{ formatDate(item.created_at) }}</div>
+              </div>
+            </template>
+            <template #marker>
+              <i class="pi pi-circle-fill text-xs" style="color: var(--p-primary-color)" />
+            </template>
+            <template #content="{ item }">
+              <div class="font-medium">{{ item.action }}</div>
+              <div class="text-xs text-muted-color">{{ item.module }} · {{ item.user_name }}</div>
+            </template>
+          </Timeline>
           <AppEmptyState v-else icon="pi pi-inbox" message="No pending actions" />
         </div>
       </div>

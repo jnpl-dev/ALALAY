@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import Divider from 'primevue/divider'
 import { formatDate } from '@/Utils/formatDate'
 
 const props = defineProps({
@@ -47,7 +48,7 @@ const beneficiarySex = computed(() => capitalize(props.application.beneficiary_s
       </dl>
     </div>
 
-    <hr class="border-surface" />
+    <Divider />
 
     <div>
       <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Beneficiary</h3>
@@ -71,7 +72,7 @@ const beneficiarySex = computed(() => capitalize(props.application.beneficiary_s
       </dl>
     </div>
 
-    <hr class="border-surface" />
+    <Divider />
 
     <div>
       <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Application</h3>

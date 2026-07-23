@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Models\User;
-use App\Services\SignedUrlService;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class UserController extends Controller
@@ -40,6 +40,7 @@ class UserController extends Controller
                 'role' => $user->role,
                 'status' => $user->status,
                 'profile_picture_path' => $user->profile_picture_path,
+                'profile_picture_version' => $user->profile_picture_path ? $user->updated_at->timestamp : 0,
                 'created_at' => $user->created_at,
             ]);
 
@@ -159,12 +160,13 @@ class UserController extends Controller
             abort(404);
         }
 
-        $url = (new SignedUrlService)->generate($user->profile_picture_path, 5);
+        try {
+            $image = Storage::disk('supabase')->get($user->profile_picture_path);
+            $mimeType = $user->profile_picture_mime_type ?? 'image/jpeg';
 
-        if (!$url) {
+            return response($image, 200, ['Content-Type' => $mimeType]);
+        } catch (\Exception $e) {
             abort(404);
         }
-
-        return \Illuminate\Support\Facades\Redirect::away($url);
     }
 }

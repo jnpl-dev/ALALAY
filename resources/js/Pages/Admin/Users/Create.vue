@@ -4,12 +4,24 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Button from 'primevue/button'
+import Divider from 'primevue/divider'
 import { useToast } from 'primevue/usetoast'
 import { useFieldValidation } from '@/Composables/useFieldValidation'
 
 defineOptions({ layout: AppLayout })
 
 const toast = useToast()
+
+const form = useForm({
+  first_name: '',
+  last_name: '',
+  middle_name: '',
+  name_extension: '',
+  email: '',
+  role: '',
+  password: '',
+  password_confirmation: '',
+})
 
 const emailValid = useFieldValidation(
   route('validate.email'),
@@ -26,17 +38,6 @@ const roleOptions = [
   { label: 'Treasurer', value: 'treasurer' },
   { label: "Mayor's Office", value: 'mayors_office' },
 ]
-
-const form = useForm({
-  first_name: '',
-  last_name: '',
-  middle_name: '',
-  name_extension: '',
-  email: '',
-  role: '',
-  password: '',
-  password_confirmation: '',
-})
 
 const goBack = () => {
   router.get(route('admin.users.index'))
@@ -87,14 +88,14 @@ const submit = () => {
             </div>
           </div>
 
-          <hr class="border-surface my-6">
+          <Divider />
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
             <div>
               <label for="email" class="block text-muted-color font-medium mb-2">Email <span class="text-red-500">*</span></label>
               <InputText id="email" v-model="form.email" type="email" class="w-full" :invalid="!!form.errors.email" />
               <p v-if="form.errors.email" class="text-xs text-red-500 mt-1">{{ form.errors.email }}</p>
-              <p v-else-if="emailValid.isChecking.value && form.email" class="text-xs text-gray-400 mt-1">Checking...</p>
+              <p v-else-if="emailValid.isChecking.value && form.email" class="text-xs text-muted-color mt-1">Checking...</p>
               <p v-else-if="emailValid.isValid.value === false" class="text-xs text-amber-600 mt-1">{{ emailValid.message.value }}</p>
             </div>
             <div>
@@ -105,7 +106,7 @@ const submit = () => {
             </div>
           </div>
 
-          <hr class="border-surface my-6">
+          <Divider />
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
             <div>
@@ -120,7 +121,7 @@ const submit = () => {
             </div>
           </div>
 
-          <hr class="border-surface my-6">
+          <Divider />
 
           <div class="flex justify-end gap-4">
             <Button type="button" label="Cancel" icon="pi pi-times" severity="secondary" @click="goBack" />

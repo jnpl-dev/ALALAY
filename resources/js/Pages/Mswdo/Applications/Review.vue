@@ -8,10 +8,12 @@ import DocumentScanner from '@/Components/Application/DocumentScanner.vue'
 import ReviewTrail from '@/Components/Application/ReviewTrail.vue'
 import ReturnModal from '@/Components/Application/ReturnModal.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
+import DocumentThumbnail from '@/Components/Common/DocumentThumbnail.vue'
 import Button from 'primevue/button'
+import Divider from 'primevue/divider'
 import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -31,6 +33,8 @@ const viewerTitle = ref('')
 const viewerIdx = ref(0)
 const viewerDocuments = ref([])
 const showReturnModal = ref(false)
+const returnLoading = ref(false)
+const approveLoading = ref(false)
 const form = useForm({
   social_case_study: null,
   page_count: 1,
@@ -74,11 +78,17 @@ function confirmApprove() {
     icon: 'pi pi-check-circle',
     rejectProps: { label: 'Cancel', outlined: true },
     acceptProps: { label: 'Approve', severity: 'success' },
+    reject: () => { approveLoading.value = false },
     accept: () => {
+      approveLoading.value = true
       form.post(route('mswdo.applications.approve', props.application.id), {
         preserveState: true,
         preserveScroll: true,
-        onError: () => toast.error('Approval failed. Check that the social case study PDF is attached.'),
+        onError: () => {
+          toast.error('Approval failed. Check that the social case study PDF is attached.')
+          approveLoading.value = false
+        },
+        onFinish: () => { approveLoading.value = false },
       })
     },
   })
@@ -91,7 +101,9 @@ function confirmReturn() {
     icon: 'pi pi-exclamation-triangle',
     rejectProps: { label: 'Cancel', outlined: true },
     acceptProps: { label: 'Continue', severity: 'warn' },
+    reject: () => { returnLoading.value = false },
     accept: () => {
+      returnLoading.value = true
       openReturnModal()
     },
   })
@@ -101,11 +113,16 @@ function openReturnModal() {
   showReturnModal.value = true
 }
 
+watch(showReturnModal, (val) => {
+  if (!val) returnLoading.value = false
+})
+
 function onReturnConfirmed(data) {
   router.post(route('mswdo.applications.return', props.application.id), data, {
     preserveState: true,
     preserveScroll: true,
     onError: () => toast.error('Return failed'),
+    onFinish: () => { returnLoading.value = false },
   })
   showReturnModal.value = false
 }
@@ -135,24 +152,16 @@ function viewScs() {
 
         <ApplicationInfo :application="application" />
 
-        <hr class="border-surface my-6" />
+        <Divider />
 
         <div>
           <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Documents</h3>
-          <div v-if="documents.length" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div v-if="documents.length" class="grid grid-cols-2 sm:grid-cols-3 gap-3 transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]">
             <div v-for="(doc, idx) in documents" :key="doc.id"
-              class="relative group border border-surface rounded-lg overflow-hidden cursor-pointer hover:border-primary transition-colors"
+              class="relative group border border-surface rounded-lg overflow-hidden cursor-pointer hover:border-primary transition-colors duration-200"
               @click="viewDocument(doc, idx)">
               <div class="aspect-[3/4] flex items-center justify-center bg-surface-50 dark:bg-surface-800 overflow-hidden">
-                <template v-if="doc.signed_url">
-                  <div v-if="doc.mime_type === 'application/pdf'" class="flex flex-col items-center gap-2 text-muted-color">
-                    <i class="pi pi-file-pdf text-4xl"></i>
-                    <span class="text-[10px] font-medium">PDF</span>
-                  </div>
-                  <img v-else :src="doc.signed_url" :alt="doc.doc_name"
-                    class="w-full h-full object-cover" loading="lazy" />
-                </template>
-                <i v-else class="pi pi-file text-3xl text-muted-color"></i>
+                <DocumentThumbnail :doc="doc" />
               </div>
               <div class="px-2 py-1.5">
                 <p class="text-xs text-surface-700 truncate">{{ doc.doc_name }}</p>
@@ -169,7 +178,7 @@ function viewScs() {
           </div>
         </div>
 
-        <hr v-if="hasScs" class="border-surface my-6" />
+        <Divider v-if="hasScs" />
 
         <div v-if="hasScs">
           <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Social Case Study</h3>
@@ -184,7 +193,7 @@ function viewScs() {
           </div>
         </div>
 
-        <hr v-if="canReview" class="border-surface my-6" />
+        <Divider v-if="canReview" />
 
         <div v-if="canReview" class="space-y-6">
           <div>
@@ -201,8 +210,8 @@ function viewScs() {
           </div>
 
           <div class="flex gap-3">
-            <Button label="Approve & Forward" icon="pi pi-check" severity="success" @click="confirmApprove" :loading="form.processing" :disabled="!form.social_case_study" />
-            <Button label="Return" icon="pi pi-undo" severity="warn" @click="confirmReturn" />
+            <Button label="Approve & Forward" icon="pi pi-check" severity="success" @click="confirmApprove" :loading="form.processing || approveLoading" :disabled="!form.social_case_study" />
+            <Button label="Return" icon="pi pi-undo" severity="warn" @click="confirmReturn" :loading="returnLoading" />
           </div>
           <p v-if="!form.social_case_study" class="text-xs text-muted-color">Capture the social case study document before approving.</p>
         </div>
@@ -214,7 +223,7 @@ function viewScs() {
     </div>
 
     <div class="col-span-12 lg:col-span-4">
-      <div class="card" style="position: sticky; top: 6rem; min-width: 300px;">
+      <div class="card sticky top-24" style="min-width: 300px;">
         <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Review Trail</h3>
         <ReviewTrail :reviews="reviews" />
       </div>
