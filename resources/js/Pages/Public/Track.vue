@@ -5,6 +5,7 @@ import { usePolling } from '@/Composables/usePolling'
 import { useFieldValidation } from '@/Composables/useFieldValidation'
 import DocumentScanner from '@/Components/Application/DocumentScanner.vue'
 
+
 const props = defineProps({
   application: Object,
   documents: Array,
@@ -57,16 +58,16 @@ watch(() => props.application?.reference_code, () => {
   lastChecked.value = null
 })
 
+const lookupForm = useForm({
+  reference_code: '',
+})
+
 const refCodeValid = useFieldValidation(
   route('validate.reference-code'),
   () => lookupForm.reference_code,
   {},
   { debounceMs: 400 },
 )
-
-const lookupForm = useForm({
-  reference_code: '',
-})
 
 function lookupApplication() {
   const code = lookupForm.reference_code.trim()
@@ -194,30 +195,25 @@ const timelineSteps = computed(() => {
 <template>
   <Head title="Track Application" />
 
-  <div class="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50">
-    <Teleport to="body">
-      <div v-if="toast"
-        class="fixed top-4 right-4 z-[9999] px-5 py-3 rounded-xl shadow-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 max-w-sm"
-        :class="toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'"
-      >
-        <i :class="toast.type === 'success' ? 'pi pi-check-circle' : 'pi pi-exclamation-circle'"></i>
-        {{ toast.message }}
-      </div>
-    </Teleport>
-    <nav class="border-b border-emerald-100 bg-white/80 backdrop-blur-sm">
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <Link :href="homeUrl" class="flex items-center gap-2">
-          <div class="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
-            <span class="text-white font-bold text-sm">A</span>
+  <div class="min-h-screen bg-white">
+    <div class="border-b border-emerald-100 bg-white/95 backdrop-blur-md">
+      <div class="max-w-5xl px-4 mx-auto sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <div class="flex items-center gap-3">
+            <img src="/images/logo/alalay-logo.png" alt="ALALAY" class="h-8 w-auto">
+            <div class="flex items-center gap-2 pl-3 border-l border-emerald-200">
+              <img src="/images/logo/gmn.png" alt="GMN" class="h-6 opacity-60">
+              <img src="/images/logo/dswd.png" alt="DSWD" class="h-6 opacity-60">
+              <img src="/images/logo/AICS.png" alt="AICS" class="h-6 opacity-60">
+            </div>
           </div>
-          <span class="font-semibold text-emerald-900 text-lg">ALALAY</span>
-        </Link>
-        <Link :href="homeUrl" class="text-sm text-emerald-700 hover:text-emerald-900 font-medium">
-          Back to Home
-        </Link>
+          <Link :href="homeUrl" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+            Back
+          </Link>
+        </div>
       </div>
-    </nav>
-
+    </div>
     <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
 
       <div v-if="hasApplication" class="space-y-6">
@@ -408,5 +404,15 @@ const timelineSteps = computed(() => {
       </div>
 
     </main>
+
+    <Teleport to="body">
+      <div v-if="toast"
+        class="fixed top-4 right-4 z-[9999] px-5 py-3 rounded-xl shadow-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 max-w-sm"
+        :class="toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'"
+      >
+        <i :class="toast.type === 'success' ? 'pi pi-check-circle' : 'pi pi-exclamation-circle'"></i>
+        {{ toast.message }}
+      </div>
+    </Teleport>
   </div>
 </template>
