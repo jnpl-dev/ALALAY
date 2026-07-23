@@ -17,13 +17,26 @@ class SecurityHeaders
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('Permissions-Policy', 'camera=self, microphone=(), geolocation=()');
 
+        $viteOrigins = app()->environment('local')
+            ? 'http://localhost:5173 http://127.0.0.1:5173'
+            : '';
+        $viteWsOrigins = $viteOrigins
+            ? 'ws://localhost:5173 ws://127.0.0.1:5173'
+            : '';
+
+        $scriptSrc = "'self' 'unsafe-inline'" . ($viteOrigins ? " $viteOrigins" : '');
+        $styleSrc = "'self' 'unsafe-inline'" . ($viteOrigins ? " $viteOrigins" : '');
+        $fontSrc = "'self' data:" . ($viteOrigins ? " $viteOrigins" : '');
+        $connectSrc = "'self' https://*.supabase.co https://psgc.gitlab.io" . ($viteWsOrigins ? " $viteWsOrigins" : '');
+
         $response->headers->set('Content-Security-Policy', implode('; ', [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline'",
-            "style-src 'self' 'unsafe-inline'",
+            "script-src $scriptSrc",
+            "style-src $styleSrc",
+            "font-src $fontSrc",
             "img-src 'self' data: blob:",
             "media-src 'self' blob:",
-            "connect-src 'self' https://*.supabase.co https://psgc.gitlab.io",
+            "connect-src $connectSrc",
             "object-src 'none'",
             "frame-ancestors 'none'",
         ]));

@@ -6,6 +6,7 @@ import DocumentScanner from '@/Components/Application/DocumentScanner.vue'
 import { usePsgcAddress } from '@/Composables/usePsgcAddress.js'
 import { jsPDF } from 'jspdf'
 
+
 const props = defineProps({
   categories: Array,
 })
@@ -26,7 +27,21 @@ watch(() => usePage().props.flash, (val) => {
   if (val?.error) showToast(val.error, 'error')
 }, { immediate: true })
 
-onBeforeUnmount(() => clearTimeout(toastTimer))
+function handleBeforeUnload(e) {
+  if (form.isDirty) {
+    e.preventDefault()
+    e.returnValue = ''
+  }
+}
+
+onBeforeUnmount(() => {
+  clearTimeout(toastTimer)
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+onMounted(() => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
 
 const homeUrl = route('home')
 const applyUrl = route('apply')
@@ -41,6 +56,12 @@ function copyCode(code) {
 }
 
 const steps = ['Category', 'Applicant Info', 'Documents', 'Summary', 'Complete']
+const stepDescriptions = [
+  'Select assistance type',
+  'Your personal details',
+  'Upload requirements',
+  'Review & submit',
+]
 const currentStep = ref(0)
 const submittedCode = ref(null)
 
@@ -380,75 +401,88 @@ const statusLabel = (status) => ({
 <template>
   <Head title="Apply for Assistance" />
 
-  <div class="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50">
-    <nav class="border-b border-emerald-100 bg-white/80 backdrop-blur-sm">
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <Link :href="homeUrl" class="flex items-center gap-2">
-          <div class="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
-            <span class="text-white font-bold text-sm">A</span>
-          </div>
-          <span class="font-semibold text-emerald-900 text-lg">ALALAY</span>
-        </Link>
-        <Link :href="homeUrl" class="text-sm text-emerald-700 hover:text-emerald-900 font-medium">
-          Back to Home
-        </Link>
-      </div>
-    </nav>
-
-    <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-      <div v-if="currentStep < 4" class="mb-8">
-        <div class="flex items-center justify-between max-w-xl mx-auto">
-          <template v-for="(step, i) in steps.slice(0, 4)" :key="i">
-            <div class="flex items-center">
-              <div
-                :class="[
-                  'w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors',
-                  i < currentStep ? 'bg-emerald-600 text-white' :
-                  i === currentStep ? 'bg-emerald-600 text-white ring-4 ring-emerald-200' :
-                  'bg-gray-200 text-gray-400'
-                ]"
-              >
-                {{ i < currentStep ? '✓' : i + 1 }}
-              </div>
-              <span
-                v-if="i < 3"
-                :class="[
-                  'w-12 sm:w-20 h-0.5 mx-1 sm:mx-2 transition-colors',
-                  i < currentStep ? 'bg-emerald-600' : 'bg-gray-200'
-                ]"
-              />
+  <div class="min-h-screen bg-white">
+    <div class="border-b border-emerald-100 bg-white/95 backdrop-blur-md">
+      <div class="max-w-5xl px-4 mx-auto sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <div class="flex items-center gap-3">
+            <img src="/images/logo/alalay-logo.png" alt="ALALAY" class="w-auto h-8">
+            <div class="flex items-center gap-2 pl-3 border-l border-emerald-200">
+              <img src="/images/logo/gmn.png" alt="GMN" class="h-6 opacity-60">
+              <img src="/images/logo/dswd.png" alt="DSWD" class="h-6 opacity-60">
+              <img src="/images/logo/AICS.png" alt="AICS" class="h-6 opacity-60">
             </div>
-          </template>
+          </div>
+          <Link :href="homeUrl" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+            Back to Home
+          </Link>
         </div>
-        <p class="text-center text-sm text-gray-500 mt-3 font-medium">{{ steps[currentStep] }}</p>
+      </div>
+    </div>
+    <div class="max-w-5xl px-4 py-8 mx-auto sm:px-6 lg:px-8 sm:py-12">
+      <div v-if="currentStep < 4" class="mb-10">
+        <div class="max-w-2xl mx-auto">
+          <div class="flex items-start">
+            <template v-for="(step, i) in steps.slice(0, 4)" :key="i">
+              <div class="flex flex-col items-center relative flex-1">
+                <div v-if="i > 0" class="absolute top-5 left-0 right-1/2 h-0.5 overflow-hidden bg-gray-200">
+                  <div class="h-full bg-emerald-600 transition-all duration-700" :style="{ width: i < currentStep || i === currentStep ? '100%' : '0%' }" />
+                </div>
+                <div v-if="i < 3" class="absolute top-5 left-1/2 right-0 h-0.5 overflow-hidden bg-gray-200">
+                  <div class="h-full bg-emerald-600 transition-all duration-700" :style="{ width: i < currentStep ? '100%' : '0%' }" />
+                </div>
+                <div
+                  :class="[
+                    'relative z-10 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-500 cursor-pointer',
+                    i < currentStep ? 'bg-emerald-600 text-white shadow-md hover:scale-110' :
+                    i === currentStep ? 'bg-white text-emerald-600 ring-4 ring-emerald-300 shadow-lg scale-110 glow-pulse' :
+                    'bg-gray-200 text-gray-400'
+                  ]"
+                  @click="i < currentStep ? currentStep = i : null"
+                >
+                  <svg v-if="i < currentStep" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+                  <span v-else>{{ i + 1 }}</span>
+                </div>
+                <span
+                  :class="[
+                    'text-xs font-medium mt-2 whitespace-nowrap transition-colors duration-300',
+                    i <= currentStep ? 'text-emerald-700' : 'text-gray-400'
+                  ]"
+                >{{ step }}</span>
+              </div>
+            </template>
+          </div>
+          <p class="mt-4 text-xs text-center text-gray-500 sm:text-sm">{{ stepDescriptions[currentStep] || '' }}</p>
+        </div>
       </div>
 
-      <div v-if="Object.keys(form.errors).length && currentStep === 3" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-        <p class="text-sm font-medium text-red-800 mb-1">Unable to submit</p>
+      <div v-if="Object.keys(form.errors).length && currentStep === 3" class="p-4 mb-6 border border-red-200 rounded-lg bg-red-50">
+        <p class="mb-1 text-sm font-medium text-red-800">Unable to submit</p>
         <ul class="text-sm text-red-600 list-disc list-inside">
           <li v-for="(msg, key) in form.errors" :key="key">{{ msg }}</li>
         </ul>
       </div>
 
-        <div v-if="flash?.error && !toast" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div v-if="flash?.error && !toast" class="p-4 mb-6 border border-red-200 rounded-lg bg-red-50">
         <p class="text-sm text-red-600">{{ flash.error }}</p>
       </div>
 
       <div v-if="(flash?.success && flash?.reference_code) || submittedCode" class="text-center">
-        <div class="bg-white rounded-2xl shadow-lg border border-emerald-100 p-8 sm:p-12">
-          <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <div class="p-8 bg-white border shadow-lg rounded-2xl border-emerald-100 sm:p-12">
+          <div class="flex items-center justify-center w-16 h-16 mx-auto mb-6 rounded-full bg-emerald-100">
             <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h1 class="text-2xl sm:text-3xl font-bold text-emerald-900 mb-2">Application Submitted!</h1>
-          <p class="text-emerald-600 mb-6">Save your reference code to track your application.</p>
-          <div class="bg-emerald-50 rounded-xl p-6 mb-6 inline-flex items-center gap-3">
+          <h1 class="mb-2 text-2xl font-bold sm:text-3xl text-emerald-900">Application Submitted!</h1>
+          <p class="mb-6 text-emerald-600">Save your reference code to track your application.</p>
+          <div class="inline-flex items-center gap-3 p-6 mb-6 bg-emerald-50 rounded-xl">
             <div>
-              <p class="text-xs text-emerald-600 uppercase tracking-wide font-semibold mb-1">Reference Code</p>
-              <p class="text-2xl sm:text-3xl font-bold text-emerald-900 tracking-wider font-mono">{{ submittedCode || flash?.reference_code }}</p>
+              <p class="mb-1 text-xs font-semibold tracking-wide uppercase text-emerald-600">Reference Code</p>
+              <p class="font-mono text-2xl font-bold tracking-wider sm:text-3xl text-emerald-900">{{ submittedCode || flash?.reference_code }}</p>
             </div>
-            <button @click="copyCode(submittedCode || flash?.reference_code)" class="shrink-0 p-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors cursor-pointer border-none" title="Copy reference code">
+            <button @click="copyCode(submittedCode || flash?.reference_code)" class="p-2 text-white transition-colors border-none rounded-lg cursor-pointer shrink-0 bg-emerald-600 hover:bg-emerald-700" title="Copy reference code">
               <svg v-if="!copied" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
@@ -457,16 +491,16 @@ const statusLabel = (status) => ({
               </svg>
             </button>
           </div>
-          <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <div class="flex flex-col justify-center gap-3 sm:flex-row">
             <Link
               :href="trackUrl"
-              class="inline-flex items-center justify-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-xl font-semibold text-sm hover:bg-emerald-700 transition-colors"
+              class="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white transition-colors bg-emerald-600 rounded-xl hover:bg-emerald-700"
             >
               <span>Track Application</span>
             </Link>
             <Link
               :href="applyUrl"
-              class="inline-flex items-center justify-center gap-2 bg-white text-emerald-700 px-6 py-3 rounded-xl font-semibold text-sm border border-emerald-200 hover:bg-emerald-50 transition-colors"
+              class="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold transition-colors bg-white border text-emerald-700 rounded-xl border-emerald-200 hover:bg-emerald-50"
             >
               <span>Apply for Another</span>
             </Link>
@@ -474,72 +508,70 @@ const statusLabel = (status) => ({
         </div>
       </div>
 
-      <div v-else-if="currentStep === 0" class="bg-white rounded-2xl shadow-lg border border-emerald-100 p-8 sm:p-12">
-        <div class="text-center mb-8">
-          <div class="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <svg class="w-7 h-7 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-          </div>
-          <h1 class="text-2xl sm:text-3xl font-bold text-emerald-900 mb-2">Apply for Assistance</h1>
+      <div v-else-if="currentStep === 0" class="p-8 bg-white border shadow-lg rounded-2xl border-emerald-100 sm:p-12">
+        <div class="mb-8 text-center">
+          <h1 class="mb-2 text-2xl font-bold sm:text-3xl text-emerald-900">Apply for Assistance</h1>
           <p class="text-emerald-600">Select the type of assistance you need.</p>
         </div>
 
-        <div v-if="!categories?.length" class="text-center py-8">
+        <div v-if="!categories?.length" class="py-8 text-center">
           <p class="text-gray-500">No assistance categories are currently available. Please check back later.</p>
         </div>
 
-        <div v-else class="flex flex-col gap-4">
+        <div v-else class="grid gap-5">
           <button
             v-for="category in categories"
             :key="category.id"
             @click="selectCategory(category)"
-            class="text-left p-5 rounded-xl border-2 border-emerald-100 hover:border-emerald-400 bg-white hover:bg-emerald-50 transition-all cursor-pointer"
+            class="p-6 text-left transition-all duration-200 bg-white border-2 cursor-pointer rounded-xl border-emerald-200 hover:border-emerald-500 hover:bg-emerald-50/50 group"
           >
-            <h3 class="font-bold text-emerald-900 text-lg mb-1">{{ category.category_name }}</h3>
-            <p class="text-sm text-gray-600 mb-3">{{ category.category_description }}</p>
-            <div>
-              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Required Documents</p>
-              <ul class="text-xs text-gray-500 space-y-0.5">
-                <li
-                  v-for="doc in category.required_documents"
-                  :key="doc.id"
-                  class="flex items-center gap-1"
-                >
-                  <span>{{ doc.is_mandatory ? '*' : '' }}{{ doc.doc_name }}</span>
-                  <span v-if="doc.is_mandatory" class="text-red-400 font-medium">(Required)</span>
-                </li>
-              </ul>
+            <div class="flex-1 min-w-0">
+                <h3 class="font-bold text-emerald-900 text-lg mb-1.5 group-hover:text-emerald-700 transition-colors">{{ category.category_name }}</h3>
+                <p class="mb-4 text-sm leading-relaxed text-gray-600">{{ category.category_description }}</p>
+                <div class="p-3 border rounded-lg bg-emerald-50/50 border-emerald-100">
+                  <p class="mb-2 text-xs font-semibold tracking-wider text-gray-500 uppercase">Required Documents</p>
+                  <ul class="space-y-1">
+                    <li
+                      v-for="doc in category.required_documents"
+                      :key="doc.id"
+                      class="flex items-center gap-2 text-xs"
+                    >
+                      <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="doc.is_mandatory ? 'bg-red-400' : 'bg-gray-300'"></span>
+                      <span class="text-gray-600">{{ doc.doc_name }}</span>
+                      <span v-if="doc.is_mandatory" class="text-[10px] font-semibold text-rose-600 uppercase bg-rose-50 px-1.5 py-0.5 rounded shrink-0">Required</span>
+                    </li>
+                  </ul>
+                </div>
             </div>
           </button>
         </div>
       </div>
 
-      <div v-else-if="currentStep === 1" class="bg-white rounded-2xl shadow-lg border border-emerald-100 p-8 sm:p-12">
-        <h2 class="text-xl font-bold text-emerald-900 mb-6">Applicant Information</h2>
+      <div v-else-if="currentStep === 1" class="p-8 bg-white border shadow-lg rounded-2xl border-emerald-100 sm:p-12">
+        <h2 class="mb-6 text-xl font-bold text-emerald-900">Applicant Information</h2>
 
-        <div class="space-y-4 mb-8">
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="mb-8 space-y-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Last Name <span class="text-red-500">*</span></label>
-              <input v-model="form.claimant_last_name" type="text" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
-              <p v-if="form.errors.claimant_last_name" class="text-xs text-red-500 mt-1">{{ form.errors.claimant_last_name }}</p>
+              <label class="block mb-1 text-sm font-medium text-gray-700">Last Name <span class="text-red-500">*</span></label>
+              <input v-model="form.claimant_last_name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.claimant_last_name" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_last_name }}</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">First Name <span class="text-red-500">*</span></label>
-              <input v-model="form.claimant_first_name" type="text" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
-              <p v-if="form.errors.claimant_first_name" class="text-xs text-red-500 mt-1">{{ form.errors.claimant_first_name }}</p>
+              <label class="block mb-1 text-sm font-medium text-gray-700">First Name <span class="text-red-500">*</span></label>
+              <input v-model="form.claimant_first_name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.claimant_first_name" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_first_name }}</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
-              <input v-model="form.claimant_middle_name" type="text" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+              <label class="block mb-1 text-sm font-medium text-gray-700">Middle Name</label>
+              <input v-model="form.claimant_middle_name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
             </div>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Name Extension</label>
-              <select v-model="form.claimant_name_extension" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white">
+              <label class="block mb-1 text-sm font-medium text-gray-700">Name Extension</label>
+              <select v-model="form.claimant_name_extension" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
                 <option value="">None</option>
                 <option value="Jr.">Jr.</option>
                 <option value="Sr.">Sr.</option>
@@ -547,33 +579,33 @@ const statusLabel = (status) => ({
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Sex <span class="text-red-500">*</span></label>
-              <select v-model="form.claimant_sex" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white">
+              <label class="block mb-1 text-sm font-medium text-gray-700">Sex <span class="text-red-500">*</span></label>
+              <select v-model="form.claimant_sex" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
                 <option value="">Select...</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
               </select>
-              <p v-if="form.errors.claimant_sex" class="text-xs text-red-500 mt-1">{{ form.errors.claimant_sex }}</p>
+              <p v-if="form.errors.claimant_sex" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_sex }}</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth <span class="text-red-500">*</span></label>
-              <input v-model="form.claimant_dob" type="date" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
-              <p v-if="form.errors.claimant_dob" class="text-xs text-red-500 mt-1">{{ form.errors.claimant_dob }}</p>
+              <label class="block mb-1 text-sm font-medium text-gray-700">Date of Birth <span class="text-red-500">*</span></label>
+              <input v-model="form.claimant_dob" type="date" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.claimant_dob" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_dob }}</p>
             </div>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Address <span class="text-red-500">*</span></label>
+            <label class="block mb-2 text-sm font-medium text-gray-700">Address <span class="text-red-500">*</span></label>
             <div class="space-y-2">
               <div class="grid grid-cols-2 gap-2">
                 <div>
-                  <select v-model="claimantAddr.selectedProvince" @change="claimantAddr.setProvince(claimantAddr.selectedProvince)" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white">
+                  <select v-model="claimantAddr.selectedProvince" @change="claimantAddr.setProvince(claimantAddr.selectedProvince)" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
                     <option :value="null" disabled>{{ claimantAddr.loadingProvinces ? 'Loading...' : 'Select Province' }}</option>
                     <option v-for="p in claimantAddr.provinces" :key="p.code" :value="p">{{ p.name }}</option>
                   </select>
                 </div>
                 <div>
-                  <select v-model="claimantAddr.selectedCity" @change="claimantAddr.setCity(claimantAddr.selectedCity)" :disabled="!claimantAddr.selectedProvince" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white disabled:opacity-50 disabled:cursor-not-allowed">
+                  <select v-model="claimantAddr.selectedCity" @change="claimantAddr.setCity(claimantAddr.selectedCity)" :disabled="!claimantAddr.selectedProvince" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
                     <option :value="null" disabled>{{ claimantAddr.loadingCities ? 'Loading...' : 'Select City/Municipality' }}</option>
                     <option v-for="c in claimantAddr.cities" :key="c.code" :value="c">{{ c.name }}</option>
                   </select>
@@ -581,38 +613,38 @@ const statusLabel = (status) => ({
               </div>
               <div class="grid grid-cols-2 gap-2">
                 <div>
-                  <select v-model="claimantAddr.selectedBarangay" @change="claimantAddr.setBarangay(claimantAddr.selectedBarangay)" :disabled="!claimantAddr.selectedCity" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white disabled:opacity-50 disabled:cursor-not-allowed">
+                  <select v-model="claimantAddr.selectedBarangay" @change="claimantAddr.setBarangay(claimantAddr.selectedBarangay)" :disabled="!claimantAddr.selectedCity" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
                     <option :value="null" disabled>{{ claimantAddr.loadingBarangays ? 'Loading...' : 'Select Barangay' }}</option>
                     <option v-for="b in claimantAddr.barangays" :key="b.code" :value="b">{{ b.name }}</option>
                   </select>
                 </div>
                 <div>
-                  <input v-model="claimantAddr.street" type="text" placeholder="Street / House No." class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+                  <input v-model="claimantAddr.street" type="text" placeholder="Street / House No." class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
                 </div>
               </div>
             </div>
             <input v-model="form.claimant_address" type="hidden" />
-            <p v-if="form.errors.claimant_address" class="text-xs text-red-500 mt-1">{{ form.errors.claimant_address }}</p>
+            <p v-if="form.errors.claimant_address" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_address }}</p>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number <span class="text-red-500">*</span></label>
-              <input v-model="form.claimant_phone" type="tel" placeholder="0917xxxxxxx" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
-              <p v-if="form.errors.claimant_phone" class="text-xs text-red-500 mt-1">{{ form.errors.claimant_phone }}</p>
-              <p v-else-if="phoneValid.isChecking.value && form.claimant_phone" class="text-xs text-gray-400 mt-1">Checking...</p>
-              <p v-else-if="phoneValid.isValid.value === false" class="text-xs text-amber-600 mt-1">{{ phoneValid.message.value }}</p>
+              <label class="block mb-1 text-sm font-medium text-gray-700">Phone Number <span class="text-red-500">*</span></label>
+              <input v-model="form.claimant_phone" type="tel" placeholder="0917xxxxxxx" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.claimant_phone" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_phone }}</p>
+              <p v-else-if="phoneValid.isChecking.value && form.claimant_phone" class="mt-1 text-xs text-gray-400">Checking...</p>
+              <p v-else-if="phoneValid.isValid.value === false" class="mt-1 text-xs text-amber-600">{{ phoneValid.message.value }}</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-              <input v-model="form.claimant_email" type="email" placeholder="Optional" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
-              <p v-if="form.errors.claimant_email" class="text-xs text-red-500 mt-1">{{ form.errors.claimant_email }}</p>
+              <label class="block mb-1 text-sm font-medium text-gray-700">Email Address</label>
+              <input v-model="form.claimant_email" type="email" placeholder="Optional" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.claimant_email" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_email }}</p>
             </div>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Relationship to Beneficiary <span class="text-red-500">*</span></label>
-            <select v-model="form.claimant_relationship_to_beneficiary" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white">
+            <label class="block mb-1 text-sm font-medium text-gray-700">Relationship to Beneficiary <span class="text-red-500">*</span></label>
+            <select v-model="form.claimant_relationship_to_beneficiary" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
               <option value="">Select relationship...</option>
               <option value="Spouse">Spouse</option>
               <option value="Parent">Parent</option>
@@ -622,34 +654,34 @@ const statusLabel = (status) => ({
               <option value="Grandchild">Grandchild</option>
               <option value="Representative">Representative</option>
             </select>
-            <p v-if="form.errors.claimant_relationship_to_beneficiary" class="text-xs text-red-500 mt-1">{{ form.errors.claimant_relationship_to_beneficiary }}</p>
+            <p v-if="form.errors.claimant_relationship_to_beneficiary" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_relationship_to_beneficiary }}</p>
           </div>
         </div>
 
-        <h2 class="text-xl font-bold text-emerald-900 mb-4">Beneficiary Information</h2>
+        <h2 class="mb-4 text-xl font-bold text-emerald-900">Beneficiary Information</h2>
 
-        <div class="space-y-4 mb-8">
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="mb-8 space-y-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Last Name <span class="text-red-500">*</span></label>
-              <input v-model="form.beneficiary_last_name" type="text" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
-              <p v-if="form.errors.beneficiary_last_name" class="text-xs text-red-500 mt-1">{{ form.errors.beneficiary_last_name }}</p>
+              <label class="block mb-1 text-sm font-medium text-gray-700">Last Name <span class="text-red-500">*</span></label>
+              <input v-model="form.beneficiary_last_name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.beneficiary_last_name" class="mt-1 text-xs text-red-500">{{ form.errors.beneficiary_last_name }}</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">First Name <span class="text-red-500">*</span></label>
-              <input v-model="form.beneficiary_first_name" type="text" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
-              <p v-if="form.errors.beneficiary_first_name" class="text-xs text-red-500 mt-1">{{ form.errors.beneficiary_first_name }}</p>
+              <label class="block mb-1 text-sm font-medium text-gray-700">First Name <span class="text-red-500">*</span></label>
+              <input v-model="form.beneficiary_first_name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.beneficiary_first_name" class="mt-1 text-xs text-red-500">{{ form.errors.beneficiary_first_name }}</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
-              <input v-model="form.beneficiary_middle_name" type="text" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
+              <label class="block mb-1 text-sm font-medium text-gray-700">Middle Name</label>
+              <input v-model="form.beneficiary_middle_name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
             </div>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Name Extension</label>
-              <select v-model="form.beneficiary_name_extension" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white">
+              <label class="block mb-1 text-sm font-medium text-gray-700">Name Extension</label>
+              <select v-model="form.beneficiary_name_extension" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
                 <option value="">None</option>
                 <option value="Jr.">Jr.</option>
                 <option value="Sr.">Sr.</option>
@@ -657,7 +689,7 @@ const statusLabel = (status) => ({
               </select>
             </div>
             <div class="sm:col-span-3">
-              <p v-if="beneficiaryEligible === false" class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2">
+              <p v-if="beneficiaryEligible === false" class="px-3 py-2 text-xs border rounded-lg bg-amber-50 border-amber-200 text-amber-800">
                 {{ beneficiaryEligibilityMsg }}
               </p>
               <p v-else-if="beneficiaryEligible === null && (form.beneficiary_first_name || form.beneficiary_last_name)" class="text-xs text-gray-400">
@@ -665,38 +697,38 @@ const statusLabel = (status) => ({
               </p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Sex <span class="text-red-500">*</span></label>
-              <select v-model="form.beneficiary_sex" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white">
+              <label class="block mb-1 text-sm font-medium text-gray-700">Sex <span class="text-red-500">*</span></label>
+              <select v-model="form.beneficiary_sex" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
                 <option value="">Select...</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
               </select>
-              <p v-if="form.errors.beneficiary_sex" class="text-xs text-red-500 mt-1">{{ form.errors.beneficiary_sex }}</p>
+              <p v-if="form.errors.beneficiary_sex" class="mt-1 text-xs text-red-500">{{ form.errors.beneficiary_sex }}</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth <span class="text-red-500">*</span></label>
-              <input v-model="form.beneficiary_dob" type="date" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" />
-              <p v-if="form.errors.beneficiary_dob" class="text-xs text-red-500 mt-1">{{ form.errors.beneficiary_dob }}</p>
+              <label class="block mb-1 text-sm font-medium text-gray-700">Date of Birth <span class="text-red-500">*</span></label>
+              <input v-model="form.beneficiary_dob" type="date" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.beneficiary_dob" class="mt-1 text-xs text-red-500">{{ form.errors.beneficiary_dob }}</p>
             </div>
           </div>
 
           <label class="flex items-center gap-2 mb-2 cursor-pointer">
-            <input type="checkbox" v-model="sameAddress" class="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+            <input type="checkbox" v-model="sameAddress" class="w-4 h-4 border-gray-300 rounded text-emerald-600 focus:ring-emerald-500" />
             <span class="text-sm text-gray-700">Same address as claimant</span>
           </label>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Address <span class="text-red-500">*</span></label>
+            <label class="block mb-2 text-sm font-medium text-gray-700">Address <span class="text-red-500">*</span></label>
             <div class="space-y-2">
               <div class="grid grid-cols-2 gap-2">
                 <div>
-                  <select v-model="beneficiaryAddr.selectedProvince" @change="beneficiaryAddr.setProvince(beneficiaryAddr.selectedProvince)" :disabled="sameAddress" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white disabled:opacity-50 disabled:cursor-not-allowed">
+                  <select v-model="beneficiaryAddr.selectedProvince" @change="beneficiaryAddr.setProvince(beneficiaryAddr.selectedProvince)" :disabled="sameAddress" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
                     <option :value="null" disabled>{{ beneficiaryAddr.loadingProvinces ? 'Loading...' : 'Select Province' }}</option>
                     <option v-for="p in beneficiaryAddr.provinces" :key="p.code" :value="p">{{ p.name }}</option>
                   </select>
                 </div>
                 <div>
-                  <select v-model="beneficiaryAddr.selectedCity" @change="beneficiaryAddr.setCity(beneficiaryAddr.selectedCity)" :disabled="sameAddress || !beneficiaryAddr.selectedProvince" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white disabled:opacity-50 disabled:cursor-not-allowed">
+                  <select v-model="beneficiaryAddr.selectedCity" @change="beneficiaryAddr.setCity(beneficiaryAddr.selectedCity)" :disabled="sameAddress || !beneficiaryAddr.selectedProvince" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
                     <option :value="null" disabled>{{ beneficiaryAddr.loadingCities ? 'Loading...' : 'Select City/Municipality' }}</option>
                     <option v-for="c in beneficiaryAddr.cities" :key="c.code" :value="c">{{ c.name }}</option>
                   </select>
@@ -704,18 +736,18 @@ const statusLabel = (status) => ({
               </div>
               <div class="grid grid-cols-2 gap-2">
                 <div>
-                  <select v-model="beneficiaryAddr.selectedBarangay" @change="beneficiaryAddr.setBarangay(beneficiaryAddr.selectedBarangay)" :disabled="sameAddress || !beneficiaryAddr.selectedCity" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white disabled:opacity-50 disabled:cursor-not-allowed">
+                  <select v-model="beneficiaryAddr.selectedBarangay" @change="beneficiaryAddr.setBarangay(beneficiaryAddr.selectedBarangay)" :disabled="sameAddress || !beneficiaryAddr.selectedCity" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
                     <option :value="null" disabled>{{ beneficiaryAddr.loadingBarangays ? 'Loading...' : 'Select Barangay' }}</option>
                     <option v-for="b in beneficiaryAddr.barangays" :key="b.code" :value="b">{{ b.name }}</option>
                   </select>
                 </div>
                 <div>
-                  <input v-model="beneficiaryAddr.street" type="text" placeholder="Street / House No." :disabled="sameAddress" class="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed" />
+                  <input v-model="beneficiaryAddr.street" type="text" placeholder="Street / House No." :disabled="sameAddress" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed" />
                 </div>
               </div>
             </div>
             <input v-model="form.beneficiary_address" type="hidden" />
-            <p v-if="form.errors.beneficiary_address" class="text-xs text-red-500 mt-1">{{ form.errors.beneficiary_address }}</p>
+            <p v-if="form.errors.beneficiary_address" class="mt-1 text-xs text-red-500">{{ form.errors.beneficiary_address }}</p>
           </div>
         </div>
 
@@ -725,18 +757,18 @@ const statusLabel = (status) => ({
         </div>
       </div>
 
-      <div v-else-if="currentStep === 2" class="bg-white rounded-2xl shadow-lg border border-emerald-100 p-8 sm:p-12">
-        <h2 class="text-xl font-bold text-emerald-900 mb-2">Capture Documents</h2>
-        <p class="text-sm text-gray-500 mb-6">
+      <div v-else-if="currentStep === 2" class="p-8 bg-white border shadow-lg rounded-2xl border-emerald-100 sm:p-12">
+        <h2 class="mb-2 text-xl font-bold text-emerald-900">Capture Documents</h2>
+        <p class="mb-6 text-sm text-gray-500">
           Step {{ currentDocIndex + 1 }} of {{ visibleDocs.length }} &mdash; {{ capturedCount }}/{{ allRequiredDocs.length }} captured
         </p>
 
-        <div v-if="form.errors.documents" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+        <div v-if="form.errors.documents" class="p-3 mb-4 border border-red-200 rounded-lg bg-red-50">
           <p class="text-sm text-red-600">{{ form.errors.documents }}</p>
         </div>
 
         <div v-if="currentDoc" class="space-y-4">
-          <div class="border border-gray-200 rounded-xl p-4">
+          <div class="p-4 border border-gray-200 rounded-xl">
             <DocumentScanner
               :key="currentDoc.id"
               :docName="currentDoc.doc_name"
@@ -764,11 +796,11 @@ const statusLabel = (status) => ({
           </div>
 
           <!-- Navigation -->
-          <div class="flex justify-between items-center pt-2">
+          <div class="flex items-center justify-between pt-2">
             <button
               v-if="currentDocIndex > 0"
               @click="goToDoc(currentDocIndex - 1)"
-              class="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50 transition-colors cursor-pointer"
+              class="px-4 py-2 text-sm font-medium text-gray-600 transition-colors border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50"
             >
               Previous
             </button>
@@ -777,7 +809,7 @@ const statusLabel = (status) => ({
             <button
               v-if="currentDocIndex < visibleDocs.length - 1"
               @click="goToDoc(currentDocIndex + 1)"
-              class="px-4 py-2 rounded-lg text-sm font-medium text-white cursor-pointer"
+              class="px-4 py-2 text-sm font-medium text-white rounded-lg cursor-pointer"
               :class="form.document_ids.includes(currentDoc.id) ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-300 cursor-not-allowed'"
               :disabled="!form.document_ids.includes(currentDoc.id)"
             >
@@ -786,7 +818,7 @@ const statusLabel = (status) => ({
           </div>
         </div>
 
-        <div class="border-t border-gray-200 mt-8 pt-6">
+        <div class="pt-6 mt-8 border-t border-gray-200">
           <div class="flex justify-between">
             <button @click="prevStep" class="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50 transition-colors cursor-pointer">Back</button>
             <button @click="nextStep" :disabled="!allMandatoryCaptured" :class="['px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer', allMandatoryCaptured ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-300 cursor-not-allowed']">
@@ -796,23 +828,23 @@ const statusLabel = (status) => ({
         </div>
       </div>
 
-      <div v-else-if="currentStep === 3" class="bg-white rounded-2xl shadow-lg border border-emerald-100 p-8 sm:p-12">
-        <h2 class="text-xl font-bold text-emerald-900 mb-6">Summary & Confirmation</h2>
-        <p class="text-sm text-gray-500 mb-6">Please review your application before submitting.</p>
+      <div v-else-if="currentStep === 3" class="p-8 bg-white border shadow-lg rounded-2xl border-emerald-100 sm:p-12">
+        <h2 class="mb-6 text-xl font-bold text-emerald-900">Summary & Confirmation</h2>
+        <p class="mb-6 text-sm text-gray-500">Please review your application before submitting.</p>
 
-        <div v-if="form.errors.category_id" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+        <div v-if="form.errors.category_id" class="p-3 mb-4 border border-red-200 rounded-lg bg-red-50">
           <p class="text-sm text-red-600">{{ form.errors.category_id }}</p>
         </div>
 
         <div class="space-y-6">
-          <div class="bg-emerald-50 rounded-xl p-4">
-            <h3 class="font-semibold text-emerald-900 mb-2">Assistance Category</h3>
+          <div class="p-4 bg-emerald-50 rounded-xl">
+            <h3 class="mb-2 font-semibold text-emerald-900">Assistance Category</h3>
             <p class="text-sm text-emerald-700">{{ selectedCategory?.category_name }}</p>
           </div>
 
-          <div class="bg-gray-50 rounded-xl p-4">
-            <h3 class="font-semibold text-gray-900 mb-3">Claimant Information</h3>
-            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+          <div class="p-4 bg-gray-50 rounded-xl">
+            <h3 class="mb-3 font-semibold text-gray-900">Claimant Information</h3>
+            <dl class="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
               <div><dt class="text-gray-500">Full Name</dt><dd class="font-medium">{{ form.claimant_first_name }} {{ form.claimant_middle_name }} {{ form.claimant_last_name }} {{ form.claimant_name_extension }}</dd></div>
               <div><dt class="text-gray-500">Sex</dt><dd class="font-medium">{{ form.claimant_sex }}</dd></div>
               <div><dt class="text-gray-500">Date of Birth</dt><dd class="font-medium">{{ form.claimant_dob }}</dd></div>
@@ -823,9 +855,9 @@ const statusLabel = (status) => ({
             </dl>
           </div>
 
-          <div class="bg-gray-50 rounded-xl p-4">
-            <h3 class="font-semibold text-gray-900 mb-3">Beneficiary Information</h3>
-            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+          <div class="p-4 bg-gray-50 rounded-xl">
+            <h3 class="mb-3 font-semibold text-gray-900">Beneficiary Information</h3>
+            <dl class="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
               <div><dt class="text-gray-500">Full Name</dt><dd class="font-medium">{{ form.beneficiary_first_name }} {{ form.beneficiary_middle_name }} {{ form.beneficiary_last_name }} {{ form.beneficiary_name_extension }}</dd></div>
               <div><dt class="text-gray-500">Sex</dt><dd class="font-medium">{{ form.beneficiary_sex }}</dd></div>
               <div><dt class="text-gray-500">Date of Birth</dt><dd class="font-medium">{{ form.beneficiary_dob }}</dd></div>
@@ -833,22 +865,22 @@ const statusLabel = (status) => ({
             </dl>
           </div>
 
-          <div class="bg-gray-50 rounded-xl p-4">
-            <h3 class="font-semibold text-gray-900 mb-3">Documents ({{ capturedCount }})</h3>
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <div v-for="(docId, i) in form.document_ids" :key="docId" class="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <div class="w-full h-28 flex items-center justify-center bg-gray-50 overflow-hidden">
+          <div class="p-4 bg-gray-50 rounded-xl">
+            <h3 class="mb-3 font-semibold text-gray-900">Documents ({{ capturedCount }})</h3>
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div v-for="(docId, i) in form.document_ids" :key="docId" class="overflow-hidden bg-white border border-gray-200 rounded-lg">
+                <div class="flex items-center justify-center w-full overflow-hidden h-28 bg-gray-50">
                   <img
                     v-if="docPreviews[docId]?.preview"
                     :src="docPreviews[docId].preview"
                     :alt="allRequiredDocs.find(d => d.id === docId)?.doc_name"
-                    class="w-full h-full object-contain"
+                    class="object-contain w-full h-full"
                   />
-                  <div v-else class="text-gray-400 text-xs">No preview</div>
+                  <div v-else class="text-xs text-gray-400">No preview</div>
                 </div>
                 <div class="px-2 py-1.5 text-xs font-medium text-gray-700 truncate flex items-center justify-between">
                   <span class="truncate">{{ allRequiredDocs.find(d => d.id === docId)?.doc_name || 'Document' }}</span>
-                  <span v-if="docPreviews[docId]?.pageCount > 1" class="shrink-0 text-gray-400 ml-1">{{ docPreviews[docId].pageCount }}p</span>
+                  <span v-if="docPreviews[docId]?.pageCount > 1" class="ml-1 text-gray-400 shrink-0">{{ docPreviews[docId].pageCount }}p</span>
                 </div>
               </div>
             </div>
@@ -862,7 +894,7 @@ const statusLabel = (status) => ({
           </button>
         </div>
       </div>
-    </main>
+    </div>
 
     <!-- Submit Progress Modal -->
     <Teleport to="body">
@@ -870,14 +902,14 @@ const statusLabel = (status) => ({
         v-if="submitting"
         class="fixed inset-0 z-[99999] bg-black/60 flex items-center justify-center p-6"
       >
-        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8">
-          <h3 class="text-lg font-bold text-gray-900 mb-1 text-center">Submitting Application</h3>
-          <p class="text-sm text-gray-500 mb-6 text-center">{{ submitMessage }}</p>
+        <div class="w-full max-w-sm p-8 bg-white shadow-2xl rounded-2xl">
+          <h3 class="mb-1 text-lg font-bold text-center text-gray-900">Submitting Application</h3>
+          <p class="mb-6 text-sm text-center text-gray-500">{{ submitMessage }}</p>
 
           <!-- Progress bar -->
-          <div class="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
+          <div class="w-full h-3 mb-4 overflow-hidden bg-gray-200 rounded-full">
             <div
-              class="h-full bg-emerald-600 rounded-full transition-all duration-300 ease-out"
+              class="h-full transition-all duration-300 ease-out rounded-full bg-emerald-600"
               :style="{ width: submitProgress + '%' }"
             />
           </div>
@@ -898,12 +930,12 @@ const statusLabel = (status) => ({
               <span :class="i < submitCurrent ? 'text-gray-700' : 'text-gray-400'">
                 {{ capturedDocs[docId]?.docName || 'Document' }}
               </span>
-              <span v-if="i === submitCurrent - 1" class="text-emerald-600 ml-auto animate-pulse">Converting...</span>
-              <span v-else-if="i < submitCurrent - 1" class="text-emerald-600 ml-auto">Done</span>
+              <span v-if="i === submitCurrent - 1" class="ml-auto text-emerald-600 animate-pulse">Converting...</span>
+              <span v-else-if="i < submitCurrent - 1" class="ml-auto text-emerald-600">Done</span>
             </div>
           </div>
 
-          <p v-if="submitStep === 'submitting'" class="text-xs text-gray-400 text-center">Please wait while your application is being submitted.</p>
+          <p v-if="submitStep === 'submitting'" class="text-xs text-center text-gray-400">Please wait while your application is being submitted.</p>
         </div>
       </div>
     </Teleport>
