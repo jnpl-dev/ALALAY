@@ -51,10 +51,16 @@ const { lastChecked } = usePolling(
       router.reload({ only: ['application', 'reviews'] })
     }
   },
+  20,
+  { enabled: () => !!props.application?.reference_code },
 )
 
 watch(() => props.application?.reference_code, () => {
   lastChecked.value = null
+})
+
+const lookupForm = useForm({
+  reference_code: '',
 })
 
 const refCodeValid = useFieldValidation(
@@ -63,10 +69,6 @@ const refCodeValid = useFieldValidation(
   {},
   { debounceMs: 400 },
 )
-
-const lookupForm = useForm({
-  reference_code: '',
-})
 
 function lookupApplication() {
   const code = lookupForm.reference_code.trim()

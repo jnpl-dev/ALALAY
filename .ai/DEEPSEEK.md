@@ -331,6 +331,25 @@ Every controller now calls `$this->authorize()`:
 ### Docs Created
 - `COLLABORATION_GUIDE.md` — git workflow, local setup, conflict avoidance, coding standards.
 
+### Backup (AUTOMATIC)
+- `config/backup.php` — centralized config for path, encryption, retention, Supabase bucket
+- `scripts/backup.sh` — bash script (mysqldump → gzip → AES-256-CBC encrypt → local → Supabase upload → prune)
+- `app/Console/Commands/BackupDatabase.php` — Laravel command wrapping the full pipeline
+- `app/Console/Commands/VerifyBackup.php` — decrypts latest backup, restores to test DB, logs result
+- `routes/console.php`: `backup:run` daily 02:00, `backup:verify` Sundays 03:00
+
+### Emergency Maintenance (COMPLETE — TESTED ✅)
+- Maintenance toggle in Admin System Settings — red/green button, calls `php artisan up`/`down`, logs to audit_logs
+- Branded `resources/views/errors/503.blade.php`
+- Tested: toggle on → 503 page → `/test123` bypass → toggle off
+
+### Zero-Day (COMPLETE)
+- `scripts/deploy.sh` — `composer audit --no-dev` fails build on PHP vulns, `npm audit` warns
+- PII redaction on `AuditLog` model `creating` event — strips `09xxxxxxxxx`/`+639xxxxxxxxx` from description (tested ✅)
+- `.ai/context/INCIDENT_RESPONSE.md` — emergency commands, breach/corruption/SMS procedures, contacts template
+
+## Phase 2b — ALL COMPLETE ✅
+
 ### Missing
 - Walk-in submission (AICS Staff encode) — not yet built.
 - SMS configuration — driver is `log`, not wired to PhilSMS API token.

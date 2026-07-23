@@ -6,15 +6,17 @@ import Avatar from 'primevue/avatar'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import InputText from 'primevue/inputtext'
+import IconField from 'primevue/iconfield'
+import InputIcon from 'primevue/inputicon'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import Paginator from 'primevue/paginator'
 import Popover from 'primevue/popover'
 import Skeleton from 'primevue/skeleton'
-import AppConfirmModal from '@/Components/Common/AppConfirmModal.vue'
 import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
 import { formatDate } from '@/Utils/formatDate'
+import { roleSeverity, statusSeverity } from '@/Utils/severityMappings'
 import { ref, toRaw } from 'vue'
 
 defineOptions({ layout: AppLayout })
@@ -42,15 +44,6 @@ const goToEdit = (user) => {
   router.get(window.route('admin.users.edit', user.id))
 }
 
-const roleSeverity = (role) => ({
-  admin: 'danger',
-  aics_staff: 'info',
-  mswdo: 'success',
-  accountant: 'warn',
-  treasurer: 'contrast',
-  mayors_office: 'info',
-}[role] || 'info')
-
 const roleLabel = (role) => ({
   admin: 'Admin',
   aics_staff: 'AICS',
@@ -60,8 +53,6 @@ const roleLabel = (role) => ({
   mayors_office: "Mayor's Office",
 }[role] || role)
 
-const statusSeverity = (status) => status === 'active' ? 'success' : 'danger'
-
 const initials = (user) => {
   const first = (user.first_name || '')[0] || ''
   const last = (user.last_name || '')[0] || ''
@@ -69,7 +60,10 @@ const initials = (user) => {
 }
 
 const profilePictureUrl = (user) => {
-  return user.profile_picture_path ? window.route('admin.users.profile-picture', user.id) : null
+  if (!user.profile_picture_path) return null
+  const base = window.route('admin.users.profile-picture', user.id)
+  const v = user.profile_picture_version ?? 0
+  return `${base}?v=${v}`
 }
 
 const search = ref(props.filters.search || '')
@@ -123,13 +117,13 @@ const confirmDelete = (user) => {
 const confirmToggleStatus = (user) => {
   const action = user.status === 'active' ? 'deactivate' : 'activate'
   confirm.require({
-    message: `${action} user "${user.full_name}"?`,
+    message: `${action.charAt(0).toUpperCase() + action.slice(1)} user "${user.full_name}"?`,
     header: 'Confirm Status Change',
-    icon: 'pi pi-exclamation-triangle',
+    icon: user.status === 'active' ? 'pi pi-ban' : 'pi pi-check-circle',
     rejectLabel: 'Cancel',
     acceptLabel: action.charAt(0).toUpperCase() + action.slice(1),
     rejectClass: 'p-button-outlined',
-    acceptClass: user.status === 'active' ? 'p-button-warning' : 'p-button-success',
+    acceptClass: user.status === 'active' ? 'p-button-danger' : 'p-button-success',
     accept: () => {
       router.patch(window.route('admin.users.toggle-status', user.id), {}, {
         preserveState: true,
@@ -184,8 +178,11 @@ const onPage = (event) => {
 
         <div class="flex flex-wrap gap-4 mb-6">
           <div class="flex-1 min-w-48">
-            <InputText v-model="search" placeholder="Search name or email..." class="w-full"
-              @keyup.enter="applyFilters" />
+            <IconField>
+              <InputIcon class="pi pi-search" />
+              <InputText v-model="search" placeholder="Search name or email..." class="w-full"
+                @keyup.enter="applyFilters" />
+            </IconField>
           </div>
           <div class="w-48">
             <Select v-model="role" :options="roleOptions" option-label="label" option-value="value" placeholder="All Roles" class="w-full" @change="applyFilters" />
@@ -199,7 +196,8 @@ const onPage = (event) => {
           <DataTable :value="toRaw(users?.data ?? [])" striped-rows class="w-full">
             <Column style="width: 4rem">
               <template #body="{ data }">
-                <Avatar :image="profilePictureUrl(data)" :label="initials(data)" class="font-semibold" size="large" shape="circle" />
+                <Avatar v-if="profilePictureUrl(data)" :key="profilePictureUrl(data)" :image="profilePictureUrl(data)" class="font-semibold" size="large" shape="circle" />
+                <Avatar v-else :key="data.id" :label="initials(data)" class="font-semibold" size="large" shape="circle" />
               </template>
             </Column>
             <Column field="full_name" header="Name" sortable />
@@ -221,11 +219,14 @@ const onPage = (event) => {
             </Column>
             <Column header="Actions" style="min-width: 8rem">
               <template #body="{ data }">
-                <Button icon="pi pi-ellipsis-h" severity="secondary" text rounded
+                <Button icon="pi pi-ellipsis-h" severity="secondary" text rounded v-tooltip="'Actions'"
                   @click="toggleActions($event, data)" />
               </template>
             </Column>
           </DataTable>
+          <template #empty>
+            <div class="text-center py-8 text-muted-color">No users found</div>
+          </template>
 
           <Paginator v-if="(users?.total ?? 0) > (users?.per_page ?? 10)" :first="((users?.current_page ?? 1) - 1) * (users?.per_page ?? 10)" :rows="users?.per_page ?? 10"
             :total-records="users?.total ?? 0" @page="onPage"
@@ -265,7 +266,6 @@ const onPage = (event) => {
             </button>
           </div>
         </Popover>
-        <AppConfirmModal />
       </div>
     </div>
   </div>

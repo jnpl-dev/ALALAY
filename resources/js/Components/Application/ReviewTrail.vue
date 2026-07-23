@@ -1,5 +1,6 @@
 <script setup>
 import Timeline from 'primevue/timeline'
+import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
 import { formatDateTime } from '@/Utils/formatDate'
 
 defineProps({
@@ -41,16 +42,16 @@ const decisionLabels = {
 }
 
 const decisionSeverity = (decision) => {
-  if (decision === 'approved' || decision === 'coded' || decision === 'voucher_created') return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-  if (decision === 'returned') return 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
-  if (decision === 'on_hold') return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
-  return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+  if (decision === 'approved' || decision === 'coded' || decision === 'voucher_created') return 'bg-emerald-100 text-emerald-700'
+  if (decision === 'returned') return 'bg-red-100 text-red-700'
+  if (decision === 'on_hold') return 'bg-amber-100 text-amber-700'
+  return 'bg-blue-100 text-blue-700'
 }
 
 const dotColor = (decision) => {
-  if (decision === 'approved' || decision === 'coded' || decision === 'voucher_created') return 'border-green-500 bg-green-400'
-  if (decision === 'returned') return 'border-orange-500 bg-orange-400'
-  if (decision === 'on_hold') return 'border-yellow-500 bg-yellow-400'
+  if (decision === 'approved' || decision === 'coded' || decision === 'voucher_created') return 'border-emerald-500 bg-emerald-400'
+  if (decision === 'returned') return 'border-red-500 bg-red-400'
+  if (decision === 'on_hold') return 'border-amber-500 bg-amber-400'
   return 'border-primary bg-primary'
 }
 </script>
@@ -78,7 +79,5 @@ const dotColor = (decision) => {
       </template>
     </Timeline>
   </div>
-  <div v-else class="text-sm text-muted-color py-4 text-center">
-    No review entries yet
-  </div>
+  <AppEmptyState v-else icon="pi pi-history" message="No review entries yet" />
 </template>

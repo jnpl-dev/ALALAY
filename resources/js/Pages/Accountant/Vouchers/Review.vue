@@ -8,6 +8,8 @@ import ReviewTrail from '@/Components/Application/ReviewTrail.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
+import Divider from 'primevue/divider'
+import Fieldset from 'primevue/fieldset'
 import Textarea from 'primevue/textarea'
 import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
@@ -31,6 +33,13 @@ const viewerUrl = ref(null)
 const viewerTitle = ref('')
 const showReturnDialog = ref(false)
 const returnRemarks = ref('')
+const returnDialogLoading = ref(false)
+const returnSubmitting = ref(false)
+
+function openReturnDialog() {
+  returnDialogLoading.value = true
+  showReturnDialog.value = true
+}
 
 const form = useForm({ remarks: '' })
 
@@ -60,6 +69,7 @@ function confirmApprove() {
 }
 
 function submitReturn() {
+  returnSubmitting.value = true
   form.remarks = returnRemarks.value
   form.post(route('accountant.vouchers.return', props.application.id), {
     preserveState: true,
@@ -69,15 +79,25 @@ function submitReturn() {
       returnRemarks.value = ''
       toast.success('Voucher returned')
     },
-    onError: () => toast.error('Return failed'),
+    onError: () => {
+      toast.error('Return failed')
+      returnSubmitting.value = false
+    },
+    onFinish: () => { returnSubmitting.value = false },
   })
+}
+
+function onReturnDialogHide() {
+  returnRemarks.value = ''
+  returnDialogLoading.value = false
+  returnSubmitting.value = false
 }
 </script>
 
 <template>
   <Head :title="'Voucher - ' + application.reference_code" />
 
-  <div class="grid grid-cols-12 gap-8">
+  <div class="grid grid-cols-12 gap-8 transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]">
     <div class="col-span-12 lg:col-span-8">
       <div class="card">
         <div class="flex items-center justify-between mb-4">
@@ -91,11 +111,10 @@ function submitReturn() {
 
         <ApplicationInfo :application="application" />
 
-        <hr class="border-surface my-6" />
+        <Divider />
 
         <div v-if="assistanceCode">
-          <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Assistance Code</h3>
-          <div class="bg-surface-50 rounded-lg border border-surface p-4">
+          <Fieldset legend="Assistance Code">
             <dl class="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <dt class="text-muted-color">Code Type</dt>
@@ -110,10 +129,10 @@ function submitReturn() {
                 <dd class="font-medium text-surface-900">{{ assistanceCode.assigned_by }}</dd>
               </div>
             </dl>
-          </div>
+          </Fieldset>
         </div>
 
-        <hr class="border-surface my-6" />
+        <Divider />
 
         <div v-if="voucher">
           <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Voucher Document</h3>
@@ -133,24 +152,26 @@ function submitReturn() {
         </div>
 
         <template v-if="canReview">
-          <hr class="border-surface my-6" />
+          <Divider />
 
           <div class="flex gap-3">
-            <Button label="Approve & Forward" icon="pi pi-check" severity="success" @click="confirmApprove" :loading="form.processing" />
-            <Button label="Return to MSWDO" icon="pi pi-undo" severity="warn" @click="showReturnDialog = true" :loading="form.processing" />
+            <Button label="Approve & Forward" icon="pi pi-check" severity="success" @click="confirmApprove"
+              :loading="form.processing" class="active:scale-[0.98] transition-transform" />
+            <Button label="Return to MSWDO" icon="pi pi-undo" severity="warn" @click="openReturnDialog"
+              :loading="returnDialogLoading" class="active:scale-[0.98] transition-transform" />
           </div>
         </template>
       </div>
     </div>
 
     <div class="col-span-12 lg:col-span-4">
-      <div class="card" style="position: sticky; top: 6rem; min-width: 300px;">
+      <div class="card sticky top-24">
         <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Review Trail</h3>
         <ReviewTrail :reviews="reviews" />
       </div>
     </div>
 
-    <Dialog v-model:visible="showReturnDialog" header="Return Voucher" :modal="true" class="w-full max-w-md" @after-hide="returnRemarks = ''">
+    <Dialog v-model:visible="showReturnDialog" header="Return Voucher" :modal="true" class="w-full max-w-md" @after-hide="onReturnDialogHide">
       <div class="space-y-4">
         <p class="text-sm text-muted-color">Return this voucher to MSWDO for revision. Provide remarks to guide the revision.</p>
         <Textarea v-model="returnRemarks" placeholder="Explain why the voucher is being returned..." class="w-full" rows="4" :invalid="form.errors.remarks ? true : false" />
@@ -158,7 +179,7 @@ function submitReturn() {
       </div>
       <div class="flex justify-end gap-2 mt-6">
         <Button label="Cancel" severity="secondary" outlined @click="showReturnDialog = false" />
-        <Button label="Submit Return" icon="pi pi-undo" severity="warn" @click="submitReturn" :loading="form.processing" />
+        <Button label="Submit Return" icon="pi pi-undo" severity="warn" @click="submitReturn" :loading="returnSubmitting" />
       </div>
     </Dialog>
 

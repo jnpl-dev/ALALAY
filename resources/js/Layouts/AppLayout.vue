@@ -1,6 +1,7 @@
 <script setup>
 import { useLayout } from './composables/layout'
 import { computed, watch } from 'vue'
+
 import { usePage } from '@inertiajs/vue3'
 import AppFooter from './AppFooter.vue'
 import AppSidebar from './AppSidebar.vue'
@@ -9,7 +10,9 @@ import Toast from 'primevue/toast'
 import ConfirmDialog from 'primevue/confirmdialog'
 import { useToast } from '@/Composables/useToast'
 
-const { layoutConfig, layoutState, hideMobileMenu } = useLayout()
+const { layoutConfig, layoutState, hideMobileMenu, applyPanelDarkMode } = useLayout()
+
+applyPanelDarkMode()
 const toast = useToast()
 const page = usePage()
 

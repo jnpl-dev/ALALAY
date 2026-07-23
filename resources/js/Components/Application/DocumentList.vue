@@ -1,4 +1,6 @@
 <script setup>
+import Button from 'primevue/button'
+
 defineProps({
   documents: { type: Array, default: () => [] },
   signedUrlRoute: { type: String, default: '' },
@@ -18,13 +20,13 @@ function viewDocument(doc) {
         <i class="pi pi-file text-muted-color"></i>
         <span class="text-sm text-surface-900">{{ doc.doc_name ?? doc.name ?? 'Document' }}</span>
       </div>
-      <button
+      <Button
+        icon="pi pi-eye"
+        label="View"
+        size="small"
         @click="viewDocument(doc)"
-        class="flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg bg-primary text-white border-none cursor-pointer hover:bg-primary-600 transition-colors"
-      >
-        <i class="pi pi-eye"></i>
-        View
-      </button>
+        v-tooltip.left="'View document'"
+      />
     </div>
   </div>
   <div v-else class="text-sm text-muted-color py-4 text-center">

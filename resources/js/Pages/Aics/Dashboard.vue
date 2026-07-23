@@ -5,6 +5,10 @@ import { useAuth } from '@/Composables/useAuth'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
+import Button from 'primevue/button'
+import Divider from 'primevue/divider'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
 import Skeleton from 'primevue/skeleton'
 import { formatDate } from '@/Utils/formatDate'
 
@@ -38,27 +42,23 @@ const { user } = useAuth()
       <div class="col-span-12 xl:col-span-8">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Recent Applications</div>
-          <div v-if="dashboardData?.recentApplications?.length" class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="text-muted-color border-b border-surface">
-                  <th class="text-left py-2">Code</th>
-                  <th class="text-left py-2">Claimant</th>
-                  <th class="text-left py-2">Status</th>
-                  <th class="text-right py-2">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="app in dashboardData.recentApplications" :key="app.id" class="border-b border-surface">
-                  <td class="py-2 font-mono text-sm">{{ app.reference_code }}</td>
-                  <td class="py-2">{{ app.claimant_name }}</td>
-                  <td class="py-2"><AppStatusBadge :status="app.status" /></td>
-                  <td class="text-right py-2 text-muted-color">{{ formatDate(app.created_at) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <AppEmptyState v-else icon="pi pi-inbox" message="No applications yet" />
+          <DataTable :value="dashboardData?.recentApplications ?? []" striped-rows class="w-full">
+            <Column field="reference_code" header="Code" />
+            <Column field="claimant_name" header="Claimant" />
+            <Column field="status" header="Status">
+              <template #body="{ data }">
+                <AppStatusBadge :status="data.status" />
+              </template>
+            </Column>
+            <Column field="created_at" header="Date">
+              <template #body="{ data }">
+                {{ formatDate(data.created_at) }}
+              </template>
+            </Column>
+            <template #empty>
+              <AppEmptyState icon="pi pi-inbox" message="No applications yet" />
+            </template>
+          </DataTable>
         </div>
       </div>
 
@@ -66,36 +66,28 @@ const { user } = useAuth()
         <div class="card mb-4">
           <div class="font-semibold text-xl mb-4">{{ user?.first_name || 'User' }}</div>
           <div class="flex items-center gap-3 mb-3">
-            <div class="flex items-center justify-center bg-purple-100 dark:bg-purple-400/10 rounded-full" style="width: 3rem; height: 3rem">
-              <i class="pi pi-user text-purple-500 text-xl!"></i>
+            <div class="flex items-center justify-center bg-primary-emphasis rounded-full" style="width: 3rem; height: 3rem">
+              <i class="pi pi-user text-primary-contrast text-xl!"></i>
             </div>
             <div>
               <div class="font-medium text-surface-900">{{ user?.role?.replace('_', ' ') || '—' }}</div>
               <div class="text-muted-color text-sm">{{ user?.email }}</div>
             </div>
           </div>
-          <hr class="border-surface my-3">
-          <button class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer border-none transition-colors hover:opacity-80" style="background-color: var(--p-primary-color); color: var(--p-primary-contrast-color);" @click="router.get(route('aics.applications.index'))">
-            <i class="pi pi-list"></i>
-            <span>View All Applications</span>
-          </button>
+          <Divider />
+          <Button label="View All Applications" icon="pi pi-list" severity="primary" fluid
+            @click="router.get(route('aics.applications.index'))" />
         </div>
 
         <div class="card">
           <div class="font-semibold text-xl mb-4">Quick Actions</div>
           <div class="flex flex-col gap-2">
-            <button class="w-full inline-flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium cursor-pointer border-none transition-colors hover:opacity-80" style="background-color: color-mix(in srgb, var(--p-primary-color) 12%, transparent); color: var(--p-primary-color);" @click="router.get(route('aics.applications.index'))">
-              <i class="pi pi-search"></i>
-              <span>Review Applications</span>
-            </button>
-            <button class="w-full inline-flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium cursor-pointer border-none transition-colors hover:opacity-80" style="background-color: color-mix(in srgb, var(--p-primary-color) 12%, transparent); color: var(--p-primary-color);" @click="router.get(route('aics.assistance-codes.index'))">
-              <i class="pi pi-qrcode"></i>
-              <span>Assistance Codes</span>
-            </button>
-            <button class="w-full inline-flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium cursor-pointer border-none transition-colors hover:opacity-80" style="background-color: color-mix(in srgb, var(--p-primary-color) 12%, transparent); color: var(--p-primary-color);" @click="router.get(route('aics.analytics'))">
-              <i class="pi pi-chart-bar"></i>
-              <span>View Analytics</span>
-            </button>
+            <Button label="Review Applications" icon="pi pi-search" severity="secondary" outlined fluid class="justify-start active:scale-[0.98] transition-transform"
+              @click="router.get(route('aics.applications.index'))" />
+            <Button label="Assistance Codes" icon="pi pi-qrcode" severity="secondary" outlined fluid class="justify-start active:scale-[0.98] transition-transform"
+              @click="router.get(route('aics.assistance-codes.index'))" />
+            <Button label="View Analytics" icon="pi pi-chart-bar" severity="secondary" outlined fluid class="justify-start active:scale-[0.98] transition-transform"
+              @click="router.get(route('aics.analytics'))" />
           </div>
         </div>
       </div>

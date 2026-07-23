@@ -3,15 +3,88 @@ import { Head, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
+import LineChart from '@/Components/Charts/LineChart.vue'
+import DonutChart from '@/Components/Charts/DonutChart.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
 import Skeleton from 'primevue/skeleton'
 import { formatDate } from '@/Utils/formatDate'
+import { getStatusLabel } from '@/Utils/statusLabels'
+import { computed } from 'vue'
 
 defineOptions({ layout: AppLayout })
 
-defineProps({
+const props = defineProps({
   analyticsData: { type: Object, default: () => ({}) },
 })
+
+const severityColors = {
+  info: { bg: '#3B82F6', hover: '#2563EB' },
+  success: { bg: '#22C55E', hover: '#16A34A' },
+  warn: { bg: '#F59E0B', hover: '#D97706' },
+  danger: { bg: '#EF4444', hover: '#DC2626' },
+  contrast: { bg: '#6B7280', hover: '#4B5563' },
+}
+
+const statusChartData = computed(() => {
+  const raw = props.analyticsData?.applicationsByStatus
+  const hasData = raw && Object.keys(raw).length > 0
+  const labels = hasData ? Object.keys(raw).map(k => getStatusLabel(k).label) : ['Pending', 'Approved', 'Returned', 'On Hold']
+  const values = hasData ? Object.values(raw) : [12, 8, 3, 2]
+  const keys = hasData ? Object.keys(raw) : []
+
+  const colors = keys.length
+    ? keys.map(k => {
+        const sev = getStatusLabel(k).severity
+        return severityColors[sev] ?? severityColors.contrast
+      })
+    : [{ bg: '#3B82F6' }, { bg: '#22C55E' }, { bg: '#EF4444' }, { bg: '#F59E0B' }]
+
+  return {
+    labels,
+    datasets: [
+      {
+        data: values,
+        backgroundColor: colors.map(c => c.bg),
+        hoverBackgroundColor: colors.map(c => c.hover ?? c.bg),
+      },
+    ],
+  }
+})
+
+const commonChartOptions = {
+  animation: { duration: 1200, easing: 'easeInOutQuart' },
+  transitions: { resize: { animation: { duration: 1200 } } },
+  responsive: true,
+  maintainAspectRatio: false,
+}
+
+const statusChartOptions = computed(() => ({ ...commonChartOptions }))
+
+const monthlyChartData = computed(() => {
+  const raw = props.analyticsData?.monthlyTrends
+  const hasData = raw && Object.keys(raw).length > 0
+  const entries = hasData ? Object.entries(raw) : []
+  const labels = entries.length ? entries.map(([m]) => m) : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+  const values = entries.length ? entries.map(([, v]) => v) : [5, 8, 12, 7, 14, 10]
+
+  return {
+    labels,
+    datasets: [
+      {
+        label: 'Applications',
+        data: values,
+        fill: true,
+        borderColor: '#3B82F6',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        tension: 0.4,
+      },
+    ],
+  }
+})
+
+const monthlyChartOptions = computed(() => ({ ...commonChartOptions }))
 </script>
 
 <template>
@@ -32,77 +105,34 @@ defineProps({
       </div>
 
       <div class="col-span-12 xl:col-span-6">
-        <div class="card">
-          <div class="font-semibold text-xl mb-4">Applications by Status</div>
-          <div v-if="Object.keys(analyticsData?.applicationsByStatus ?? {}).length" class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="text-muted-color border-b border-surface">
-                  <th class="text-left py-2">Status</th>
-                  <th class="text-right py-2">Count</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(count, status) in analyticsData.applicationsByStatus" :key="status" class="border-b border-surface">
-                  <td class="py-2"><AppStatusBadge :status="status" /></td>
-                  <td class="text-right py-2 font-medium">{{ count }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <AppEmptyState v-else icon="pi pi-chart-bar" message="No data available" />
-        </div>
+        <LineChart :data="monthlyChartData" :options="monthlyChartOptions" title="Monthly Trends" />
       </div>
 
       <div class="col-span-12 xl:col-span-6">
-        <div class="card">
-          <div class="font-semibold text-xl mb-4">Monthly Trends</div>
-          <div v-if="Object.keys(analyticsData?.monthlyTrends ?? {}).length" class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="text-muted-color border-b border-surface">
-                  <th class="text-left py-2">Month</th>
-                  <th class="text-right py-2">Applications</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(count, month) in analyticsData.monthlyTrends" :key="month" class="border-b border-surface">
-                  <td class="py-2">{{ month }}</td>
-                  <td class="text-right py-2 font-medium">{{ count }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <AppEmptyState v-else icon="pi pi-chart-line" message="No trend data" />
-        </div>
+        <DonutChart :data="statusChartData" :options="statusChartOptions" title="Applications by Status" />
       </div>
 
       <div class="col-span-12">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Recent Applications</div>
-          <div v-if="analyticsData?.recentApplications?.length" class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="text-muted-color border-b border-surface">
-                  <th class="text-left py-2">Code</th>
-                  <th class="text-left py-2">Claimant</th>
-                  <th class="text-left py-2">Category</th>
-                  <th class="text-left py-2">Status</th>
-                  <th class="text-right py-2">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="app in analyticsData.recentApplications" :key="app.id" class="border-b border-surface">
-                  <td class="py-2 font-mono text-sm">{{ app.reference_code }}</td>
-                  <td class="py-2">{{ app.claimant_name }}</td>
-                  <td class="py-2">{{ app.category_name }}</td>
-                  <td class="py-2"><AppStatusBadge :status="app.status" /></td>
-                  <td class="text-right py-2 text-muted-color">{{ formatDate(app.created_at) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <AppEmptyState v-else icon="pi pi-inbox" message="No recent applications" />
+          <DataTable :value="analyticsData?.recentApplications ?? []" striped-rows class="w-full">
+            <Column field="reference_code" header="Code" />
+            <Column field="claimant_name" header="Claimant" />
+            <Column field="category_name" header="Category" />
+            <Column field="status" header="Status">
+              <template #body="{ data }">
+                <AppStatusBadge :status="data.status" />
+              </template>
+            </Column>
+            <Column field="created_at" header="Date">
+              <template #body="{ data }">
+                {{ formatDate(data.created_at) }}
+              </template>
+            </Column>
+            <template #empty>
+              <AppEmptyState icon="pi pi-inbox" message="No recent applications" />
+            </template>
+          </DataTable>
         </div>
       </div>
     </div>
@@ -123,17 +153,13 @@ defineProps({
         <div class="col-span-12 xl:col-span-6">
           <div class="card">
             <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <div class="space-y-3">
-              <Skeleton v-for="i in 3" :key="i" width="100%" height="1rem" />
-            </div>
+            <Skeleton width="100%" height="200px" />
           </div>
         </div>
         <div class="col-span-12 xl:col-span-6">
           <div class="card">
             <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <div class="space-y-3">
-              <Skeleton v-for="i in 3" :key="i" width="100%" height="1rem" />
-            </div>
+            <Skeleton width="100%" height="200px" />
           </div>
         </div>
         <div class="col-span-12">

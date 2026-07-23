@@ -16,6 +16,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Public\ApplicationController;
 use App\Http\Controllers\Public\CategoryController;
 use App\Http\Controllers\Shared\AccountController;
+use App\Http\Controllers\PendingCountController;
 use App\Http\Controllers\ValidationController;
 use App\Http\Controllers\Aics\AnalyticsController as AicsAnalyticsController;
 use App\Http\Controllers\Aics\ApplicationController as AicsApplicationController;
@@ -77,6 +78,9 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'aup.accepted'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Pending counts (polling)
+    Route::get('/pending-counts', [PendingCountController::class, 'poll'])->name('pending-counts');
+
     // Account settings
     Route::get('/account', [AccountController::class, 'edit'])->name('account.edit');
     Route::post('/account', [AccountController::class, 'update'])->name('account.update');
@@ -105,12 +109,14 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/dashboard', [AicsDashboardController::class, 'index'])->name('dashboard');
         Route::get('/analytics', [AicsAnalyticsController::class, 'index'])->name('analytics');
         Route::get('/applications', [AicsApplicationController::class, 'index'])->name('applications.index');
+        Route::get('/applications/export', [AicsApplicationController::class, 'export'])->name('applications.export');
         Route::get('/applications/poll', [AicsApplicationController::class, 'poll'])->name('applications.poll');
         Route::get('/applications/{application}', [AicsApplicationController::class, 'show'])->name('applications.show');
         Route::get('/applications/{application}/documents/{document}/url', [AicsApplicationController::class, 'documentUrl'])->name('applications.document-url');
         Route::post('/applications/{application}/approve', [AicsApplicationController::class, 'approve'])->name('applications.approve');
         Route::post('/applications/{application}/return', [AicsApplicationController::class, 'return'])->name('applications.return');
         Route::get('/assistance-codes', [AssistanceCodeController::class, 'index'])->name('assistance-codes.index');
+        Route::get('/assistance-codes/export', [AssistanceCodeController::class, 'export'])->name('assistance-codes.export');
         Route::get('/assistance-codes/poll', [AssistanceCodeController::class, 'poll'])->name('assistance-codes.poll');
         Route::get('/assistance-codes/{application}', [AssistanceCodeController::class, 'show'])->name('assistance-codes.show');
         Route::post('/assistance-codes/{application}/code', [AssistanceCodeController::class, 'store'])->name('assistance-codes.store');
@@ -121,6 +127,7 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/dashboard', [MswdoDashboardController::class, 'index'])->name('dashboard');
         Route::get('/analytics', [MswdoAnalyticsController::class, 'index'])->name('analytics');
         Route::get('/applications', [MswdoApplicationController::class, 'index'])->name('applications.index');
+        Route::get('/applications/export', [MswdoApplicationController::class, 'export'])->name('applications.export');
         Route::get('/applications/poll', [MswdoApplicationController::class, 'poll'])->name('applications.poll');
         Route::get('/applications/{application}', [MswdoApplicationController::class, 'show'])->name('applications.show');
         Route::post('/applications/{application}/approve', [MswdoApplicationController::class, 'approve'])->name('applications.approve');
@@ -128,6 +135,7 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/applications/{application}/document/{document}/url', [MswdoApplicationController::class, 'documentUrl'])->name('applications.document-url');
         Route::get('/applications/{application}/case-study/url', [MswdoApplicationController::class, 'caseStudyUrl'])->name('applications.case-study-url');
         Route::get('/vouchers', [MswdoVoucherController::class, 'index'])->name('vouchers.index');
+        Route::get('/vouchers/export', [MswdoVoucherController::class, 'export'])->name('vouchers.export');
         Route::get('/vouchers/poll', [MswdoVoucherController::class, 'poll'])->name('vouchers.poll');
         Route::get('/vouchers/{application}', [MswdoVoucherController::class, 'show'])->name('vouchers.show');
         Route::post('/vouchers/{application}', [MswdoVoucherController::class, 'store'])->name('vouchers.store');
@@ -139,6 +147,7 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/dashboard', [AccountantDashboardController::class, 'index'])->name('dashboard');
         Route::get('/analytics', [AccountantAnalyticsController::class, 'index'])->name('analytics');
         Route::get('/vouchers', [AccountantVoucherController::class, 'index'])->name('vouchers.index');
+        Route::get('/vouchers/export', [AccountantVoucherController::class, 'export'])->name('vouchers.export');
         Route::get('/vouchers/poll', [AccountantVoucherController::class, 'poll'])->name('vouchers.poll');
         Route::get('/vouchers/{voucher}', [AccountantVoucherController::class, 'show'])->name('vouchers.show');
         Route::post('/vouchers/{voucher}/approve', [AccountantVoucherController::class, 'approve'])->name('vouchers.approve');
@@ -150,6 +159,7 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/dashboard', [TreasurerDashboardController::class, 'index'])->name('dashboard');
         Route::get('/analytics', [TreasurerAnalyticsController::class, 'index'])->name('analytics');
         Route::get('/cheques', [TreasurerChequeController::class, 'index'])->name('cheques.index');
+        Route::get('/cheques/export', [TreasurerChequeController::class, 'export'])->name('cheques.export');
         Route::get('/cheques/poll', [TreasurerChequeController::class, 'poll'])->name('cheques.poll');
         Route::get('/cheques/{voucher}', [TreasurerChequeController::class, 'show'])->name('cheques.show');
         Route::post('/cheques/{voucher}/acknowledge', [TreasurerChequeController::class, 'acknowledge'])->name('cheques.acknowledge');

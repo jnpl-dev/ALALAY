@@ -6,10 +6,12 @@ import DocumentViewer from '@/Components/Application/DocumentViewer.vue'
 import ReviewTrail from '@/Components/Application/ReviewTrail.vue'
 import ReturnModal from '@/Components/Application/ReturnModal.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
+import DocumentThumbnail from '@/Components/Common/DocumentThumbnail.vue'
 import Button from 'primevue/button'
+import Divider from 'primevue/divider'
 import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -27,6 +29,8 @@ const viewerUrl = ref(null)
 const viewerTitle = ref('')
 const viewerIdx = ref(0)
 const showReturnModal = ref(false)
+const approving = ref(false)
+const returning = ref(false)
 
 const canReview = computed(() => ['submitted', 'screening'].includes(props.application.status))
 
@@ -57,11 +61,14 @@ function confirmApprove() {
     icon: 'pi pi-check-circle',
     rejectProps: { label: 'Cancel', outlined: true },
     acceptProps: { label: 'Approve', severity: 'success' },
+    reject: () => { approving.value = false },
     accept: () => {
+      approving.value = true
       router.post(route('aics.applications.approve', props.application.id), {}, {
         preserveState: true,
         preserveScroll: true,
         onError: () => toast.error('Approval failed'),
+        onFinish: () => { approving.value = false },
       })
     },
   })
@@ -74,7 +81,9 @@ function confirmReturn() {
     icon: 'pi pi-exclamation-triangle',
     rejectProps: { label: 'Cancel', outlined: true },
     acceptProps: { label: 'Continue', severity: 'warn' },
+    reject: () => { returning.value = false },
     accept: () => {
+      returning.value = true
       openReturnModal()
     },
   })
@@ -84,11 +93,16 @@ function openReturnModal() {
   showReturnModal.value = true
 }
 
+watch(showReturnModal, (val) => {
+  if (!val) returning.value = false
+})
+
 function onReturnConfirmed(data) {
   router.post(route('aics.applications.return', props.application.id), data, {
     preserveState: true,
     preserveScroll: true,
     onError: () => toast.error('Return failed'),
+    onFinish: () => { returning.value = false },
   })
   showReturnModal.value = false
 }
@@ -111,24 +125,16 @@ function onReturnConfirmed(data) {
 
         <ApplicationInfo :application="application" />
 
-        <hr class="border-surface my-6" />
+        <Divider />
 
         <div>
           <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Documents</h3>
-          <div v-if="documents.length" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div v-if="documents.length" class="grid grid-cols-2 sm:grid-cols-3 gap-3 transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]">
             <div v-for="(doc, idx) in documents" :key="doc.id"
               class="relative group border border-surface rounded-lg overflow-hidden cursor-pointer hover:border-primary transition-colors"
               @click="viewDocument(doc, idx)">
               <div class="aspect-[3/4] flex items-center justify-center bg-surface-50 dark:bg-surface-800 overflow-hidden">
-                <template v-if="doc.signed_url">
-                  <div v-if="doc.mime_type === 'application/pdf'" class="flex flex-col items-center gap-2 text-muted-color">
-                    <i class="pi pi-file-pdf text-4xl"></i>
-                    <span class="text-[10px] font-medium">PDF</span>
-                  </div>
-                  <img v-else :src="doc.signed_url" :alt="doc.doc_name"
-                    class="w-full h-full object-cover" loading="lazy" />
-                </template>
-                <i v-else class="pi pi-file text-3xl text-muted-color"></i>
+                <DocumentThumbnail :doc="doc" />
               </div>
               <div class="px-2 py-1.5">
                 <p class="text-xs text-surface-700 truncate">{{ doc.doc_name }}</p>
@@ -145,17 +151,17 @@ function onReturnConfirmed(data) {
           </div>
         </div>
 
-        <hr v-if="canReview" class="border-surface my-6" />
+        <Divider v-if="canReview" />
 
         <div v-if="canReview" class="flex gap-3">
-          <Button label="Approve" icon="pi pi-check" severity="success" @click="confirmApprove" />
-          <Button label="Return" icon="pi pi-undo" severity="warn" @click="confirmReturn" />
+          <Button label="Approve" icon="pi pi-check" severity="success" :loading="approving" @click="confirmApprove" />
+          <Button label="Return" icon="pi pi-undo" severity="warn" :loading="returning" @click="confirmReturn" />
         </div>
       </div>
     </div>
 
     <div class="col-span-12 lg:col-span-4">
-      <div class="card" style="position: sticky; top: 6rem; min-width: 300px;">
+      <div class="card sticky top-24 min-w-72">
         <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Review Trail</h3>
         <ReviewTrail :reviews="reviews" />
       </div>

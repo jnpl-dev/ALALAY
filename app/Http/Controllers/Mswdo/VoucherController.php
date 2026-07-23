@@ -66,6 +66,8 @@ class VoucherController extends Controller
         $tab = request('tab', 'to_create');
         $search = request('search');
         $category = request('category');
+        $from = request('from');
+        $to = request('to');
 
         $query = Application::with('category', 'assistanceCode.reference');
 
@@ -80,6 +82,14 @@ class VoucherController extends Controller
 
         if ($category) {
             $query->whereHas('category', fn($q) => $q->where('category_name', $category));
+        }
+
+        if ($from) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+
+        if ($to) {
+            $query->whereDate('created_at', '<=', $to);
         }
 
         $applications = match ($tab) {
@@ -104,11 +114,75 @@ class VoucherController extends Controller
                         'created_at' => $app->created_at,
                     ])
             ),
+            'filters' => request()->only(['search', 'category', 'from', 'to']),
             'tab' => $tab,
-            'search' => $search,
-            'category' => $category,
             'categories' => $categories,
         ]);
+    }
+
+    public function export()
+    {
+        $tab = request('tab', 'to_create');
+        $search = request('search');
+        $category = request('category');
+        $from = request('from');
+        $to = request('to');
+
+        $query = Application::with('category', 'assistanceCode.reference');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_code', 'like', "%{$search}%")
+                  ->orWhere('claimant_first_name', 'like', "%{$search}%")
+                  ->orWhere('claimant_last_name', 'like', "%{$search}%")
+                  ->orWhereHas('category', fn($q) => $q->where('category_name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($category) {
+            $query->whereHas('category', fn($q) => $q->where('category_name', $category));
+        }
+
+        if ($from) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+
+        if ($to) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
+        $applications = (match ($tab) {
+            'completed' => (clone $query)->where('status', 'voucher_checking'),
+            default => (clone $query)->whereIn('status', ['voucher_creation', 'voucher_returned']),
+        })->latest()->get();
+
+        $filename = 'alalay-mswdo-vouchers-' . $tab . '-' . now()->format('Y-m-d') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function () use ($applications) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Reference Code', 'Beneficiary Name', 'Category', 'Code Type', 'Amount', 'Status', 'Date Submitted']);
+
+            foreach ($applications as $app) {
+                fputcsv($handle, [
+                    $app->reference_code,
+                    $app->claimant_first_name . ' ' . $app->claimant_last_name,
+                    $app->category?->category_name,
+                    $app->assistanceCode?->reference?->code_type,
+                    $app->assistanceCode?->amount,
+                    $app->status,
+                    $app->created_at?->toDateTimeString(),
+                ]);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     public function show($id): Response

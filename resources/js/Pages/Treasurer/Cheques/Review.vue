@@ -8,6 +8,8 @@ import ReviewTrail from '@/Components/Application/ReviewTrail.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
+import Divider from 'primevue/divider'
+import Fieldset from 'primevue/fieldset'
 import Textarea from 'primevue/textarea'
 import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
@@ -31,12 +33,21 @@ const viewerUrl = ref(null)
 const viewerTitle = ref('')
 const showHoldDialog = ref(false)
 const holdRemarks = ref('')
+const acknowledgeLoading = ref(false)
+const claimLoading = ref(false)
+const holdDialogLoading = ref(false)
+const holdSubmitting = ref(false)
 
 const form = useForm({ remarks: '' })
 
 const canReview = computed(() => props.application.status === 'with_treasurer')
 const isOnHold = computed(() => props.application.status === 'on_hold')
 const isChequeReady = computed(() => props.application.status === 'cheque_ready')
+
+function openHoldDialog() {
+  holdDialogLoading.value = true
+  showHoldDialog.value = true
+}
 
 function viewVoucher() {
   viewerUrl.value = props.voucher?.signed_url || null
@@ -51,11 +62,16 @@ function confirmReady() {
     rejectProps: { label: 'Cancel', outlined: true },
     acceptProps: { label: 'Acknowledge & Ready', severity: 'success' },
     accept: () => {
+      acknowledgeLoading.value = true
       form.post(route('treasurer.cheques.acknowledge', props.application.id), {
         preserveState: true,
         preserveScroll: true,
         onSuccess: () => toast.success('Voucher acknowledged. Cheque marked as ready for claiming.'),
-        onError: () => toast.error('Failed to acknowledge'),
+        onError: () => {
+          toast.error('Failed to acknowledge')
+          acknowledgeLoading.value = false
+        },
+        onFinish: () => { acknowledgeLoading.value = false },
       })
     },
   })
@@ -69,11 +85,16 @@ function confirmClaim() {
     rejectProps: { label: 'Cancel', outlined: true },
     acceptProps: { label: 'Mark Complete', severity: 'success' },
     accept: () => {
+      claimLoading.value = true
       form.post(route('treasurer.cheques.claim', props.application.id), {
         preserveState: true,
         preserveScroll: true,
         onSuccess: () => toast.success('Cheque marked as completed'),
-        onError: () => toast.error('Failed to mark as complete'),
+        onError: () => {
+          toast.error('Failed to mark as complete')
+          claimLoading.value = false
+        },
+        onFinish: () => { claimLoading.value = false },
       })
     },
   })
@@ -87,17 +108,23 @@ function confirmReEvaluate() {
     rejectProps: { label: 'Cancel', outlined: true },
     acceptProps: { label: 'Acknowledge & Ready', severity: 'success' },
     accept: () => {
+      acknowledgeLoading.value = true
       form.post(route('treasurer.cheques.re-evaluate', props.application.id), {
         preserveState: true,
         preserveScroll: true,
         onSuccess: () => toast.success('Application re-evaluated and marked as cheque ready'),
-        onError: () => toast.error('Failed to re-evaluate'),
+        onError: () => {
+          toast.error('Failed to re-evaluate')
+          acknowledgeLoading.value = false
+        },
+        onFinish: () => { acknowledgeLoading.value = false },
       })
     },
   })
 }
 
 function submitHold() {
+  holdSubmitting.value = true
   form.remarks = holdRemarks.value
   form.post(route('treasurer.cheques.hold', props.application.id), {
     preserveState: true,
@@ -107,15 +134,25 @@ function submitHold() {
       holdRemarks.value = ''
       toast.success('Application placed on hold')
     },
-    onError: () => toast.error('Failed to place on hold'),
+    onError: () => {
+      toast.error('Failed to place on hold')
+      holdSubmitting.value = false
+    },
+    onFinish: () => { holdSubmitting.value = false },
   })
+}
+
+function onHoldDialogHide() {
+  holdRemarks.value = ''
+  holdDialogLoading.value = false
+  holdSubmitting.value = false
 }
 </script>
 
 <template>
   <Head :title="'Cheque - ' + application.reference_code" />
 
-  <div class="grid grid-cols-12 gap-8">
+  <div class="grid grid-cols-12 gap-8 transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]">
     <div class="col-span-12 lg:col-span-8">
       <div class="card">
         <div class="flex items-center justify-between mb-4">
@@ -129,11 +166,10 @@ function submitHold() {
 
         <ApplicationInfo :application="application" />
 
-        <hr class="border-surface my-6" />
+        <Divider />
 
         <div v-if="assistanceCode">
-          <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Assistance Code</h3>
-          <div class="bg-surface-50 rounded-lg border border-surface p-4">
+          <Fieldset legend="Assistance Code">
             <dl class="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <dt class="text-muted-color">Code Type</dt>
@@ -148,10 +184,10 @@ function submitHold() {
                 <dd class="font-medium text-surface-900">{{ assistanceCode.assigned_by }}</dd>
               </div>
             </dl>
-          </div>
+          </Fieldset>
         </div>
 
-        <hr class="border-surface my-6" />
+        <Divider />
 
         <div v-if="voucher">
           <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Voucher Document</h3>
@@ -168,40 +204,40 @@ function submitHold() {
         </div>
 
         <template v-if="canReview">
-          <hr class="border-surface my-6" />
+          <Divider />
 
           <div class="flex gap-3">
-            <Button label="Acknowledge &amp; Ready" icon="pi pi-check-circle" severity="success" @click="confirmReady" :loading="form.processing" />
-            <Button label="Acknowledge &amp; Hold" icon="pi pi-pause-circle" severity="warn" @click="showHoldDialog = true" :loading="form.processing" />
+            <Button label="Acknowledge &amp; Ready" icon="pi pi-check-circle" severity="success" @click="confirmReady" :loading="acknowledgeLoading" class="active:scale-[0.98] transition-transform" />
+            <Button label="Acknowledge &amp; Hold" icon="pi pi-pause-circle" severity="warn" @click="openHoldDialog" :loading="holdDialogLoading" class="active:scale-[0.98] transition-transform" />
           </div>
         </template>
 
         <template v-if="isOnHold">
-          <hr class="border-surface my-6" />
+          <Divider />
 
           <div class="flex gap-3">
-            <Button label="Acknowledge &amp; Ready" icon="pi pi-check-circle" severity="success" @click="confirmReEvaluate" :loading="form.processing" />
+            <Button label="Acknowledge &amp; Ready" icon="pi pi-check-circle" severity="success" @click="confirmReEvaluate" :loading="acknowledgeLoading" class="active:scale-[0.98] transition-transform" />
           </div>
         </template>
 
         <template v-if="isChequeReady">
-          <hr class="border-surface my-6" />
+          <Divider />
 
           <div class="flex gap-3">
-            <Button label="Mark as Complete" icon="pi pi-check" severity="success" @click="confirmClaim" :loading="form.processing" />
+            <Button label="Mark as Complete" icon="pi pi-check" severity="success" @click="confirmClaim" :loading="claimLoading" class="active:scale-[0.98] transition-transform" />
           </div>
         </template>
       </div>
     </div>
 
     <div class="col-span-12 lg:col-span-4">
-      <div class="card" style="position: sticky; top: 6rem; min-width: 300px;">
+      <div class="card sticky top-24">
         <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Review Trail</h3>
         <ReviewTrail :reviews="reviews" />
       </div>
     </div>
 
-    <Dialog v-model:visible="showHoldDialog" header="Acknowledge &amp; Hold" :modal="true" class="w-full max-w-md" @after-hide="holdRemarks = ''">
+    <Dialog v-model:visible="showHoldDialog" header="Acknowledge &amp; Hold" :modal="true" class="w-full max-w-md" @after-hide="onHoldDialogHide">
       <div class="space-y-4">
         <p class="text-sm text-muted-color">Acknowledge this voucher but place the application on hold. Provide a reason for the hold.</p>
         <Textarea v-model="holdRemarks" placeholder="Reason for hold..." class="w-full" rows="4" :invalid="form.errors.remarks ? true : false" />
@@ -209,7 +245,7 @@ function submitHold() {
       </div>
       <div class="flex justify-end gap-2 mt-6">
         <Button label="Cancel" severity="secondary" outlined @click="showHoldDialog = false" />
-        <Button label="Confirm Hold" icon="pi pi-pause-circle" severity="warn" @click="submitHold" :loading="form.processing" />
+        <Button label="Confirm Hold" icon="pi pi-pause-circle" severity="warn" @click="submitHold" :loading="holdSubmitting" />
       </div>
     </Dialog>
 

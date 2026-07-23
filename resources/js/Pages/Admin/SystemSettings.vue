@@ -5,12 +5,19 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import InputSwitch from 'primevue/inputswitch'
+import Fieldset from 'primevue/fieldset'
 import Skeleton from 'primevue/skeleton'
 
 defineOptions({ layout: AppLayout })
 
 const route = window.route
 const isEditing = ref(false)
+
+function formatGroupName(name) {
+  const transformed = name.replace(/_/g, ' ')
+    .replace(/\bsms\b/gi, 'SMS')
+  return transformed.charAt(0).toUpperCase() + transformed.slice(1)
+}
 
 const props = defineProps({
   groups: { type: Array, default: () => [] },
@@ -95,26 +102,24 @@ function handleButtonClick() {
           </div>
         </div>
 
-        <div class="mb-6 p-4 border border-surface rounded-lg flex items-center justify-between">
-          <div>
-            <div class="font-medium">Maintenance Mode</div>
-            <div class="text-sm text-muted-color">{{ isDownForMaintenance ? 'System is currently offline' : 'System is running normally' }}</div>
-          </div>
-          <Button
-            :label="isDownForMaintenance ? 'Bring System Online' : 'Enable Maintenance Mode'"
-            :icon="isDownForMaintenance ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'"
-            :severity="isDownForMaintenance ? 'success' : 'danger'"
-            :loading="form.processing"
-            @click="toggleMaintenance"
-          />
-        </div>
-
         <Deferred data="groups">
-          <form @submit.prevent="handleButtonClick">
-            <div v-if="groups.length" class="space-y-8">
-              <div v-for="group in groups" :key="group.group" class="space-y-4">
-                <h3 class="text-lg font-semibold text-surface-900 capitalize border-b border-surface pb-2">{{ group.group.replace(/_/g, ' ') }} Settings</h3>
+          <div class="mb-6 p-4 border border-surface rounded-lg flex items-center justify-between">
+            <div>
+              <div class="font-medium">Maintenance Mode</div>
+              <div class="text-sm text-muted-color">{{ isDownForMaintenance ? 'System is currently offline' : 'System is running normally' }}</div>
+            </div>
+            <Button
+              :label="isDownForMaintenance ? 'Bring System Online' : 'Enable Maintenance Mode'"
+              :icon="isDownForMaintenance ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'"
+              :severity="isDownForMaintenance ? 'success' : 'danger'"
+              :loading="form.processing"
+              @click="toggleMaintenance"
+            />
+          </div>
 
+          <form @submit.prevent="handleButtonClick">
+            <div v-if="groups.length" class="flex flex-col gap-4">
+              <Fieldset v-for="group in groups" :key="group.group" :legend="formatGroupName(group.group) + ' Settings'" toggleable>
                 <div v-for="setting in group.settings" :key="setting.key" class="flex items-center justify-between py-2">
                   <label class="text-sm font-medium text-surface-700">{{ setting.label }}</label>
                   <div class="w-72">
@@ -133,7 +138,7 @@ function handleButtonClick() {
                     />
                   </div>
                 </div>
-              </div>
+              </Fieldset>
             </div>
 
             <div v-else class="py-8 text-center text-muted-color">
@@ -144,6 +149,7 @@ function handleButtonClick() {
 
           <template #fallback>
             <div class="space-y-6">
+              <Skeleton width="100%" height="4rem" class="mb-6" />
               <div v-for="i in 3" :key="i">
                 <Skeleton width="50%" height="1.5rem" class="mb-4" />
                 <div class="space-y-3">

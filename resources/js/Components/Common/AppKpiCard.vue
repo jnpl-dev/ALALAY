@@ -12,7 +12,6 @@ const colorMap = {
   success: { bg: 'bg-green-100 dark:bg-green-400/10', icon: 'text-green-500' },
   warn: { bg: 'bg-orange-100 dark:bg-orange-400/10', icon: 'text-orange-500' },
   danger: { bg: 'bg-red-100 dark:bg-red-400/10', icon: 'text-red-500' },
-  purple: { bg: 'bg-purple-100 dark:bg-purple-400/10', icon: 'text-purple-500' },
 }
 </script>
 

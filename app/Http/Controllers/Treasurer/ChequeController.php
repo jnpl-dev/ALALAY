@@ -65,19 +65,20 @@ class ChequeController extends Controller
         $tab = request('tab', 'pending');
         $search = request('search');
         $category = request('category');
+        $from = request('from');
+        $to = request('to');
 
         $categories = \App\Models\AssistanceCategory::where('is_active', true)->pluck('category_name');
 
         return Inertia::render('Treasurer/Cheques/Index', [
+            'filters' => request()->only(['search', 'category', 'from', 'to']),
             'tab' => $tab,
-            'search' => $search,
-            'category' => $category,
             'categories' => $categories,
-            'applications' => Inertia::defer(fn () => $this->loadApplications($tab, $search, $category)),
+            'applications' => Inertia::defer(fn () => $this->loadApplications($tab, $search, $category, $from, $to)),
         ]);
     }
 
-    protected function loadApplications(string $tab, ?string $search, ?string $category)
+    protected function loadApplications(string $tab, ?string $search, ?string $category, ?string $from = null, ?string $to = null)
     {
         $query = Application::with('category', 'assistanceCode.reference', 'vouchers');
 
@@ -92,6 +93,14 @@ class ChequeController extends Controller
 
         if ($category) {
             $query->whereHas('category', fn($q) => $q->where('category_name', $category));
+        }
+
+        if ($from) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+
+        if ($to) {
+            $query->whereDate('created_at', '<=', $to);
         }
 
         $applications = match ($tab) {
@@ -112,6 +121,72 @@ class ChequeController extends Controller
                 'amount' => $app->assistanceCode?->amount,
                 'created_at' => $app->created_at,
             ]);
+    }
+
+    public function export()
+    {
+        $tab = request('tab', 'pending');
+        $search = request('search');
+        $category = request('category');
+        $from = request('from');
+        $to = request('to');
+
+        $query = Application::with('category', 'assistanceCode.reference', 'vouchers');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_code', 'like', "%{$search}%")
+                  ->orWhere('claimant_first_name', 'like', "%{$search}%")
+                  ->orWhere('claimant_last_name', 'like', "%{$search}%")
+                  ->orWhereHas('category', fn($q) => $q->where('category_name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($category) {
+            $query->whereHas('category', fn($q) => $q->where('category_name', $category));
+        }
+
+        if ($from) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+
+        if ($to) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
+        $applications = (match ($tab) {
+            'ready' => (clone $query)->where('status', 'cheque_ready'),
+            'hold' => (clone $query)->where('status', 'on_hold'),
+            default => (clone $query)->where('status', 'with_treasurer'),
+        })->latest()->get();
+
+        $filename = 'alalay-treasurer-cheques-' . $tab . '-' . now()->format('Y-m-d') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function () use ($applications) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Reference Code', 'Beneficiary Name', 'Category', 'Code Type', 'Amount', 'Status', 'Date Submitted']);
+
+            foreach ($applications as $app) {
+                fputcsv($handle, [
+                    $app->reference_code,
+                    $app->claimant_first_name . ' ' . $app->claimant_last_name,
+                    $app->category?->category_name,
+                    $app->assistanceCode?->reference?->code_type,
+                    $app->assistanceCode?->amount,
+                    $app->status,
+                    $app->created_at?->toDateTimeString(),
+                ]);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     public function show($id): Response

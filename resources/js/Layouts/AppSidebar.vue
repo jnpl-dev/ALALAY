@@ -1,13 +1,29 @@
 <script setup>
 import { useLayout } from './composables/layout'
 import { onBeforeUnmount, ref, watch } from 'vue'
-import { usePage } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import AppMenu from './AppMenu.vue'
+import { useConfirm } from '@/Composables/useConfirm'
 
 const { layoutState, isDesktop, hasOpenOverlay } = useLayout()
 const page = usePage()
+const confirm = useConfirm()
 const sidebarRef = ref(null)
 let outsideClickListener = null
+
+const logout = () => {
+  confirm.require({
+    message: 'Are you sure you want to logout?',
+    header: 'Logout',
+    icon: 'pi pi-sign-out',
+    rejectProps: { label: 'Cancel', outlined: true },
+    acceptProps: { label: 'Logout', severity: 'danger' },
+    accept: () => {
+      document.documentElement.classList.remove('app-dark')
+      router.post(route('logout'), { preserveState: true, preserveScroll: true })
+    },
+  })
+}
 
 watch(
   () => page.url,
@@ -60,5 +76,11 @@ onBeforeUnmount(() => {
 <template>
   <div ref="sidebarRef" class="layout-sidebar">
     <AppMenu />
+    <div class="layout-sidebar-footer">
+      <button type="button" class="layout-sidebar-logout" @click="logout">
+        <i class="pi pi-sign-out"></i>
+        <span>Logout</span>
+      </button>
+    </div>
   </div>
 </template>
