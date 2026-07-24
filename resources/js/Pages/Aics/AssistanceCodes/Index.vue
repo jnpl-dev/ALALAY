@@ -20,8 +20,11 @@ import { ref, toRaw, watch, computed } from 'vue'
 import { usePolling } from '@/Composables/usePolling'
 import { formatDate } from '@/Utils/formatDate'
 import { formatCurrency } from '@/Utils/formatCurrency'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: 'AICS' }, { label: 'Assistance Codes' }])
 
 const props = defineProps({
   applications: { type: Object, default: () => ({}) },

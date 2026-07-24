@@ -17,8 +17,11 @@ import Tag from 'primevue/tag'
 import DatePicker from 'primevue/datepicker'
 import Paginator from 'primevue/paginator'
 import Skeleton from 'primevue/skeleton'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: 'Admin' }, { label: 'Audit Logs' }])
 
 const props = defineProps({
   logs: { type: Object, default: () => ({}) },

@@ -14,8 +14,15 @@ import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
 import { ref, toRaw } from 'vue'
 import { formatCurrency } from '@/Utils/formatCurrency'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([
+  { label: 'Admin' },
+  { label: 'Settings' },
+  { label: 'Code References' },
+])
 
 const props = defineProps({
   references: { type: Object, default: () => ({}) },

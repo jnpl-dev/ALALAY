@@ -11,8 +11,11 @@ import AccordionHeader from 'primevue/accordionheader'
 import AccordionContent from 'primevue/accordioncontent'
 import DataView from 'primevue/dataview'
 import Skeleton from 'primevue/skeleton'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: 'Home' }, { label: 'Dashboard' }])
 
 defineProps({
   dashboardData: { type: Object, default: () => ({}) },

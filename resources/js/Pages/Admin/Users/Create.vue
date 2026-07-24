@@ -7,8 +7,15 @@ import Button from 'primevue/button'
 import Divider from 'primevue/divider'
 import { useToast } from 'primevue/usetoast'
 import { useFieldValidation } from '@/Composables/useFieldValidation'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([
+  { label: 'Admin' },
+  { label: 'User Management' },
+  { label: 'Add User' },
+])
 
 const toast = useToast()
 

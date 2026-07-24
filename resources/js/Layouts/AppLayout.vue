@@ -9,12 +9,22 @@ import AppTopbar from './AppTopbar.vue'
 import Toast from 'primevue/toast'
 import ConfirmDialog from 'primevue/confirmdialog'
 import { useToast } from '@/Composables/useToast'
+import Breadcrumb from 'primevue/breadcrumb'
+import { useBreadcrumbProvider } from '@/Composables/useBreadcrumb'
 
 const { layoutConfig, layoutState, hideMobileMenu, applyPanelDarkMode } = useLayout()
 
 applyPanelDarkMode()
 const toast = useToast()
 const page = usePage()
+
+const breadcrumbItems = useBreadcrumbProvider()
+
+const breadcrumbKey = computed(() => JSON.stringify(breadcrumbItems.value.map(i => i.label)))
+
+watch(() => usePage().component, () => {
+  breadcrumbItems.value = []
+})
 
 watch(() => page.props.flash, (flash) => {
   if (flash?.success) toast.success('Success', flash.success)
@@ -37,6 +47,7 @@ const containerClass = computed(() => {
     <AppTopbar />
     <AppSidebar />
     <div class="layout-main-container">
+      <Breadcrumb :key="breadcrumbKey" :model="breadcrumbItems" class="px-6 pt-4 mb-2" />
       <div class="layout-main">
         <slot />
       </div>

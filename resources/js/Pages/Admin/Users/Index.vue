@@ -18,8 +18,11 @@ import { useConfirm } from '@/Composables/useConfirm'
 import { formatDate } from '@/Utils/formatDate'
 import { roleSeverity, statusSeverity } from '@/Utils/severityMappings'
 import { ref, toRaw } from 'vue'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: 'Admin' }, { label: 'User Management' }])
 
 const props = defineProps({
   users: { type: Object, default: () => ({}) },

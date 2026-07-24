@@ -12,8 +12,11 @@ import Skeleton from 'primevue/skeleton'
 import { formatDate } from '@/Utils/formatDate'
 import { getStatusLabel } from '@/Utils/statusLabels'
 import { computed } from 'vue'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: 'AICS' }, { label: 'Analytics' }])
 
 const props = defineProps({
   analyticsData: { type: Object, default: () => ({}) },

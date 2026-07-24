@@ -17,8 +17,11 @@ import Skeleton from 'primevue/skeleton'
 import { ref, toRaw, watch } from 'vue'
 import { formatDate } from '@/Utils/formatDate'
 import { formatCurrency } from '@/Utils/formatCurrency'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: 'Treasurer' }, { label: 'Budget' }])
 
 const props = defineProps({
   applications: { type: Object, default: () => ({}) },

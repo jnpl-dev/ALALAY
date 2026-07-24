@@ -10,8 +10,11 @@ import Column from 'primevue/column'
 import DataView from 'primevue/dataview'
 import Skeleton from 'primevue/skeleton'
 import { getStatusLabel } from '@/Utils/statusLabels'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: 'Admin' }, { label: 'Analytics' }])
 
 const props = defineProps({
   analyticsData: { type: Object, default: () => ({}) },
