@@ -774,3 +774,138 @@ No composable changes required.
   - `Accountant/Vouchers/Review.vue` — `returnDialogLoading` (dialog open) + `returnSubmitting` (submit)
   - `Treasurer/Cheques/Review.vue` — `acknowledgeLoading`, `claimLoading`, `holdDialogLoading`, `holdSubmitting`
   - `Treasurer/Budget/Check.vue` — `markReadyLoading`, `holdDialogLoading`, `holdSubmitting`, `reEvaluateLoading`
+
+  # Process Log
+
+## AuditLogs Filter/Search/Export Pattern — Applied to 6 Index Pages
+
+### Pattern Reference
+- **Source**: `resources/js/Pages/Admin/AuditLogs.vue`
+- `filters` prop → refs initialized from `props.filters.*`
+- `parseDate()` / `formatDateParam()` helpers for Date↔string conversion
+- `@keyup.enter="applyFilters"` on search input
+- Debounced `watch(search, ..., 300ms)` for auto-search on typing pause
+- `watch([from, to], applyFilters)` for date clear/select
+- `@change="applyFilters"` on dropdowns
+- `router.get(..., { replace: true })` in `applyFilters()`
+- `router.get(..., { preserveState: true, replace: true })` in `onPage()`
+- `AppExportButton` with filter-aware `exportParams` computed
+- DatePickers with `showClear`
+
+### Pages Updated
+
+| # | Page | Controller | Route |
+|---|------|-----------|-------|
+| 1 | `Aics/Applications/Index.vue` | `Aics/ApplicationController` | `aics.applications.export` |
+| 2 | `Aics/AssistanceCodes/Index.vue` | `Aics/AssistanceCodeController` | `aics.assistance-codes.export` |
+| 3 | `Mswdo/Applications/Index.vue` | `Mswdo/ApplicationController` | `mswdo.applications.export` |
+| 4 | `Mswdo/Vouchers/Index.vue` | `Mswdo/VoucherController` | `mswdo.vouchers.export` |
+| 5 | `Accountant/Vouchers/Index.vue` | `Accountant/VoucherController` | `accountant.vouchers.export` |
+| 6 | `Treasurer/Cheques/Index.vue` | `Treasurer/ChequeController` | `treasurer.cheques.export` |
+
+### Controller Changes (per controller)
+1. `index()`: Added `$from`/`$to` params + `whereDate` queries + `'filters' => request()->only(['search', 'category', 'from', 'to'])` in Inertia response
+2. Added `export()` method: Same query as `index()` but `->latest()->get()`, returns CSV stream with `Content-Disposition: attachment`
+
+### Frontend Changes (per page)
+1. Replaced individual `search`/`category` props with `filters` object prop
+2. Added `parseDate()` and `formatDateParam()` utilities
+3. Changed `from`/`to` refs: `ref(parseDate(props.filters.from))` (Date object or null)
+4. Added `watch([from, to], applyFilters)` + `watch(search, debounced)` + `watch(category, applyFilters)`
+5. Added `exportParams` computed for `AppExportButton`
+6. Added `AppExportButton`, `DatePicker` imports and date range UI with `showClear`
+7. All `router.get` calls use `formatDateParam()` for date values
+
+### Bug Fixes (during step 1)
+- **Date resetting**: PrimeVue DatePicker v-model needs Date objects, but Inertia returned ISO strings. Fixed by converting string→Date on init (`parseDate`) and Date→string on send (`formatDateParam`).
+- **Search debounce missing**: Added `watch(search, debounced, 300ms)` — page only had `@keyup.enter`.
+- **Template `.value` crash**: `from.value` in template tries to access `.value` on auto-unwrapped null → TypeError. Fixed by moving `exportParams` to `computed` in script.
+- **Export without filters**: `AppExportButton` only had base URL. Added `params` prop and filter-aware `exportParams` computed.
+
+### Component Changes
+- `AppExportButton.vue`: Added `params` prop → builds full URL with query string. Uses `<a download>` for download (no new window opened).
+
+---
+
+## Phase 7 — Breadcrumb Navigation
+**Examined by: design-taste-frontend + high-end-visual-design frameworks**
+**Goal: PrimeVue Breadcrumb across all panels using Sakai layout mechanism**
+**Coverage: All 36 page components across all 6 panels + AppLayout.vue + useBreadcrumb.js**
+
+### Implementation
+
+- [x] Study Sakai's breadcrumb mechanism — none existed; built from scratch
+- [x] Create `useBreadcrumb.js` composable with `provide`/`inject` + Symbol key
+- [x] Integrate PrimeVue Breadcrumb into AppLayout.vue inside `layout-main-container` before `<slot />`
+- [x] All pages call `useBreadcrumb([{ label }, { label }, ...])` in setup — no links, purely visual hierarchy
+
+### Bugfixes
+
+- [x] Ziggy TDZ (`ReferenceError: Cannot access 'route' before initialization`) — removed all `route()` calls from page `setup()`
+- [x] InputSwitch deprecation → ToggleSwitch (7 files, 16 occurrences)
+- [x] Dashboard breadcrumb retained on navigation — added `watch(() => usePage().component, () => items.value = [])` in AppLayout
+- [x] SSR hydration mismatch — reverted from module-level ref back to provide/inject
+- [x] PrimeVue Breadcrumb not reacting to model change (empty → populated) — added `:key="JSON.stringify(items.map(i => i.label))"` to force re-render
+
+### Breadcrumb Map — All Panels
+
+Hierarchy follows sidebar menu structure: `[Panel] > [Menu item]` or `[Panel] > [Menu item] > [Sub-page]`. Dashboard and Account Settings are under `Home`.
+
+#### Admin Panel (16 pages)
+- [x] Dashboard.vue (generic) — Home > Dashboard
+- [x] Admin/Analytics.vue — Admin > Analytics
+- [x] Admin/Users/Index.vue — Admin > User Management
+- [x] Admin/Users/Create.vue — Admin > User Management > Add User
+- [x] Admin/Users/Edit.vue — Admin > User Management > Edit User
+- [x] Admin/AuditLogs.vue — Admin > Audit Logs
+- [x] Admin/SystemSettings.vue — Admin > Settings > System Settings
+- [x] Admin/AssistanceCategories/Index.vue — Admin > Settings > Assistance Categories
+- [x] Admin/AssistanceCategories/Create.vue — Admin > Settings > Assistance Categories > Add Category
+- [x] Admin/AssistanceCategories/Edit.vue — Admin > Settings > Assistance Categories > Edit Category
+- [x] Admin/RequiredDocuments/Index.vue — Admin > Settings > Required Documents
+- [x] Admin/RequiredDocuments/Create.vue — Admin > Settings > Required Documents > Add Document
+- [x] Admin/RequiredDocuments/Edit.vue — Admin > Settings > Required Documents > Edit Document
+- [x] Admin/AssistanceCodeReferences/Index.vue — Admin > Settings > Code References
+- [x] Admin/AssistanceCodeReferences/Create.vue — Admin > Settings > Code References > Add Reference
+- [x] Admin/AssistanceCodeReferences/Edit.vue — Admin > Settings > Code References > Edit Reference
+- [x] Auth/AccountSettings.vue — Home > Account Settings
+
+#### AICS Panel (6 pages)
+- [x] Aics/Dashboard.vue — Home > Dashboard
+- [x] Aics/Analytics.vue — AICS > Analytics
+- [x] Aics/Applications/Index.vue — AICS > Applications
+- [x] Aics/Applications/Review.vue — AICS > Applications > Review
+- [x] Aics/AssistanceCodes/Index.vue — AICS > Assistance Codes
+- [x] Aics/AssistanceCodes/Code.vue — AICS > Assistance Codes > [code name]
+
+#### MSWDO Panel (5 pages)
+- [x] Mswdo/Analytics.vue — MSWDO > Analytics
+- [x] Mswdo/Applications/Index.vue — MSWDO > Applications
+- [x] Mswdo/Applications/Review.vue — MSWDO > Applications > Review
+- [x] Mswdo/Vouchers/Index.vue — MSWDO > Vouchers
+- [x] Mswdo/Vouchers/Create.vue — MSWDO > Vouchers > Create
+
+#### Accountant Panel (3 pages)
+- [x] Accountant/Analytics.vue — Accountant > Analytics
+- [x] Accountant/Vouchers/Index.vue — Accountant > Vouchers
+- [x] Accountant/Vouchers/Review.vue — Accountant > Vouchers > Review
+
+#### Treasurer Panel (5 pages)
+- [x] Treasurer/Analytics.vue — Treasurer > Analytics
+- [x] Treasurer/Cheques/Index.vue — Treasurer > Cheques
+- [x] Treasurer/Cheques/Review.vue — Treasurer > Cheques > Review
+- [x] Treasurer/Budget/Index.vue — Treasurer > Budget
+- [x] Treasurer/Budget/Check.vue — Treasurer > Budget > Check
+
+#### Mayor's Office Panel (1 page)
+- [x] MayorsOffice/Analytics.vue — Mayor's Office > Analytics
+
+### Key Files
+| File | Role |
+|------|------|
+| `resources/js/Composables/useBreadcrumb.js` | provide/inject composable + Symbol key |
+| `resources/js/Layouts/AppLayout.vue` | provide in layout, key-bound Breadcrumb rendering, component-change watch |
+| All 36 page components | `useBreadcrumb([...])` call in setup |
+
+### Phase 7 — Complete ✓
+

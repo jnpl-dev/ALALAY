@@ -15,8 +15,15 @@ import Fieldset from 'primevue/fieldset'
 import { useToast } from '@/Composables/useToast'
 import { formatCurrency } from '@/Utils/formatCurrency'
 import { ref, computed } from 'vue'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([
+  { label: 'AICS' },
+  { label: 'Assistance Codes' },
+  { label: 'Assign Code' },
+])
 
 const props = defineProps({
   application: { type: Object, required: true },

@@ -15,8 +15,11 @@ import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
 import { ref, computed } from 'vue'
 import { formatCurrency } from '@/Utils/formatCurrency'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: 'Accountant' }, { label: 'Vouchers' }, { label: 'Review' }])
 
 const props = defineProps({
   application: { type: Object, required: true },

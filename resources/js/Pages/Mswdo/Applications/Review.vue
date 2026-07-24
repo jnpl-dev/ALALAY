@@ -14,8 +14,11 @@ import Divider from 'primevue/divider'
 import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
 import { ref, computed, watch } from 'vue'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: 'MSWDO' }, { label: 'Applications' }, { label: 'Review' }])
 
 const props = defineProps({
   application: { type: Object, required: true },

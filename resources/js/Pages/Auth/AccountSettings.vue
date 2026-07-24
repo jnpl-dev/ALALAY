@@ -11,8 +11,11 @@ import Skeleton from 'primevue/skeleton'
 import { useToast } from 'primevue/usetoast'
 import { useFieldValidation } from '@/Composables/useFieldValidation'
 import { useConfirm } from '@/Composables/useConfirm'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: 'Home' }, { label: 'Account Settings' }])
 
 const props = defineProps({
   userData: { type: Object, default: () => ({}) },

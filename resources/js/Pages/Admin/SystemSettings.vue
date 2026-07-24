@@ -4,11 +4,14 @@ import { Head, useForm, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
-import InputSwitch from 'primevue/inputswitch'
+import ToggleSwitch from 'primevue/toggleswitch'
 import Fieldset from 'primevue/fieldset'
 import Skeleton from 'primevue/skeleton'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: 'Admin' }, { label: 'Settings' }, { label: 'System Settings' }])
 
 const route = window.route
 const isEditing = ref(false)
@@ -123,7 +126,7 @@ function handleButtonClick() {
                 <div v-for="setting in group.settings" :key="setting.key" class="flex items-center justify-between py-2">
                   <label class="text-sm font-medium text-surface-700">{{ setting.label }}</label>
                   <div class="w-72">
-                    <InputSwitch
+                    <ToggleSwitch
                       v-if="['1', '0', 'true', 'false'].includes(setting.value)"
                       :model-value="form.settings[setting.key] === '1' || form.settings[setting.key] === 'true'"
                       @update:model-value="updateSetting(setting.key, $event ? '1' : '0')"

@@ -14,8 +14,15 @@ import Skeleton from 'primevue/skeleton'
 import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
 import { ref, toRaw } from 'vue'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([
+  { label: 'Admin' },
+  { label: 'Settings' },
+  { label: 'Assistance Categories' },
+])
 
 const props = defineProps({
   categories: { type: Object, default: () => ({}) },

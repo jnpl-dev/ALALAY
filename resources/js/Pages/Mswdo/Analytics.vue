@@ -8,8 +8,11 @@ import Timeline from 'primevue/timeline'
 import Skeleton from 'primevue/skeleton'
 import { computed } from 'vue'
 import { formatDate } from '@/Utils/formatDate'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: 'MSWDO' }, { label: 'Analytics' }])
 
 const props = defineProps({
   analyticsData: { type: Object, default: () => ({}) },

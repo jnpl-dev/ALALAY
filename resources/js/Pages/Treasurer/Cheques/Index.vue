@@ -20,8 +20,11 @@ import { ref, toRaw, watch, computed } from 'vue'
 import { usePolling } from '@/Composables/usePolling'
 import { formatDate } from '@/Utils/formatDate'
 import { formatCurrency } from '@/Utils/formatCurrency'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: 'Treasurer' }, { label: 'Cheques' }])
 
 const props = defineProps({
   applications: { type: Object, default: () => ({ data: [], total: 0, per_page: 10, current_page: 1, from: 0, to: 0 }) },

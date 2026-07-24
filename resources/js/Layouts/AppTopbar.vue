@@ -15,11 +15,8 @@ const user = computed(() => usePage().props.auth?.user)
         <i class="pi pi-bars"></i>
       </button>
       <Link href="/" class="layout-topbar-logo">
-        <svg viewBox="0 0 40 40" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="40" height="40" rx="8" fill="var(--primary-color)" />
-          <text x="20" y="26" text-anchor="middle" font-size="20" font-weight="bold" fill="white">A</text>
-        </svg>
-        <span>ALALAY</span>
+        <img src="/images/logo/alalay-logo.png" alt="ALALAY" class="h-8 w-auto">
+        <span class="font-bold text-emerald-900">ALALAY</span>
       </Link>
     </div>
 

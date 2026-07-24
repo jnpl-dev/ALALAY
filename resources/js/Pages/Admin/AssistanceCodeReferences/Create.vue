@@ -3,12 +3,20 @@ import { Head, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import InputText from 'primevue/inputtext'
 import InputTextarea from 'primevue/textarea'
-import InputSwitch from 'primevue/inputswitch'
+import ToggleSwitch from 'primevue/toggleswitch'
 import InputNumber from 'primevue/inputnumber'
 import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([
+  { label: 'Admin' },
+  { label: 'Settings' },
+  { label: 'Code References' },
+  { label: 'Add Reference' },
+])
 
 const toast = useToast()
 const route = window.route
@@ -61,7 +69,7 @@ const submit = () => {
               <p v-if="form.errors.description" class="text-xs text-red-500 mt-1">{{ form.errors.description }}</p>
             </div>
             <div class="flex items-center gap-3">
-              <InputSwitch id="is_active" v-model="form.is_active" />
+              <ToggleSwitch id="is_active" v-model="form.is_active" />
               <label for="is_active" class="font-medium">Active</label>
             </div>
           </div>

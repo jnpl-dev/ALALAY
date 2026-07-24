@@ -9,8 +9,11 @@ import Chart from 'primevue/chart'
 import Skeleton from 'primevue/skeleton'
 import { computed, toRaw } from 'vue'
 import { formatCurrency } from '@/Utils/formatCurrency'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: "Mayor's Office" }, { label: 'Analytics' }])
 
 const props = defineProps({
   analyticsData: { type: Object, default: () => ({}) },

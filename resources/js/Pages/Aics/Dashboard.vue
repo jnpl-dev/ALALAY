@@ -11,8 +11,11 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Skeleton from 'primevue/skeleton'
 import { formatDate } from '@/Utils/formatDate'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: 'Home' }, { label: 'Dashboard' }])
 
 defineProps({
   dashboardData: { type: Object, default: () => ({}) },
