@@ -21,7 +21,6 @@ const {
   hasCapture,
   isComplete,
   isConfirmed: scannerConfirmed,
-  isAnimating,
   pageLabel,
   detectedCorners,
   showCornerEditor,

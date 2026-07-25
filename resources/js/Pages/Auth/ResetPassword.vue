@@ -2,6 +2,8 @@
 import { useForm, Head, Link } from '@inertiajs/vue3'
 import { ref } from 'vue'
 
+const route = window.route
+
 const props = defineProps({
   token: String,
   email: String,

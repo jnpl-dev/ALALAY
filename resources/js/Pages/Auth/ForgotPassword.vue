@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { Head, Link, useForm } from '@inertiajs/vue3'
 
+const route = window.route
 const loginUrl = route('login')
 
 const form = useForm({

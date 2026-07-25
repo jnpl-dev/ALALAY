@@ -79,19 +79,19 @@ onUnmounted(() => {
               <img src="/images/logo/alalay-logo.png" alt="ALALAY" class="h-10 w-auto">
               <span class="hidden text-xl font-bold text-emerald-900 sm:block">ALALAY</span>
             </button>
-            <div class="items-center hidden gap-2 pl-4 border-l lg:flex border-emerald-200">
-              <img src="/images/logo/gmn.png" alt="GMN" class="h-8 opacity-60 ">
-              <img src="/images/logo/dswd.png" alt="DSWD" class="h-8 opacity-60 ">
-              <img src="/images/logo/AICS.png" alt="AICS" class="h-8 opacity-60 ">
+            <div class="items-center hidden gap-1.5 pl-4 border-l lg:flex border-emerald-200">
+              <img src="/images/logo/gmn.png" alt="GMN" class="h-6 opacity-60 ">
+              <img src="/images/logo/dswd.png" alt="DSWD" class="h-6 opacity-60 ">
+              <img src="/images/logo/AICS.png" alt="AICS" class="h-6 opacity-60 ">
             </div>
           </div>
 
-          <div class="items-center hidden gap-1 md:flex">
+          <div class="items-center hidden flex-1 justify-center gap-1 md:flex">
             <button
               v-for="s in sections"
               :key="s.id"
               @click="scrollToSection(s.id)"
-              class="px-3 py-2 text-sm font-medium transition-[background,color] duration-150 rounded-lg press-feedback"
+              class="shrink-0 px-2 py-2 text-sm font-medium whitespace-nowrap transition-[background,color] duration-150 rounded-lg press-feedback"
               :class="activeSection === s.id
                 ? 'text-emerald-700 bg-emerald-50'
                 : 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50/50'"
@@ -100,11 +100,11 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1">
             <LanguageSwitcher />
             <Link
               :href="applyUrl"
-              class="hidden sm:inline-flex items-center gap-2 bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-emerald-200 hover:bg-emerald-800 active:bg-emerald-900 transition-[background,transform] duration-150 press-feedback"
+              class="hidden sm:inline-flex items-center gap-2 bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-emerald-200 hover:bg-emerald-800 active:bg-emerald-900 transition-[background,transform] duration-150 press-feedback"
             >
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
@@ -113,7 +113,7 @@ onUnmounted(() => {
             </Link>
             <Link
               :href="trackUrl"
-              class="hidden sm:inline-flex items-center gap-2 bg-white text-emerald-700 px-5 py-2.5 rounded-xl font-semibold text-sm border-2 border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50 active:bg-emerald-100 transition-[background,border-color,transform] duration-150 press-feedback"
+              class="hidden sm:inline-flex items-center gap-2 bg-white text-emerald-700 px-4 py-2.5 rounded-xl font-semibold text-sm border-2 border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50 active:bg-emerald-100 transition-[background,border-color,transform] duration-150 press-feedback"
             >
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
