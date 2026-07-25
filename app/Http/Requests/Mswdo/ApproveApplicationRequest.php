@@ -11,6 +11,16 @@ class ApproveApplicationRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('remarks') && $this->remarks) {
+            $this->merge(['remarks' => trim(strip_tags($this->remarks))]);
+        }
+        if ($this->has('page_count')) {
+            $this->merge(['page_count' => (int) $this->page_count]);
+        }
+    }
+
     public function rules(): array
     {
         return [

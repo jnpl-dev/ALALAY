@@ -20,7 +20,7 @@ const page = usePage()
 
 const breadcrumbItems = useBreadcrumbProvider()
 
-const breadcrumbKey = computed(() => JSON.stringify(breadcrumbItems.value.map(i => i.label)))
+const hasBreadcrumb = computed(() => breadcrumbItems.value.length > 0)
 
 watch(() => usePage().component, () => {
   breadcrumbItems.value = []
@@ -47,7 +47,7 @@ const containerClass = computed(() => {
     <AppTopbar />
     <AppSidebar />
     <div class="layout-main-container">
-      <Breadcrumb :key="breadcrumbKey" :model="breadcrumbItems" class="px-6 pt-4 mb-2" />
+      <Breadcrumb v-if="hasBreadcrumb" :model="breadcrumbItems" class="px-6 pt-4 mb-2" />
       <div class="layout-main">
         <slot />
       </div>

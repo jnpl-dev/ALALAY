@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Public\StoreApplicationRequest;
+use App\Http\Requests\Public\ResubmitDocumentsRequest;
 use App\Jobs\SendSmsJob;
 use App\Models\Application;
 use App\Models\ApplicationDocument;
@@ -207,14 +208,9 @@ class ApplicationController extends Controller
         ]);
     }
 
-    public function resubmit(string $referenceCode, Request $request)
+    public function resubmit(string $referenceCode, ResubmitDocumentsRequest $request)
     {
-        $validated = $request->validate([
-            'documents' => ['required', 'array', 'min:1'],
-            'documents.*' => ['required', 'file', 'mimes:pdf', 'max:10240'],
-            'document_ids' => ['required', 'array'],
-            'document_ids.*' => ['required', 'exists:application_documents,id'],
-        ]);
+        $validated = $request->validated();
 
         $application = Application::where('reference_code', $referenceCode)
             ->where('status', 'returned_to_applicant')
