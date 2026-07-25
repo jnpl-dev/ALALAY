@@ -17,6 +17,19 @@ class UpdateAccountRequest extends FormRequest
         return $this->json()->all() ?: $this->all();
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'first_name'  => preg_replace('/\s+/', ' ', trim(strip_tags($this->first_name ?? ''))),
+            'last_name'   => preg_replace('/\s+/', ' ', trim(strip_tags($this->last_name ?? ''))),
+            'middle_name' => $this->middle_name
+                ? preg_replace('/\s+/', ' ', trim(strip_tags($this->middle_name)))
+                : null,
+            'name_extension' => $this->name_extension ?: null,
+            'email'       => strtolower(trim($this->email ?? '')),
+        ]);
+    }
+
     public function rules(): array
     {
         $rules = [

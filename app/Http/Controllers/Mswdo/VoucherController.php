@@ -280,6 +280,10 @@ class VoucherController extends Controller
         $application = Application::findOrFail($id);
         $this->authorize('create', \App\Models\Voucher::class);
 
+        if (!in_array($application->status, ['voucher_creation', 'voucher_returned'])) {
+            return redirect()->back()->with('error', 'A voucher can only be created after an assistance code has been assigned or returned for revision.');
+        }
+
         $file = $request->file('voucher_file');
 
         $existingVoucher = $application->vouchers()->latest()->first();

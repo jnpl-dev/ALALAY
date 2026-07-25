@@ -11,6 +11,7 @@ use App\Models\AssistanceCodeReference;
 use App\Models\Review;
 use App\Jobs\SendSmsJob;
 use App\Services\SignedUrlService;
+use App\Http\Requests\Aics\CreateAssistanceCodeRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
@@ -283,7 +284,7 @@ class AssistanceCodeController extends Controller
         ]);
     }
 
-    public function store(Request $request, $id)
+    public function store(CreateAssistanceCodeRequest $request, $id)
     {
         $application = Application::findOrFail($id);
         $this->authorize('create', AssistanceCode::class);
@@ -292,10 +293,7 @@ class AssistanceCodeController extends Controller
             return redirect()->back()->with('error', 'Application is not ready for assistance coding.');
         }
 
-        $validated = $request->validate([
-            'assistance_code_reference_id' => ['required', 'exists:assistance_code_references,id'],
-            'amount' => ['required', 'numeric', 'min:0'],
-        ]);
+        $validated = $request->validated();
 
         $reference = AssistanceCodeReference::findOrFail($validated['assistance_code_reference_id']);
 

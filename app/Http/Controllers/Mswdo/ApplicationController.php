@@ -270,6 +270,10 @@ class ApplicationController extends Controller
         $application = Application::findOrFail($id);
         $this->authorize('approve', $application);
 
+        if ($application->status !== 'mswdo_review') {
+            return redirect()->back()->with('error', 'This application is not currently awaiting MSWDO review.');
+        }
+
         $file = $request->file('social_case_study');
         $uploadResult = $this->fileUploadService->upload(
             file: $file,
@@ -318,6 +322,10 @@ class ApplicationController extends Controller
     {
         $application = Application::findOrFail($id);
         $this->authorize('returnApp', $application);
+
+        if ($application->status !== 'mswdo_review') {
+            return redirect()->back()->with('error', 'This application is not currently awaiting MSWDO review.');
+        }
 
         $application->update([
             'status' => 'returned_to_applicant',

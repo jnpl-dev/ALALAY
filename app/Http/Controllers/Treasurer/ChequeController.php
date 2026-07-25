@@ -8,6 +8,8 @@ use App\Models\Application;
 use App\Models\Review;
 use App\Services\SignedUrlService;
 use App\Jobs\SendSmsJob;
+use App\Http\Requests\Treasurer\AcknowledgeVoucherRequest;
+use App\Http\Requests\Treasurer\HoldChequeRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -264,11 +266,15 @@ class ChequeController extends Controller
         ]);
     }
 
-    public function acknowledge(Request $request, $id): RedirectResponse
+    public function acknowledge(AcknowledgeVoucherRequest $request, $id): RedirectResponse
     {
         $application = Application::findOrFail($id);
         $voucher = $application->vouchers()->latest()->first();
         $this->authorize('acknowledge', $voucher);
+
+        if ($application->status !== 'with_treasurer') {
+            return redirect()->back()->with('error', 'This application is not currently with the Treasurer.');
+        }
 
         $application->update([
             'status' => 'cheque_ready',
@@ -296,11 +302,15 @@ class ChequeController extends Controller
             ->with('success', 'Voucher acknowledged. Cheque marked as ready for claiming.');
     }
 
-    public function hold(Request $request, $id): RedirectResponse
+    public function hold(HoldChequeRequest $request, $id): RedirectResponse
     {
         $application = Application::findOrFail($id);
         $voucher = $application->vouchers()->latest()->first();
         $this->authorize('hold', $voucher);
+
+        if ($application->status !== 'with_treasurer') {
+            return redirect()->back()->with('error', 'This application is not currently with the Treasurer.');
+        }
 
         $application->update([
             'status' => 'on_hold',

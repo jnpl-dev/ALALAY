@@ -416,6 +416,63 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `MayorsOffice/DashboardController@index` — renders generic Dashboard.vue (consolidated KPIs)
 - [x] `MayorsOffice/AnalyticsController@index` — consolidated charts; category_name fix
 
+### 3.10 Validation & Security (Form Request Classes)
+
+Reference: `.ai/context/VALIDATION&SANITIZATION.md`
+
+All forms must have a dedicated Form Request class with `rules()`, `prepareForValidation()` (sanitization), and `messages()`. Each mutating controller must verify workflow state before processing. All index endpoints must whitelist sort/filter params.
+
+#### Public Forms
+- [x] `StoreApplicationRequest` — **exists, `prepareForValidation()` added**
+- [x] `ResubmitDocumentsRequest` — **created**
+
+#### Auth Forms
+- [x] `LoginRequest` — **created**, wired to `LoginController@store`; email lowercased/trimmed
+- [x] `OtpChallengeRequest` — **created**, wired to `OtpChallengeController@verify`; strips non-digits
+- [x] `ForgotPasswordRequest` — **created** (Fortify handles POST internally)
+- [x] `ResetPasswordRequest` — **created** (Fortify handles POST internally); `Password::min(12)->mixedCase()->numbers()->symbols()->uncompromised()`
+
+#### AICS Staff Forms
+- [x] `ApproveApplicationRequest` (AICS) — **created**
+- [x] `ReturnApplicationRequest` (AICS) — **created**
+- [x] `CreateAssistanceCodeRequest` — **created**
+
+#### MSWDO Forms
+- [x] `ApproveApplicationRequest` (MSWDO) — **exists, `prepareForValidation()` added**
+- [x] `ReturnApplicationRequest` (MSWDO) — **exists, `prepareForValidation()` added**
+- [x] `CreateVoucherRequest` (MSWDO) — **exists, `prepareForValidation()` added**
+
+#### Accountant Forms
+- [x] `ApproveVoucherRequest` — **created**
+- [x] `ReturnVoucherRequest` — **created**
+
+#### Treasurer Forms
+- [x] `AcknowledgeVoucherRequest` — **created**
+- [x] `HoldChequeRequest` — **created**
+
+#### Admin Forms
+- [x] `StoreUserRequest` — **exists, `messages()` + name `regex` added**
+- [x] `UpdateUserRequest` — **exists, `messages()` + name `regex` added**
+- [x] `UpdateSystemSettingRequest` — **created**, whitelist of 14 allowed keys; unknown keys silently dropped in `prepareForValidation()`
+
+#### Shared Forms
+- [x] `UpdateAccountRequest` — **exists, `prepareForValidation()` added**
+
+#### Controller-Level State Validation
+- [x] AICS approve: check `! in_array($application->status, ['submitted', 'screening'])`
+- [x] AICS return: check `! in_array($application->status, ['submitted', 'screening'])`
+- [x] Assistance code store: check `$application->status !== 'assistance_coding'`
+- [x] MSWDO approve: check `$application->status !== 'mswdo_review'`
+- [x] MSWDO return: check `$application->status !== 'mswdo_review'`
+- [x] Voucher store: check `! in_array($application->status, ['voucher_creation', 'voucher_returned'])`
+- [x] Accountant approve: check `$application->status !== 'voucher_checking'`
+- [x] Accountant return: check `$application->status !== 'voucher_checking'`
+- [x] Treasurer acknowledge: check `$application->status !== 'with_treasurer'`
+- [x] Treasurer hold: check `$application->status !== 'with_treasurer'`
+
+#### Sort/Filter Parameter Whitelisting
+- [x] Verified: No index controller accepts `sort_by`/`sort_dir` from user input. All `orderBy()` calls use hardcoded column names. Search/filter params (`search`, `tab`, `category`, `from`, `to`) use Eloquent `where()` with parameter binding — no injection risk.
+
 ---
 
 ## Phase 4 — Frontend (Vue 3 + Inertia Pages)
@@ -730,6 +787,46 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [ ] Approve application → entry with `entity_type = 'application'`
 - [ ] Export CSV → export action logged
 - [ ] Failed login → `action = 'login_failed'`, `user_id = null`
+
+### 5.6 Validation & Sanitization Testing
+
+Reference: `.ai/context/VALIDATION&SANITIZATION.md`
+
+- [ ] Submit Apply form with empty fields — verify all required errors shown
+- [ ] Submit Apply form with invalid phone (`09123`) — verify phone regex error
+- [ ] Submit Apply form with HTML in name fields (`<script>alert(1)</script>`) — verify `strip_tags` removes it before saving
+- [ ] Submit Apply form as Representative without Authorization Letter — verify required error
+- [ ] Submit Apply form as Spouse/Child without Authorization Letter — verify NOT required (direct relative exemption)
+- [ ] Submit wrong file type (jpg instead of pdf) — verify `mimes:pdf` error
+- [ ] Submit file over size limit — verify `max` error
+- [ ] Submit OTP with 5 digits — verify `digits:6` error
+- [ ] Submit reset password shorter than 12 chars — verify `min` error
+- [ ] Submit reset password without symbol — verify `symbols` error
+- [ ] Submit createUser with duplicate email — verify `unique` error
+- [ ] Submit approve application when status is not `submitted` — verify controller-level state check blocks it
+- [ ] Test sort_by injection: `?sort_by=id;DROP TABLE users` — verify whitelist prevents reaching `orderBy()`
+- [ ] Submit remarks with HTML tags — verify `strip_tags` removes them
+- [ ] Verify amounts with commas (`5,000.00`) are normalized correctly in assistance code
+- [ ] Submit system settings with unknown key not in whitelist — verify the key is silently dropped
+- [ ] Verify `claimant_phone` is stripped to digits-only before validation
+
+### 5.7 Test Infrastructure Issues
+
+- [x] Documented: AuthTest.php fails on SQLite due to migration using MySQL `MODIFY COLUMN ENUM` syntax (`ALTER TABLE applications MODIFY COLUMN status ENUM(...)`). SQLite does not support `MODIFY COLUMN` or `ENUM`. Fix requires either: (a) refactoring migration to be platform-agnostic using `DB::statement()` with conditional logic, or (b) installing `doctrine/dbal` for cross-platform column modifications. **Not introduced by our changes** — pre-existing issue.
+- [ ] Fix migration to be SQLite-compatible for `php artisan test` to pass
+
+### 5.8 Performance Observations (Dev Profile)
+
+Observed slowness on review/show pages. Root causes identified — **none introduced by Form Request / state validation work**.
+
+| Cause | Impact | Details |
+|---|---|---|
+| **SignedUrlService -> Supabase S3 calls** | Major | Every `show()` page calls `temporaryUrl()` once per document = N serial HTTP requests (~200-500ms each). Review with 5 docs = ~1-2.5s Supabase API latency before page renders. Affects: Aics/ApplicationController@show, Mswdo/ApplicationController@show, Accountant/Treasurer review pages. |
+| **Encrypted field casting** | Moderate | Each PII field (`claimant_address`, `claimant_phone`, `claimant_email`, `beneficiary_address`) decrypted on every read by Laravel's `encrypted` cast. Review pages load all of them. |
+| **File cache driver** | Low | `Cache::store('file')` + `Cache::forget()` on every mutation adds filesystem I/O. Acceptable at single-municipality scale. |
+| **SMS dispatch** | None | `QUEUE_CONNECTION=database` + `SendSmsJob implements ShouldQueue` = async INSERT into `jobs` table. Does not block response. |
+
+- [ ] Fix: Batch signed URL generation or cache signed URLs per document with short TTL to eliminate serial Supabase calls on review pages.
 
 ---
 

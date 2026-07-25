@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests\Mswdo;
+namespace App\Http\Requests\Treasurer;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class ReturnApplicationRequest extends FormRequest
+class HoldChequeRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -21,16 +21,16 @@ class ReturnApplicationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'remarks' => 'required|string|max:1000',
-            'document_ids' => 'nullable|array',
-            'document_ids.*' => 'exists:application_documents,id',
+            'remarks' => ['required', 'string', 'min:10', 'max:1000'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'remarks.required' => 'Please provide a reason for returning the application.',
+            'remarks.required' => 'Please provide a reason for placing this application on hold.',
+            'remarks.min' => 'Remarks must be at least 10 characters.',
+            'remarks.max' => 'Remarks must not exceed 1,000 characters.',
         ];
     }
 }

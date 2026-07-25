@@ -9,6 +9,8 @@ use App\Models\AssistanceCategory;
 use App\Models\Review;
 use App\Jobs\SendSmsJob;
 use App\Services\SignedUrlService;
+use App\Http\Requests\Aics\ApproveApplicationRequest;
+use App\Http\Requests\Aics\ReturnApplicationRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -258,7 +260,7 @@ class ApplicationController extends Controller
         return redirect()->away($url);
     }
 
-    public function approve(Request $request, $id)
+    public function approve(ApproveApplicationRequest $request, $id)
     {
         $application = Application::findOrFail($id);
         $this->authorize('approve', $application);
@@ -293,7 +295,7 @@ class ApplicationController extends Controller
             ->with('success', 'Application approved and forwarded to MSWDO.');
     }
 
-    public function return(Request $request, $id)
+    public function return(ReturnApplicationRequest $request, $id)
     {
         $application = Application::findOrFail($id);
         $this->authorize('returnApp', $application);
@@ -302,11 +304,7 @@ class ApplicationController extends Controller
             return redirect()->back()->with('error', 'Application cannot be returned at this stage.');
         }
 
-        $validated = $request->validate([
-            'remarks' => ['required', 'string'],
-            'document_ids' => ['nullable', 'array'],
-            'document_ids.*' => ['exists:application_documents,id'],
-        ]);
+        $validated = $request->validated();
 
         $fromStatus = $application->status;
 

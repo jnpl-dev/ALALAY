@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\UpdateSystemSettingRequest;
 use App\Models\AuditLog;
 use App\Models\SystemSetting;
 use Illuminate\Http\RedirectResponse;
@@ -33,10 +34,10 @@ class SystemSettingController extends Controller
         ]);
     }
 
-    public function update(Request $request)
+    public function update(UpdateSystemSettingRequest $request)
     {
         $this->authorize('update', SystemSetting::class);
-        $settings = $request->input('settings', []);
+        $settings = $request->validated('settings', []);
 
         foreach ($settings as $key => $value) {
             SystemSetting::updateOrCreate(

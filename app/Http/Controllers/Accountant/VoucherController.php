@@ -8,6 +8,8 @@ use App\Models\Application;
 use App\Models\Review;
 use App\Services\SignedUrlService;
 use App\Jobs\SendSmsJob;
+use App\Http\Requests\Accountant\ApproveVoucherRequest;
+use App\Http\Requests\Accountant\ReturnVoucherRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -267,10 +269,14 @@ class VoucherController extends Controller
         ]);
     }
 
-    public function approve(Request $request, $id): RedirectResponse
+    public function approve(ApproveVoucherRequest $request, $id): RedirectResponse
     {
         $application = Application::findOrFail($id);
         $this->authorize('approve', $application->vouchers()->latest()->first());
+
+        if ($application->status !== 'voucher_checking') {
+            return redirect()->back()->with('error', 'This voucher is not currently awaiting accountant review.');
+        }
 
         $application->update([
             'status' => 'with_treasurer',
@@ -298,11 +304,15 @@ class VoucherController extends Controller
             ->with('success', 'Voucher approved. Application forwarded to Treasurer.');
     }
 
-    public function return(Request $request, $id): RedirectResponse
+    public function return(ReturnVoucherRequest $request, $id): RedirectResponse
     {
         $application = Application::findOrFail($id);
         $voucher = $application->vouchers()->latest()->first();
         $this->authorize('returnVoucher', $voucher);
+
+        if ($application->status !== 'voucher_checking') {
+            return redirect()->back()->with('error', 'This voucher is not currently awaiting accountant review.');
+        }
 
         $voucher->update([
             'returned_at' => now(),
