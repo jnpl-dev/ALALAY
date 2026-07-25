@@ -15,6 +15,7 @@ use App\Http\Controllers\Auth\OtpChallengeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Public\ApplicationController;
 use App\Http\Controllers\Public\CategoryController;
+use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Shared\AccountController;
 use App\Http\Controllers\PendingCountController;
 use App\Http\Controllers\ValidationController;
@@ -41,12 +42,16 @@ Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('home');
 
+Route::post('/contact', [ContactController::class, 'send'])->name('contact.send');
+
 Route::get('/apply', [CategoryController::class, 'index'])->name('apply');
 Route::post('/apply', [ApplicationController::class, 'store']);
 
 Route::get('/track', [ApplicationController::class, 'track'])->name('track');
 Route::get('/track/poll', [ApplicationController::class, 'trackPoll'])->name('track.poll');
 Route::get('/track/{referenceCode}', [ApplicationController::class, 'show'])->name('track.show');
+Route::post('/track/{referenceCode}/send-otp', [ApplicationController::class, 'sendTrackOtp'])->name('track.send-otp');
+Route::post('/track/{referenceCode}/verify-otp', [ApplicationController::class, 'verifyTrackOtp'])->name('track.verify-otp');
 Route::post('/track/{referenceCode}/resubmit', [ApplicationController::class, 'resubmit'])->name('track.resubmit');
 
 // Real-time validation (public)
@@ -62,6 +67,12 @@ Route::middleware('guest')->group(function () {
     Route::get('/forgot-password', function () {
         return Inertia::render('Auth/ForgotPassword');
     })->name('password.request');
+    Route::get('/reset-password/{token}', function (Request $request) {
+        return Inertia::render('Auth/ResetPassword', [
+            'token' => $request->token,
+            'email' => $request->email,
+        ]);
+    })->name('password.reset');
     Route::get('/otp-challenge', [OtpChallengeController::class, 'show'])->name('otp.challenge');
     Route::post('/otp-challenge', [OtpChallengeController::class, 'verify'])->name('otp.verify');
     Route::post('/otp-challenge/resend', [OtpChallengeController::class, 'resend'])->name('otp.resend');

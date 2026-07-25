@@ -9,13 +9,17 @@ use App\Jobs\SendSmsJob;
 use App\Models\Application;
 use App\Models\ApplicationDocument;
 use App\Models\Review;
+use App\Mail\SendApplicationOtpMail;
 use App\Services\FileUploadService;
 use App\Services\ReferenceCodeService;
 use App\Services\SignedUrlService;
+use App\Services\SmsService;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -102,7 +106,7 @@ class ApplicationController extends Controller
         return Inertia::render('Public/Track');
     }
 
-    public function show(string $referenceCode)
+    public function show(string $referenceCode, Request $request)
     {
         $application = Application::where('reference_code', $referenceCode)
             ->with([
@@ -111,6 +115,28 @@ class ApplicationController extends Controller
                 'reviews' => fn($q) => $q->with('reviewer')->latest(),
             ])
             ->firstOrFail();
+
+        $otpVerified = $request->session()->get('track_verified_' . $referenceCode, false);
+
+        if (!$otpVerified) {
+            $otpSent = $request->session()->has('track_otp_' . $referenceCode);
+            $otpExpired = false;
+            if ($otpSent) {
+                $stored = $request->session()->get('track_otp_' . $referenceCode);
+                $otpExpired = now() > $stored['expires_at'];
+            }
+            return Inertia::render('Public/Track', [
+                'application' => null,
+                'documents' => [],
+                'reviews' => [],
+                'resubmission_docs_required' => [],
+                'otp_required' => true,
+                'otp_sent' => $otpSent,
+                'otp_expired' => $otpExpired,
+                'otp_attempts' => $otpSent ? ($request->session()->get('track_otp_' . $referenceCode)['attempts'] ?? 0) : 0,
+                'reference_code' => $referenceCode,
+            ]);
+        }
 
         $documents = $application->documents->map(function ($doc) {
             return [
@@ -178,7 +204,72 @@ class ApplicationController extends Controller
             'documents' => $documents,
             'reviews' => $reviews,
             'resubmission_docs_required' => $resubmissionDocsRequired,
+            'otp_required' => false,
+            'reference_code' => $referenceCode,
         ]);
+    }
+
+    public function sendTrackOtp(string $referenceCode, Request $request)
+    {
+        $application = Application::where('reference_code', $referenceCode)->firstOrFail();
+
+        $code = str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+
+        $request->session()->put('track_otp_' . $referenceCode, [
+            'code' => Hash::make($code),
+            'expires_at' => now()->addMinutes(5),
+            'attempts' => 0,
+        ]);
+
+        $phone = $application->claimant_phone;
+        $email = $application->claimant_email;
+
+        if ($phone) {
+            try {
+                app(SmsService::class)->send($phone, "ALALAY OTP: $code. Use this to track your application. Valid for 5 minutes.");
+            } catch (\Exception $e) {
+                if ($email) {
+                    Mail::to($email)->send(new SendApplicationOtpMail($code, $application));
+                }
+            }
+        } elseif ($email) {
+            Mail::to($email)->send(new SendApplicationOtpMail($code, $application));
+        }
+
+        return redirect()->route('track.show', $referenceCode)
+            ->with('success', 'OTP sent to your registered contact.');
+    }
+
+    public function verifyTrackOtp(string $referenceCode, Request $request)
+    {
+        $request->validate([
+            'otp_code' => 'required|string|size:6',
+        ]);
+
+        $stored = $request->session()->get('track_otp_' . $referenceCode);
+
+        if (!$stored || now() > $stored['expires_at']) {
+            return redirect()->route('track.show', $referenceCode)
+                ->with('error', 'OTP has expired. Request a new one.');
+        }
+
+        if ($stored['attempts'] >= 5) {
+            return redirect()->route('track.show', $referenceCode)
+                ->with('error', 'Too many incorrect attempts. Request a new OTP.');
+        }
+
+        if (!Hash::check($request->otp_code, $stored['code'])) {
+            $stored['attempts']++;
+            $request->session()->put('track_otp_' . $referenceCode, $stored);
+            return redirect()->route('track.show', $referenceCode)
+                ->with('error', 'Invalid OTP code. Please try again.');
+        }
+
+        $request->session()->put('track_verified_' . $referenceCode, true);
+        $request->session()->forget('track_otp_' . $referenceCode);
+
+        return redirect()->route('track.show', $referenceCode)
+            ->with('success', 'Verification successful.');
     }
 
     public function trackPoll(Request $request): JsonResponse
