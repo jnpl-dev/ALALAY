@@ -1,7 +1,11 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Head, Link, usePage } from '@inertiajs/vue3'
+import { useI18n } from 'vue-i18n'
+import LanguageSwitcher from '@/Components/Public/LanguageSwitcher.vue'
+import LanguageModal from '@/Components/Public/LanguageModal.vue'
 
+const { t } = useI18n()
 const page = usePage()
 
 const auth = computed(() => page.props.auth)
@@ -12,14 +16,15 @@ const trackUrl = route('track')
 const isScrolled = ref(false)
 const mobileMenuOpen = ref(false)
 const activeSection = ref('home')
+const showLangModal = ref(false)
 
 const sections = [
-  { id: 'home', label: 'Home' },
-  { id: 'about', label: 'About' },
-  { id: 'programs', label: 'Assistance Programs' },
-  { id: 'how-it-works', label: 'How It Works' },
-  { id: 'faqs', label: 'FAQs' },
-  { id: 'contact', label: 'Contact' },
+  { id: 'home', label: () => t('nav.home') },
+  { id: 'about', label: () => t('nav.about') },
+  { id: 'programs', label: () => t('nav.programs') },
+  { id: 'how-it-works', label: () => t('nav.how_it_works') },
+  { id: 'faqs', label: () => t('nav.faqs') },
+  { id: 'contact', label: () => t('nav.contact') },
 ]
 
 const scrollToSection = (id) => {
@@ -41,9 +46,9 @@ const handleScroll = () => {
   isScrolled.value = window.scrollY > 20
   const offsets = sections.map(s => {
     const el = document.getElementById(s.id)
-    if (!el) return { id: s.id, offset: Infinity }
+    if (!el) return { id: s.id, offset: Infinity, label: '' }
     const rect = el.getBoundingClientRect()
-    return { id: s.id, offset: Math.abs(rect.top) }
+    return { id: s.id, offset: Math.abs(rect.top), label: '' }
   })
   const closest = offsets.reduce((a, b) => a.offset < b.offset ? a : b)
   if (closest.offset < 300) {
@@ -74,45 +79,46 @@ onUnmounted(() => {
               <img src="/images/logo/alalay-logo.png" alt="ALALAY" class="h-10 w-auto">
               <span class="hidden text-xl font-bold text-emerald-900 sm:block">ALALAY</span>
             </button>
-            <div class="items-center hidden gap-2 pl-4 border-l lg:flex border-emerald-200">
-              <img src="/images/logo/gmn.png" alt="GMN" class="h-8 opacity-60 ">
-              <img src="/images/logo/dswd.png" alt="DSWD" class="h-8 opacity-60 ">
-              <img src="/images/logo/AICS.png" alt="AICS" class="h-8 opacity-60 ">
+            <div class="items-center hidden gap-1.5 pl-4 border-l lg:flex border-emerald-200">
+              <img src="/images/logo/gmn.png" alt="GMN" class="h-6 opacity-60 ">
+              <img src="/images/logo/dswd.png" alt="DSWD" class="h-6 opacity-60 ">
+              <img src="/images/logo/AICS.png" alt="AICS" class="h-6 opacity-60 ">
             </div>
           </div>
 
-          <div class="items-center hidden gap-1 md:flex">
+          <div class="items-center hidden flex-1 justify-center gap-1 md:flex">
             <button
               v-for="s in sections"
               :key="s.id"
               @click="scrollToSection(s.id)"
-              class="px-3 py-2 text-sm font-medium transition-[background,color] duration-150 rounded-lg press-feedback"
+              class="shrink-0 px-2 py-2 text-sm font-medium whitespace-nowrap transition-[background,color] duration-150 rounded-lg press-feedback"
               :class="activeSection === s.id
                 ? 'text-emerald-700 bg-emerald-50'
                 : 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50/50'"
             >
-              {{ s.label }}
+              {{ s.label() }}
             </button>
           </div>
 
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1">
+            <LanguageSwitcher />
             <Link
               :href="applyUrl"
-              class="hidden sm:inline-flex items-center gap-2 bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-emerald-200 hover:bg-emerald-800 active:bg-emerald-900 transition-[background,transform] duration-150 press-feedback"
+              class="hidden sm:inline-flex items-center gap-2 bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow-lg shadow-emerald-200 hover:bg-emerald-800 active:bg-emerald-900 transition-[background,transform] duration-150 press-feedback"
             >
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
               </svg>
-              Apply
+              {{ $t('nav.apply') }}
             </Link>
             <Link
               :href="trackUrl"
-              class="hidden sm:inline-flex items-center gap-2 bg-white text-emerald-700 px-5 py-2.5 rounded-xl font-semibold text-sm border-2 border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50 active:bg-emerald-100 transition-[background,border-color,transform] duration-150 press-feedback"
+              class="hidden sm:inline-flex items-center gap-2 bg-white text-emerald-700 px-4 py-2.5 rounded-xl font-semibold text-sm border-2 border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50 active:bg-emerald-100 transition-[background,border-color,transform] duration-150 press-feedback"
             >
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              Track
+              {{ $t('nav.track') }}
             </Link>
             <button
               @click="mobileMenuOpen = !mobileMenuOpen"
@@ -147,7 +153,7 @@ onUnmounted(() => {
                 ? 'text-emerald-700 bg-emerald-50'
                 : 'text-emerald-600 hover:bg-emerald-50/50'"
             >
-              {{ s.label }}
+              {{ s.label() }}
             </button>
             <hr class="my-2 border-emerald-100">
             <div class="flex gap-2 pt-1">
@@ -155,13 +161,13 @@ onUnmounted(() => {
                 :href="applyUrl"
                 class="flex-1 text-center bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm press-feedback"
               >
-                Apply
+                {{ $t('nav.apply') }}
               </Link>
               <Link
                 :href="trackUrl"
                 class="flex-1 text-center bg-white text-emerald-700 px-4 py-2.5 rounded-xl font-semibold text-sm border-2 border-emerald-200 press-feedback"
               >
-                Track
+                {{ $t('nav.track') }}
               </Link>
             </div>
           </div>
@@ -185,28 +191,26 @@ onUnmounted(() => {
               </div>
             </div>
             <p class="max-w-md text-sm leading-relaxed text-emerald-200">
-              ALALAY is the official digital platform for the Assistance to Individuals
-              in Crisis Situation (AICS) program of the Municipality of General Mamerto
-              Natividad, Nueva Ecija.
+              {{ $t('footer.about') }}
             </p>
           </div>
           <div>
-            <h4 class="mb-4 text-sm font-semibold tracking-wider uppercase text-emerald-200">Quick Links</h4>
+            <h4 class="mb-4 text-sm font-semibold tracking-wider uppercase text-emerald-200">{{ $t('footer.quick_links') }}</h4>
             <ul class="space-y-2">
-              <li><button @click="scrollToSection('about')" class="text-sm transition-[color,transform] duration-150 text-emerald-300 hover:text-white press-feedback">About</button></li>
-              <li><button @click="scrollToSection('programs')" class="text-sm transition-[color,transform] duration-150 text-emerald-300 hover:text-white press-feedback">Assistance Programs</button></li>
-              <li><button @click="scrollToSection('how-it-works')" class="text-sm transition-[color,transform] duration-150 text-emerald-300 hover:text-white press-feedback">How It Works</button></li>
-              <li><button @click="scrollToSection('faqs')" class="text-sm transition-[color,transform] duration-150 text-emerald-300 hover:text-white press-feedback">FAQs</button></li>
-              <li><button @click="scrollToSection('contact')" class="text-sm transition-[color,transform] duration-150 text-emerald-300 hover:text-white press-feedback">Contact</button></li>
+              <li><button @click="scrollToSection('about')" class="text-sm transition-[color,transform] duration-150 text-emerald-300 hover:text-white press-feedback">{{ $t('nav.about') }}</button></li>
+              <li><button @click="scrollToSection('programs')" class="text-sm transition-[color,transform] duration-150 text-emerald-300 hover:text-white press-feedback">{{ $t('nav.programs') }}</button></li>
+              <li><button @click="scrollToSection('how-it-works')" class="text-sm transition-[color,transform] duration-150 text-emerald-300 hover:text-white press-feedback">{{ $t('nav.how_it_works') }}</button></li>
+              <li><button @click="scrollToSection('faqs')" class="text-sm transition-[color,transform] duration-150 text-emerald-300 hover:text-white press-feedback">{{ $t('nav.faqs') }}</button></li>
+              <li><button @click="scrollToSection('contact')" class="text-sm transition-[color,transform] duration-150 text-emerald-300 hover:text-white press-feedback">{{ $t('nav.contact') }}</button></li>
             </ul>
           </div>
           <div>
-            <h4 class="mb-4 text-sm font-semibold tracking-wider uppercase text-emerald-200">Services</h4>
+            <h4 class="mb-4 text-sm font-semibold tracking-wider uppercase text-emerald-200">{{ $t('footer.services') }}</h4>
             <ul class="space-y-2">
-              <li><Link :href="applyUrl" class="text-sm transition-[color,transform] duration-150 text-emerald-300 hover:text-white press-feedback">Apply for Assistance</Link></li>
-              <li><Link :href="trackUrl" class="text-sm transition-[color,transform] duration-150 text-emerald-300 hover:text-white press-feedback">Track Application</Link></li>
+              <li><Link :href="applyUrl" class="text-sm transition-[color,transform] duration-150 text-emerald-300 hover:text-white press-feedback">{{ $t('footer.apply') }}</Link></li>
+              <li><Link :href="trackUrl" class="text-sm transition-[color,transform] duration-150 text-emerald-300 hover:text-white press-feedback">{{ $t('footer.track') }}</Link></li>
             </ul>
-            <h4 class="mt-6 mb-4 text-sm font-semibold tracking-wider uppercase text-emerald-200">Agency Partners</h4>
+            <h4 class="mt-6 mb-4 text-sm font-semibold tracking-wider uppercase text-emerald-200">{{ $t('footer.agency_partners') }}</h4>
             <div class="flex flex-wrap items-center gap-3">
               <img src="/images/logo/gmn.png" alt="GMN LGU" class="h-10 transition-opacity opacity-80 hover:opacity-100">
               <img src="/images/logo/dswd.png" alt="DSWD" class="h-10 transition-opacity opacity-80 hover:opacity-100">
@@ -216,13 +220,15 @@ onUnmounted(() => {
         </div>
         <div class="flex flex-col items-center justify-between gap-4 pt-6 mt-10 border-t border-emerald-800 sm:flex-row">
           <p class="text-xs text-emerald-400">
-            &copy; {{ new Date().getFullYear() }} Municipality of General Mamerto Natividad, Nueva Ecija. All rights reserved.
+            &copy; {{ new Date().getFullYear() }} {{ $t('footer.copyright') }}
           </p>
           <div class="flex items-center gap-4 text-xs text-emerald-400">
-            <span>Data Privacy Notice</span>
+            <span>{{ $t('footer.privacy') }}</span>
           </div>
         </div>
       </div>
     </footer>
+
+    <LanguageModal @close="showLangModal = false" />
   </div>
 </template>

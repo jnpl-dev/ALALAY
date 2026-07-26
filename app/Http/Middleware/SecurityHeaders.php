@@ -25,7 +25,7 @@ class SecurityHeaders
             : '';
         $viteAll = ($viteOrigins ? " $viteOrigins" : '') . ($viteWsOrigins ? " $viteWsOrigins" : '');
 
-        $scriptSrc = "'self' 'unsafe-inline'" . ($viteOrigins ? " $viteOrigins" : '');
+        $scriptSrc = "'self' 'unsafe-inline' 'unsafe-eval'" . ($viteOrigins ? " $viteOrigins" : '');
         $styleSrc = "'self' 'unsafe-inline'" . ($viteOrigins ? " $viteOrigins" : '');
         $fontSrc = "'self' data:" . ($viteOrigins ? " $viteOrigins" : '');
         $connectSrc = "'self' https://*.supabase.co https://psgc.gitlab.io" . ($viteWsOrigins ? " $viteWsOrigins" : '');
