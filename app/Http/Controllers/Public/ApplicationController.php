@@ -47,6 +47,7 @@ class ApplicationController extends Controller
             'beneficiary_sex' => $request->beneficiary_sex,
             'beneficiary_dob' => $request->beneficiary_dob,
             'beneficiary_address' => $request->beneficiary_address,
+            'beneficiary_barangay' => Application::parseBarangayFromAddress($request->beneficiary_address),
         ]);
 
         try {
@@ -84,13 +85,6 @@ class ApplicationController extends Controller
         }
 
         SendSmsJob::dispatch($application, 'submission_complete');
-
-        $now = now()->format('YmdHi');
-        $prev = now()->subMinute()->format('YmdHi');
-        foreach (['admin', 'aics', 'mswdo', 'accountant', 'treasurer', 'mayors-office'] as $role) {
-            Cache::forget("dashboard.{$role}.{$now}");
-            Cache::forget("dashboard.{$role}.{$prev}");
-        }
 
         return redirect()->route('apply')
             ->with('success', 'Your application has been submitted successfully.')
@@ -259,13 +253,6 @@ class ApplicationController extends Controller
         ]);
 
         SendSmsJob::dispatch($application, 'application_under_review');
-
-        $now = now()->format('YmdHi');
-        $prev = now()->subMinute()->format('YmdHi');
-        foreach (['admin', 'aics', 'mswdo', 'accountant', 'treasurer', 'mayors-office'] as $role) {
-            Cache::forget("dashboard.{$role}.{$now}");
-            Cache::forget("dashboard.{$role}.{$prev}");
-        }
 
         return redirect()->route('track.show', $referenceCode)->with('success', 'Your documents have been resubmitted successfully.');
     }

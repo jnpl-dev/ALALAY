@@ -1,15 +1,15 @@
 <script setup>
 import { computed } from 'vue'
-import { Head, Deferred } from '@inertiajs/vue3'
+import { Head, Deferred, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
-import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
-import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import DataView from 'primevue/dataview'
-import Skeleton from 'primevue/skeleton'
+import AppDateRangeFilter from '@/Components/Common/AppDateRangeFilter.vue'
+import { CHART_COLORS, baseChartOptions, paletteColors } from '@/Utils/chartColors'
+import { fillMissingDates } from '@/Utils/chartDates'
+import { formatCurrency } from '@/Utils/formatCurrency'
 import { getStatusLabel } from '@/Utils/statusLabels'
+import { roleLabel } from '@/Utils/roleLabel'
+import Skeleton from 'primevue/skeleton'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
@@ -18,71 +18,190 @@ useBreadcrumb([{ label: 'Admin' }, { label: 'Analytics' }])
 
 const props = defineProps({
   analyticsData: { type: Object, default: () => ({}) },
+  filters: { type: Object, default: () => ({ date_from: '', date_to: '' }) },
 })
 
-const statusEntries = computed(() => {
-  const data = props.analyticsData?.applicationsByStatus ?? {}
-  return Object.entries(data).map(([key, count]) => ({
-    status: key,
-    label: getStatusLabel(key).label,
-    count,
-  }))
+function applyFilter({ date_from, date_to }) {
+  router.get(route('admin.analytics'), { date_from, date_to }, { preserveState: true })
+}
+
+function clearFilter() {
+  router.get(route('admin.analytics'), {}, { preserveState: true })
+}
+
+const trendData = computed(() => {
+  const raw = props.analyticsData?.application_trend ?? []
+  const filled = fillMissingDates(raw, props.filters.date_from, props.filters.date_to)
+  return {
+    labels: filled.map(d => d.date),
+    datasets: [{
+      label: 'Applications',
+      data: filled.map(d => d.count),
+      borderColor: CHART_COLORS.primary,
+      backgroundColor: CHART_COLORS.primaryBg,
+      tension: 0.4,
+      fill: true,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      pointBackgroundColor: CHART_COLORS.primary,
+    }],
+  }
+})
+
+const statusData = computed(() => {
+  const data = props.analyticsData?.application_status_distribution ?? []
+  return {
+    labels: data.map(d => getStatusLabel(d.status).label),
+    datasets: [{
+      data: data.map(d => d.count),
+      backgroundColor: paletteColors.slice(0, data.length || 1),
+      borderWidth: 2,
+      borderColor: '#FFFFFF',
+    }],
+  }
+})
+
+const userRegData = computed(() => {
+  const raw = props.analyticsData?.user_registration_trend ?? []
+  const filled = fillMissingDates(raw, props.filters.date_from, props.filters.date_to)
+  return {
+    labels: filled.map(d => d.date),
+    datasets: [{
+      label: 'New Users',
+      data: filled.map(d => d.count),
+      borderColor: CHART_COLORS.success,
+      backgroundColor: CHART_COLORS.successBg,
+      tension: 0.4,
+      fill: true,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      pointBackgroundColor: CHART_COLORS.success,
+    }],
+  }
+})
+
+const roleData = computed(() => {
+  const data = props.analyticsData?.users_by_role ?? []
+  return {
+    labels: data.map(d => roleLabel(d.role)),
+    datasets: [{
+      data: data.map(d => d.count),
+      backgroundColor: paletteColors.slice(0, data.length || 1),
+      borderWidth: 2,
+      borderColor: '#FFFFFF',
+    }],
+  }
+})
+
+const disbursementData = computed(() => {
+  const data = props.analyticsData?.monthly_disbursement_trend ?? []
+  return {
+    labels: data.map(d => d.month),
+    datasets: [{
+      label: 'Disbursed',
+      data: data.map(d => d.total),
+      backgroundColor: CHART_COLORS.accentBg,
+      borderColor: CHART_COLORS.accent,
+      borderWidth: 1,
+      borderRadius: 4,
+      barPercentage: 0.6,
+    }],
+  }
+})
+
+const doughnutOptions = baseChartOptions({
+  cutout: '65%',
+  plugins: {
+    legend: {
+      position: 'bottom',
+      labels: {
+        font: { family: 'Lato, sans-serif', size: 12 },
+        padding: 16,
+        usePointStyle: true,
+        pointStyle: 'rectRounded',
+      },
+    },
+  },
 })
 </script>
 
 <template>
   <Head title="Admin Analytics" />
+
+  <div class="card">
+    <div class="flex items-center justify-between mb-6">
+      <div class="font-semibold text-xl">Analytics</div>
+    </div>
+    <AppDateRangeFilter :date-from="filters.date_from" :date-to="filters.date_to" @apply="applyFilter" @clear="clearFilter" />
+  </div>
+
   <Deferred data="analyticsData">
     <div class="grid grid-cols-12 gap-8">
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Total Users" :value="analyticsData?.totalUsers ?? 0" icon="pi pi-users" color="info" subtitle="registered accounts" />
+        <AppKpiCard title="Users Registered" :value="analyticsData?.total_users_registered ?? 0" icon="pi pi-users" color="info" subtitle="in date range" />
       </div>
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Active" :value="analyticsData?.activeUsers ?? 0" icon="pi pi-check-circle" color="success" subtitle="active accounts" />
+        <AppKpiCard title="Applications" :value="analyticsData?.total_applications ?? 0" icon="pi pi-file" color="primary" subtitle="in date range" />
       </div>
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Inactive" :value="analyticsData?.inactiveUsers ?? 0" icon="pi pi-ban" color="warn" subtitle="deactivated accounts" />
+        <AppKpiCard title="Vouchers" :value="analyticsData?.total_vouchers ?? 0" icon="pi pi-verified" color="purple" subtitle="in date range" />
       </div>
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Applications" :value="analyticsData?.totalApplications ?? 0" icon="pi pi-file" color="info" subtitle="total submitted" />
+        <AppKpiCard title="Total Disbursed" :value="formatCurrency(analyticsData?.total_disbursed ?? 0)" icon="pi pi-money-bill" color="success" subtitle="claimed applications" />
       </div>
 
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
-          <div class="font-semibold text-xl mb-4">Applications by Status</div>
-          <DataTable :value="statusEntries" striped-rows class="w-full">
-            <Column field="label" header="Status">
-              <template #body="{ data }">
-                <AppStatusBadge :status="data.status" />
-              </template>
-            </Column>
-            <Column field="count" header="Count" sortable />
-            <template #empty>
-              <AppEmptyState icon="pi pi-chart-bar" message="No data available" />
-            </template>
-          </DataTable>
+          <div class="font-semibold text-xl mb-4">Application Trend</div>
+          <Chart v-if="trendData?.labels?.length" type="line" :data="trendData" :options="baseChartOptions()" class="h-80" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-line text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
         </div>
       </div>
 
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
-          <div class="font-semibold text-xl mb-4">Recent Activity</div>
-          <DataView :value="analyticsData?.recentActivity ?? []">
-            <template #list="{ items }">
-              <div v-for="item in items" :key="item.id" class="flex items-center py-2">
-                <div class="w-12 h-12 flex items-center justify-center rounded-full mr-4 shrink-0" :style="{ backgroundColor: 'var(--color-primary-surface)' }">
-                  <i class="pi pi-history text-xl!" :style="{ color: 'var(--color-primary)' }"></i>
-                </div>
-                <span class="text-surface-900 leading-normal">
-                  {{ item.user_name }}
-                  <span class="text-surface-700"> &middot; {{ item.action }} / {{ item.module }}</span>
-                </span>
-              </div>
-            </template>
-            <template #empty>
-              <AppEmptyState icon="pi pi-inbox" message="No recent activity" />
-            </template>
-          </DataView>
+          <div class="font-semibold text-xl mb-4">Applications by Status</div>
+          <Chart v-if="statusData?.labels?.length" type="doughnut" :data="statusData" :options="doughnutOptions" class="h-80" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-span-12 xl:col-span-6">
+        <div class="card">
+          <div class="font-semibold text-xl mb-4">User Registration Trend</div>
+          <Chart v-if="userRegData?.labels?.length" type="line" :data="userRegData" :options="baseChartOptions()" class="h-80" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-line text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-span-12 xl:col-span-6">
+        <div class="card">
+          <div class="font-semibold text-xl mb-4">Users by Role</div>
+          <Chart v-if="roleData?.labels?.length" type="doughnut" :data="roleData" :options="doughnutOptions" class="h-80" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-span-12">
+        <div class="card">
+          <div class="font-semibold text-xl mb-4">Monthly Disbursement Trend</div>
+          <Chart v-if="disbursementData?.labels?.length" type="bar" :data="disbursementData" :options="baseChartOptions()" class="h-80" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
         </div>
       </div>
     </div>
@@ -100,20 +219,10 @@ const statusEntries = computed(() => {
             </div>
           </div>
         </div>
-        <div class="col-span-12 xl:col-span-6">
+        <div v-for="i in 2" :key="i" class="col-span-12 xl:col-span-6">
           <div class="card">
-            <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <div class="space-y-3">
-              <Skeleton v-for="i in 3" :key="i" width="100%" height="1rem" />
-            </div>
-          </div>
-        </div>
-        <div class="col-span-12 xl:col-span-6">
-          <div class="card">
-            <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <div class="space-y-3">
-              <Skeleton v-for="i in 3" :key="i" width="100%" height="3rem" />
-            </div>
+            <Skeleton width="40%" height="1.5rem" class="mb-4" />
+            <Skeleton width="100%" height="280px" />
           </div>
         </div>
       </div>

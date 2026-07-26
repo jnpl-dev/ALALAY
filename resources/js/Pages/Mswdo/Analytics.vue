@@ -1,13 +1,12 @@
 <script setup>
-import { Head, Deferred } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import { Head, Deferred, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
-import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
-import BarChart from '@/Components/Charts/BarChart.vue'
-import Timeline from 'primevue/timeline'
+import AppDateRangeFilter from '@/Components/Common/AppDateRangeFilter.vue'
+import { CHART_COLORS, baseChartOptions, categoryColors } from '@/Utils/chartColors'
+import { fillMissingDates } from '@/Utils/chartDates'
 import Skeleton from 'primevue/skeleton'
-import { computed } from 'vue'
-import { formatDate } from '@/Utils/formatDate'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
@@ -16,71 +15,189 @@ useBreadcrumb([{ label: 'MSWDO' }, { label: 'Analytics' }])
 
 const props = defineProps({
   analyticsData: { type: Object, default: () => ({}) },
+  filters: { type: Object, default: () => ({ date_from: '', date_to: '' }) },
 })
 
-const trendChartData = computed(() => {
-  const trends = props.analyticsData?.monthlyTrends ?? {}
-  const labels = Object.keys(trends)
-  const values = Object.values(trends)
-  if (!labels.length) return { labels: [], datasets: [] }
+function applyFilter({ date_from, date_to }) {
+  router.get(route('mswdo.analytics'), { date_from, date_to }, { preserveState: true })
+}
+
+function clearFilter() {
+  router.get(route('mswdo.analytics'), {}, { preserveState: true })
+}
+
+const trendData = computed(() => {
+  const raw = props.analyticsData?.trend ?? []
+  const filled = fillMissingDates(raw, props.filters.date_from, props.filters.date_to)
   return {
-    labels,
+    labels: filled.map(d => d.date),
     datasets: [{
       label: 'Applications',
-      data: values,
-      backgroundColor: 'rgba(59, 130, 246, 0.5)',
-      borderColor: 'rgb(59, 130, 246)',
-      borderWidth: 1,
+      data: filled.map(d => d.count),
+      borderColor: CHART_COLORS.primary,
+      backgroundColor: CHART_COLORS.primaryBg,
+      tension: 0.4,
+      fill: true,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      pointBackgroundColor: CHART_COLORS.primary,
     }],
   }
+})
+
+const categoryData = computed(() => {
+  const data = props.analyticsData?.category_distribution ?? []
+  return {
+    labels: data.map(d => d.category_name),
+    datasets: [{
+      data: data.map(d => d.count),
+      backgroundColor: categoryColors.slice(0, data.length || 1),
+      borderWidth: 2,
+      borderColor: '#FFFFFF',
+    }],
+  }
+})
+
+const submissionTypeData = computed(() => {
+  const data = props.analyticsData?.submission_type ?? []
+  return {
+    labels: data.map(d => d.submission_type === 'online' ? 'Online' : 'Walk-in'),
+    datasets: [{
+      data: data.map(d => d.count),
+      backgroundColor: data.map(d => d.submission_type === 'online' ? CHART_COLORS.primary : CHART_COLORS.muted),
+      borderWidth: 2,
+      borderColor: '#FFFFFF',
+    }],
+  }
+})
+
+const barangayData = computed(() => {
+  const data = props.analyticsData?.barangay_distribution ?? []
+  return {
+    labels: data.map(d => d.barangay).reverse(),
+    datasets: [{
+      label: 'Applications',
+      data: data.map(d => d.count).reverse(),
+      backgroundColor: CHART_COLORS.primaryLight,
+      borderColor: CHART_COLORS.primaryLight,
+      borderWidth: 1,
+      borderRadius: 4,
+    }],
+  }
+})
+
+const horizontalBarOptions = baseChartOptions({
+  indexAxis: 'y',
+  interaction: {
+    intersect: false,
+    mode: 'y',
+  },
+  plugins: {
+    legend: { display: false },
+  },
+  scales: {
+    x: {
+      beginAtZero: true,
+      grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
+      ticks: { font: { family: 'Lato, sans-serif', size: 11 } },
+    },
+    y: {
+      grid: { display: false },
+      ticks: { font: { family: 'Lato, sans-serif', size: 11 } },
+    },
+  },
+})
+
+const doughnutOptions = baseChartOptions({
+  cutout: '65%',
+  plugins: {
+    legend: {
+      position: 'bottom',
+      labels: {
+        font: { family: 'Lato, sans-serif', size: 12 },
+        padding: 16,
+        usePointStyle: true,
+        pointStyle: 'rectRounded',
+      },
+    },
+  },
 })
 </script>
 
 <template>
   <Head title="MSWDO Analytics" />
+
+  <div class="card">
+    <div class="flex items-center justify-between mb-6">
+      <div class="font-semibold text-xl">Analytics</div>
+    </div>
+    <AppDateRangeFilter :date-from="filters.date_from" :date-to="filters.date_to" @apply="applyFilter" @clear="clearFilter" />
+  </div>
+
   <Deferred data="analyticsData">
-    <div class="grid grid-cols-12 gap-8">
-      <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="For Validation" :value="analyticsData?.forValidation ?? 0" icon="pi pi-file" color="info" subtitle="for validation" />
+    <div class="flex flex-wrap gap-8 mt-8">
+      <div class="flex-1 min-w-[180px]">
+        <AppKpiCard title="Total Applications" :value="analyticsData?.total_applications ?? 0" icon="pi pi-file" color="primary" subtitle="in date range" />
       </div>
-      <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Validated" :value="analyticsData?.validatedThisMonth ?? 0" icon="pi pi-check-circle" color="success" subtitle="this month" />
+      <div class="flex-1 min-w-[180px]">
+        <AppKpiCard title="For Review" :value="analyticsData?.total_pending ?? 0" icon="pi pi-clock" color="warn" subtitle="awaiting MSWDO assessment" />
       </div>
-      <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Returned" :value="analyticsData?.returned ?? 0" icon="pi pi-undo" color="warn" subtitle="needs revision" />
+      <div class="flex-1 min-w-[180px]">
+        <AppKpiCard title="Processed" :value="analyticsData?.total_approved ?? 0" icon="pi pi-check-circle" color="success" subtitle="moved forward in pipeline" />
       </div>
-      <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Vouchers" :value="analyticsData?.vouchersPrepared ?? 0" icon="pi pi-receipt" color="info" subtitle="prepared" />
+      <div class="flex-1 min-w-[180px]">
+        <AppKpiCard title="Average per Day" :value="analyticsData?.average_per_day ?? 0" icon="pi pi-calendar" color="info" subtitle="in date range" />
       </div>
+    </div>
 
-      <div class="col-span-12 xl:col-span-6">
-        <BarChart :data="trendChartData" title="Monthly Trends" />
-      </div>
-
-      <div class="col-span-12 xl:col-span-6">
+    <div class="grid grid-cols-12 gap-8 mt-8">
+      <div class="col-span-12">
         <div class="card">
-          <div class="font-semibold text-xl mb-4">Pending Actions</div>
-          <Timeline v-if="analyticsData?.pendingActions?.length" :value="analyticsData.pendingActions" align="left" class="text-sm">
-            <template #opposite="{ item }">
-              <div class="text-xs text-muted-color text-right pr-4 whitespace-nowrap">
-                <div>{{ formatDate(item.created_at) }}</div>
-              </div>
-            </template>
-            <template #marker>
-              <i class="pi pi-circle-fill text-xs" style="color: var(--p-primary-color)" />
-            </template>
-            <template #content="{ item }">
-              <div class="font-medium">{{ item.action }}</div>
-              <div class="text-xs text-muted-color">{{ item.module }} · {{ item.user_name }}</div>
-            </template>
-          </Timeline>
-          <AppEmptyState v-else icon="pi pi-inbox" message="No pending actions" />
+          <div class="font-semibold text-xl mb-4">Application Trend</div>
+          <Chart v-if="trendData?.labels?.length" type="line" :data="trendData" :options="baseChartOptions()" class="h-72" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-line text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-span-12 md:col-span-6 xl:col-span-4">
+        <div class="card h-full">
+          <div class="font-semibold text-xl mb-4">Category Distribution</div>
+          <Chart v-if="categoryData?.labels?.length" type="doughnut" :data="categoryData" :options="doughnutOptions" class="h-72" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-span-12 md:col-span-6 xl:col-span-4">
+        <div class="card h-full">
+          <div class="font-semibold text-xl mb-4">Online vs Walk-in</div>
+          <Chart v-if="submissionTypeData?.labels?.length" type="doughnut" :data="submissionTypeData" :options="doughnutOptions" class="h-72" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-span-12 xl:col-span-4">
+        <div class="card h-full">
+          <div class="font-semibold text-xl mb-4">Applications by Barangay</div>
+          <Chart v-if="barangayData?.labels?.length" type="bar" :data="barangayData" :options="horizontalBarOptions" class="h-72" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
         </div>
       </div>
     </div>
 
     <template #fallback>
-      <div class="grid grid-cols-12 gap-8">
+      <div class="grid grid-cols-12 gap-8 mt-8">
         <div v-for="i in 4" :key="i" class="col-span-12 lg:col-span-6 xl:col-span-3">
           <div class="card">
             <div class="flex items-center gap-3">
@@ -92,20 +209,16 @@ const trendChartData = computed(() => {
             </div>
           </div>
         </div>
-        <div class="col-span-12 xl:col-span-6">
+        <div class="col-span-12">
           <div class="card">
             <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <div class="space-y-3">
-              <Skeleton v-for="i in 3" :key="i" width="100%" height="1rem" />
-            </div>
+            <Skeleton width="100%" height="260px" />
           </div>
         </div>
-        <div class="col-span-12 xl:col-span-6">
+        <div v-for="i in 3" :key="i" class="col-span-12 md:col-span-6 xl:col-span-4">
           <div class="card">
             <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <div class="space-y-3">
-              <Skeleton v-for="i in 3" :key="i" width="100%" height="2rem" />
-            </div>
+            <Skeleton width="100%" height="260px" />
           </div>
         </div>
       </div>

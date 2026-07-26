@@ -1,56 +1,44 @@
 <script setup>
 import { computed } from 'vue'
-import { Head, Deferred, router } from '@inertiajs/vue3'
+import { Head, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
-import AppDateRangeFilter from '@/Components/Common/AppDateRangeFilter.vue'
-import { CHART_COLORS, baseChartOptions, paletteColors } from '@/Utils/chartColors'
-import { fillMissingDates } from '@/Utils/chartDates'
-import { formatCurrency } from '@/Utils/formatCurrency'
+import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
+import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
 import Skeleton from 'primevue/skeleton'
+import { CHART_COLORS, baseChartOptions, paletteColors } from '@/Utils/chartColors'
+import { generateWeekLabels } from '@/Utils/chartDates'
+import { formatDate } from '@/Utils/formatDate'
+import { formatCurrency } from '@/Utils/formatCurrency'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
 
-useBreadcrumb([{ label: 'Treasurer' }, { label: 'Analytics' }])
+useBreadcrumb([{ label: 'Treasurer' }, { label: 'Dashboard' }])
 
 const props = defineProps({
-  analyticsData: { type: Object, default: () => ({}) },
-  filters: { type: Object, default: () => ({ date_from: '', date_to: '' }) },
+  dashboardData: { type: Object, default: () => ({}) },
 })
 
-function applyFilter({ date_from, date_to }) {
-  router.get(route('treasurer.analytics'), { date_from, date_to }, { preserveState: true })
-}
+const statusColors = { with_treasurer: CHART_COLORS.warning, cheque_ready: CHART_COLORS.success, on_hold: CHART_COLORS.danger }
+const statusLabels = { with_treasurer: 'Pending', cheque_ready: 'Ready', on_hold: 'On Hold' }
 
-function clearFilter() {
-  router.get(route('treasurer.analytics'), {}, { preserveState: true })
-}
-
-const statusLabels = { with_treasurer: 'Pending', cheque_ready: 'Ready', on_hold: 'On Hold', claimed: 'Claimed' }
-const statusColors = {
-  with_treasurer: CHART_COLORS.warning,
-  cheque_ready: CHART_COLORS.success,
-  on_hold: CHART_COLORS.danger,
-  claimed: CHART_COLORS.primary,
-}
+const weekLabels = generateWeekLabels()
 
 const trendData = computed(() => {
-  const raw = props.analyticsData?.status_trend ?? []
-  const { date_from, date_to } = props.filters
+  const raw = props.dashboardData?.weekly_status_trend ?? []
   const grouped = {}
   for (const item of raw) {
     if (!grouped[item.status]) grouped[item.status] = {}
     grouped[item.status][item.date] = Number(item.count)
   }
-  const allDates = [...new Set(raw.map(d => d.date))].sort()
-  const statuses = Object.keys(grouped)
-  if (!allDates.length) return { labels: [], datasets: [] }
   return {
-    labels: allDates,
-    datasets: statuses.map(status => ({
+    labels: weekLabels,
+    datasets: ['with_treasurer', 'cheque_ready', 'on_hold'].map(status => ({
       label: statusLabels[status] || status,
-      data: allDates.map(d => grouped[status]?.[d] ?? 0),
+      data: weekLabels.map(d => grouped[status]?.[d] ?? 0),
       borderColor: statusColors[status] || CHART_COLORS.muted,
       backgroundColor: statusColors[status] || CHART_COLORS.muted,
       tension: 0.4,
@@ -61,7 +49,7 @@ const trendData = computed(() => {
 })
 
 const statusData = computed(() => {
-  const data = props.analyticsData?.status_distribution ?? []
+  const data = props.dashboardData?.status_distribution ?? []
   return {
     labels: data.map(d => statusLabels[d.status] || d.status),
     datasets: [{
@@ -73,8 +61,8 @@ const statusData = computed(() => {
   }
 })
 
-const amountByCategoryData = computed(() => {
-  const data = props.analyticsData?.amount_by_category ?? []
+const categoryAmountData = computed(() => {
+  const data = props.dashboardData?.amount_by_category ?? []
   return {
     labels: data.map(d => d.category_name),
     datasets: [{
@@ -88,7 +76,7 @@ const amountByCategoryData = computed(() => {
   }
 })
 
-const amountByCategoryOptions = baseChartOptions({
+const categoryAmountOptions = baseChartOptions({
   plugins: {
     legend: { display: false },
   },
@@ -105,25 +93,6 @@ const amountByCategoryOptions = baseChartOptions({
       ticks: { font: { family: 'Lato, sans-serif', size: 11 }, maxRotation: 45 },
     },
   },
-})
-
-const amountOverTimeData = computed(() => {
-  const raw = props.analyticsData?.amount_over_time ?? []
-  const filled = fillMissingDates(raw, props.filters.date_from, props.filters.date_to)
-  return {
-    labels: filled.map(d => d.date),
-    datasets: [{
-      label: 'Total Disbursed',
-      data: filled.map(d => Number(d.total) || 0),
-      borderColor: CHART_COLORS.primary,
-      backgroundColor: CHART_COLORS.primaryBg,
-      tension: 0.4,
-      fill: true,
-      pointRadius: 3,
-      pointHoverRadius: 5,
-      pointBackgroundColor: CHART_COLORS.primary,
-    }],
-  }
 })
 
 const doughnutOptions = baseChartOptions({
@@ -143,38 +112,23 @@ const doughnutOptions = baseChartOptions({
 </script>
 
 <template>
-  <Head title="Treasurer Analytics" />
+  <Head title="Treasurer Dashboard" />
 
-  <div class="card">
-    <div class="flex items-center justify-between mb-6">
-      <div class="font-semibold text-xl">Analytics</div>
-    </div>
-    <AppDateRangeFilter :date-from="filters.date_from" :date-to="filters.date_to" @apply="applyFilter" @clear="clearFilter" />
-  </div>
+  <Deferred data="dashboardData">
+    <div class="grid grid-cols-12 gap-8">
+      <div class="col-span-12 lg:col-span-4">
+        <AppKpiCard title="Pending Cheques" :value="dashboardData?.pending_cheques ?? 0" icon="pi pi-clock" color="warn" subtitle="needs treasurer action" />
+      </div>
+      <div class="col-span-12 lg:col-span-4">
+        <AppKpiCard title="Ready Today" :value="dashboardData?.ready_today ?? 0" icon="pi pi-check-circle" color="success" subtitle="cheque ready for releasing" />
+      </div>
+      <div class="col-span-12 lg:col-span-4">
+        <AppKpiCard title="On Hold Today" :value="dashboardData?.on_hold_today ?? 0" icon="pi pi-pause-circle" color="danger" subtitle="placed on hold" />
+      </div>
 
-  <Deferred data="analyticsData">
-    <div class="flex flex-wrap gap-8 mt-8">
-      <div class="flex-1 min-w-[160px]">
-        <AppKpiCard title="Total Processed" :value="analyticsData?.total_processed ?? 0" icon="pi pi-file" color="primary" subtitle="in date range" />
-      </div>
-      <div class="flex-1 min-w-[160px]">
-        <AppKpiCard title="Cheque Ready" :value="analyticsData?.total_cheque_ready ?? 0" icon="pi pi-check-circle" color="success" subtitle="ready for release" />
-      </div>
-      <div class="flex-1 min-w-[160px]">
-        <AppKpiCard title="On Hold" :value="analyticsData?.total_on_hold ?? 0" icon="pi pi-pause-circle" color="danger" subtitle="currently on hold" />
-      </div>
-      <div class="flex-1 min-w-[160px]">
-        <AppKpiCard title="Claimed" :value="analyticsData?.total_claimed ?? 0" icon="pi pi-verified" color="purple" subtitle="released to beneficiary" />
-      </div>
-      <div class="flex-1 min-w-[160px]">
-        <AppKpiCard title="Amount Disbursed" :value="formatCurrency(analyticsData?.total_amount_disbursed ?? 0)" icon="pi pi-money-bill" color="success" subtitle="total released" />
-      </div>
-    </div>
-
-    <div class="grid grid-cols-12 gap-8 mt-8">
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
-          <div class="font-semibold text-xl mb-4">Status Trend</div>
+          <div class="font-semibold text-xl mb-4">Cheque Status This Week</div>
           <Chart v-if="trendData?.labels?.length" type="line" :data="trendData" :options="baseChartOptions()" class="h-72" />
           <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
             <i class="pi pi-chart-line text-4xl mb-3 text-muted-color"></i>
@@ -185,7 +139,7 @@ const doughnutOptions = baseChartOptions({
 
       <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card h-full">
-          <div class="font-semibold text-xl mb-4">Status Distribution</div>
+          <div class="font-semibold text-xl mb-4">Status Breakdown</div>
           <Chart v-if="statusData?.labels?.length" type="doughnut" :data="statusData" :options="doughnutOptions" class="h-72" />
           <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
             <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
@@ -197,7 +151,7 @@ const doughnutOptions = baseChartOptions({
       <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Amount by Category</div>
-          <Chart v-if="amountByCategoryData?.labels?.length" type="bar" :data="amountByCategoryData" :options="amountByCategoryOptions" class="h-72" />
+          <Chart v-if="categoryAmountData?.labels?.length" type="bar" :data="categoryAmountData" :options="categoryAmountOptions" class="h-72" />
           <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
             <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
             <span>No data available</span>
@@ -205,21 +159,43 @@ const doughnutOptions = baseChartOptions({
         </div>
       </div>
 
-      <div class="col-span-12 xl:col-span-6">
+      <div class="col-span-12">
         <div class="card">
-          <div class="font-semibold text-xl mb-4">Disbursement Over Time</div>
-          <Chart v-if="amountOverTimeData?.labels?.length" type="line" :data="amountOverTimeData" :options="baseChartOptions()" class="h-72" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-line text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <div class="font-semibold text-xl mb-4">Recent Applications</div>
+          <DataTable :value="dashboardData?.recent_applications ?? []" striped-rows class="w-full">
+            <Column field="reference_code" header="Reference">
+              <template #body="{ data }">
+                <span class="font-mono text-sm font-medium" style="color: var(--p-primary-color)">{{ data.reference_code }}</span>
+              </template>
+            </Column>
+            <Column field="beneficiary_name" header="Beneficiary" />
+            <Column field="category_name" header="Category" />
+            <Column field="amount" header="Amount">
+              <template #body="{ data }">
+                {{ data.amount ? formatCurrency(data.amount) : '—' }}
+              </template>
+            </Column>
+            <Column field="status" header="Status">
+              <template #body="{ data }">
+                <AppStatusBadge :status="data.status" />
+              </template>
+            </Column>
+            <Column field="updated_at" header="Updated">
+              <template #body="{ data }">
+                {{ formatDate(data.updated_at) }}
+              </template>
+            </Column>
+            <template #empty>
+              <AppEmptyState icon="pi pi-inbox" message="No applications yet" />
+            </template>
+          </DataTable>
         </div>
       </div>
     </div>
 
     <template #fallback>
-      <div class="grid grid-cols-12 gap-8 mt-8">
-        <div v-for="i in 5" :key="i" class="col-span-12 lg:col-span-6 xl:col-span-2">
+      <div class="grid grid-cols-12 gap-8">
+        <div v-for="i in 3" :key="i" class="col-span-12 lg:col-span-4">
           <div class="card">
             <div class="flex items-center gap-3">
               <Skeleton shape="circle" size="3rem" />
@@ -248,10 +224,12 @@ const doughnutOptions = baseChartOptions({
             <Skeleton width="100%" height="260px" />
           </div>
         </div>
-        <div class="col-span-12 xl:col-span-6">
+        <div class="col-span-12">
           <div class="card">
             <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <Skeleton width="100%" height="260px" />
+            <div class="space-y-3">
+              <Skeleton v-for="i in 4" :key="i" width="100%" height="3rem" />
+            </div>
           </div>
         </div>
       </div>
