@@ -106,6 +106,11 @@ function handleAddPage() {
   addPage()
 }
 
+function handleAddPageAndCapture() {
+  addPage()
+  nextTick(() => scanFileInputRef.value?.click())
+}
+
 function handleRecapture() {
   emit('update:modelValue', null)
   emit('cleared')
@@ -448,7 +453,7 @@ onBeforeUnmount(() => {
                 </button>
                 <button
                   v-else-if="captureType === 'double'"
-                  @click="capturedPages.length < 2 ? handleAddPage() : handleUseCapture()"
+                  @click="capturedPages.length < 2 ? handleAddPageAndCapture() : handleUseCapture()"
                   class="flex-1 px-4 py-3 rounded-xl text-sm font-semibold text-white cursor-pointer bg-emerald-600 hover:bg-emerald-700 transition-colors"
                 >
                   {{ capturedPages.length < 2 ? 'Capture Back Side' : 'Use Both' }}
@@ -488,7 +493,7 @@ onBeforeUnmount(() => {
               <span class="text-white text-sm font-medium">{{ capturedPages.length }} page(s) captured</span>
               <div class="flex gap-3">
                 <button
-                  @click="addPage"
+                  @click="handleAddPageAndCapture"
                   class="px-5 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer bg-emerald-600 hover:bg-emerald-700 transition-colors"
                 >
                   + Add Page
