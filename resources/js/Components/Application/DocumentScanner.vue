@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick, reactive } from 'vue'
 import { useDocumentScanner } from '@/Composables/useDocumentScanner.js'
 
 const props = defineProps({
@@ -16,6 +16,7 @@ const {
   isProcessing,
   isAnimating,
   previewUrl,
+  rawPreviewUrl,
   capturedPages,
   cameraError,
   hasCapture,
@@ -26,9 +27,13 @@ const {
   showCornerEditor,
   selectedFilter,
   filters,
+  cropStage,
+  rawCaptureWidth,
+  rawCaptureHeight,
   setVideoElement,
   startCamera,
   capture: scannerCapture,
+  applyCrop,
   retakeLast,
   addPage,
   confirmPages,
@@ -46,6 +51,9 @@ const showFallback = ref(false)
 const showOverlay = ref(false)
 const cornerDragIndex = ref(-1)
 const scanLineRef = ref(null)
+const cropImageRef = ref(null)
+const cropContainerRef = ref(null)
+const imgRect = reactive({ left: 0, top: 0, width: 0, height: 0 })
 
 setVideoElement(videoRef.value)
 
@@ -94,6 +102,14 @@ function handleUseCapture() {
 
 function handleRetakeLast() {
   retakeLast()
+}
+
+function handleRetake() {
+  retakeLast()
+}
+
+function handleApplyCrop() {
+  applyCrop()
 }
 
 function handleAddPage() {
@@ -168,10 +184,11 @@ function onCornerPointerDown(index, e) {
 
 function onPointerMove(e) {
   if (cornerDragIndex.value < 0 || !detectedCorners.value) return
-  const overlay = e.currentTarget
-  const rect = overlay.getBoundingClientRect()
-  const x = ((e.clientX - rect.left) / rect.width) * overlay.scrollWidth
-  const y = ((e.clientY - rect.top) / rect.height) * overlay.scrollHeight
+  const img = cropImageRef.value
+  if (!img) return
+  const rect = img.getBoundingClientRect()
+  const x = ((e.clientX - rect.left) / rect.width) * rawCaptureWidth.value
+  const y = ((e.clientY - rect.top) / rect.height) * rawCaptureHeight.value
   updateCorner(cornerDragIndex.value, Math.round(x), Math.round(y))
 }
 
@@ -179,7 +196,61 @@ function onPointerUp() {
   cornerDragIndex.value = -1
 }
 
+const cropOverlayStyle = computed(() => ({
+  left: imgRect.left + 'px',
+  top: imgRect.top + 'px',
+  width: imgRect.width + 'px',
+  height: imgRect.height + 'px',
+}))
+
+function getCornerStyle(corner) {
+  return {
+    left: ((corner.x / Math.max(1, rawCaptureWidth.value)) * imgRect.width) + 'px',
+    top: ((corner.y / Math.max(1, rawCaptureHeight.value)) * imgRect.height) + 'px',
+  }
+}
+
+function updateImgRect() {
+  const img = cropImageRef.value
+  const container = cropContainerRef.value
+  if (!img || !container) return
+  const ib = img.getBoundingClientRect()
+  const cb = container.getBoundingClientRect()
+  imgRect.left = ib.left - cb.left
+  imgRect.top = ib.top - cb.top
+  imgRect.width = ib.width
+  imgRect.height = ib.height
+}
+
+let resizeObserver = null
+
+function setupResizeObserver() {
+  const img = cropImageRef.value
+  const container = cropContainerRef.value
+  if (!img || !container) return
+  if (resizeObserver) resizeObserver.disconnect()
+  resizeObserver = new ResizeObserver(updateImgRect)
+  resizeObserver.observe(img)
+  resizeObserver.observe(container)
+  updateImgRect()
+}
+
+watch(() => cropStage.value === 'cropping' && previewUrl.value, (isCropping) => {
+  if (isCropping) {
+    nextTick(() => {
+      setupResizeObserver()
+    })
+  }
+})
+
+onMounted(() => {
+  if (cropStage.value === 'cropping' && previewUrl.value) {
+    nextTick(setupResizeObserver)
+  }
+})
+
 onBeforeUnmount(() => {
+  if (resizeObserver) resizeObserver.disconnect()
   stopCamera()
 })
 </script>
@@ -311,23 +382,26 @@ onBeforeUnmount(() => {
           </div>
 
           <div
-            v-if="previewUrl && !isScanning && !isProcessing && !isAnimating"
-            class="relative flex-1 bg-gray-900 flex items-center justify-center"
-            @pointermove="onPointerMove"
-            @pointerup="onPointerUp"
-            @pointerleave="onPointerUp"
+            v-if="cropStage === 'cropping' && previewUrl && !isScanning && !isProcessing && !isAnimating"
+            class="relative flex-1 bg-gray-900 flex flex-col overflow-hidden"
           >
-            <div class="relative max-w-full max-h-full">
-              <img :src="previewUrl" class="max-w-full max-h-full object-contain" />
+            <div
+              ref="cropContainerRef"
+              class="flex-1 min-h-0 flex items-center justify-center relative overflow-hidden"
+              @pointermove="onPointerMove"
+              @pointerup="onPointerUp"
+              @pointerleave="onPointerUp"
+            >
+              <img ref="cropImageRef" :src="rawPreviewUrl || previewUrl" class="max-w-full max-h-full object-contain" />
 
               <div
                 v-if="detectedCorners && showCornerEditor"
-                class="absolute inset-0"
-                :style="{ width: '100%', height: '100%' }"
+                class="absolute"
+                :style="cropOverlayStyle"
               >
                 <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                   <polygon
-                    :points="detectedCorners.map(p => `${(p.x / (capturedPages[capturedPages.length-1]?.width || 1)) * 100},${(p.y / (capturedPages[capturedPages.length-1]?.height || 1)) * 100}`).join(' ')"
+                    :points="detectedCorners.map(p => `${(p.x / Math.max(1, rawCaptureWidth)) * 100},${(p.y / Math.max(1, rawCaptureHeight)) * 100}`).join(' ')"
                     fill="rgba(16, 185, 129, 0.1)"
                     stroke="#10b981"
                     stroke-width="0.5"
@@ -338,21 +412,55 @@ onBeforeUnmount(() => {
                   v-for="(corner, i) in detectedCorners"
                   :key="i"
                   class="absolute w-7 h-7 -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing"
-                  :style="{
-                    left: ((corner.x / (capturedPages[capturedPages.length-1]?.width || 1)) * 100) + '%',
-                    top: ((corner.y / (capturedPages[capturedPages.length-1]?.height || 1)) * 100) + '%',
-                  }"
+                  :style="getCornerStyle(corner)"
                   @pointerdown="(e) => onCornerPointerDown(i, e)"
                 >
                   <div class="w-full h-full rounded-full border-2 border-emerald-400 bg-emerald-500/30 flex items-center justify-center">
-                    <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+                    <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
                   </div>
                 </div>
               </div>
             </div>
 
             <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent pt-16 pb-6 px-6">
-              <div v-if="showCornerEditor && detectedCorners" class="flex justify-center gap-2 mb-3">
+              <div class="flex gap-3">
+                <button
+                  @click="handleRetake"
+                  class="flex-1 px-4 py-3 rounded-xl text-sm font-medium bg-white/20 text-white border border-white/30 backdrop-blur-sm cursor-pointer hover:bg-white/30 transition-colors"
+                >
+                  Retake
+                </button>
+                <button
+                  @click="handleApplyCrop"
+                  class="flex-1 px-4 py-3 rounded-xl text-sm font-semibold text-white cursor-pointer bg-emerald-600 hover:bg-emerald-700 transition-colors"
+                >
+                  Crop & Enhance
+                </button>
+              </div>
+            </div>
+
+            <div class="absolute top-4 right-4 z-10">
+              <button
+                @click="closeOverlay"
+                class="w-9 h-9 rounded-full bg-black/50 text-white flex items-center justify-center border-none cursor-pointer backdrop-blur-sm hover:bg-black/70 transition-colors"
+              >
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div
+            v-if="cropStage === 'preview' && previewUrl && !isScanning && !isProcessing && !isAnimating"
+            class="relative flex-1 bg-gray-900 flex flex-col overflow-hidden"
+          >
+            <div class="flex-1 min-h-0 flex items-center justify-center relative overflow-hidden">
+              <img :src="previewUrl" class="max-w-full max-h-full object-contain" />
+            </div>
+
+            <div class="shrink-0 bg-gradient-to-t from-black/80 to-transparent pt-16 pb-6 px-6">
+              <div class="flex justify-center gap-2 mb-3">
                 <button
                   v-for="f in filters"
                   :key="f"
