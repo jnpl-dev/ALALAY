@@ -295,8 +295,6 @@ class VoucherController extends Controller
             'created_at' => now(),
         ]);
 
-        SendSmsJob::dispatch($application, 'application_under_review');
-
         $this->bustPollCache();
 
         return redirect()

@@ -8,14 +8,15 @@ use Illuminate\Support\Facades\Log;
 
 class SmsService
 {
-    public function send(string $recipient, string $message, ?string $referenceCode = null): SmsNotification
+    public function send(string $recipient, string $message, string $applicationId, string $triggerEvent): SmsNotification
     {
-        $recipient = ltrim($recipient, '+');
+        $recipient = $this->formatPhoneNumber($recipient);
 
         $notification = SmsNotification::create([
-            'recipient' => $recipient,
+            'application_id' => $applicationId,
+            'recipient_phone' => $recipient,
+            'trigger_event' => $triggerEvent,
             'message_body' => $message,
-            'reference_code' => $referenceCode ?? 'N/A',
             'status' => 'pending',
         ]);
 
@@ -42,6 +43,24 @@ class SmsService
         return $notification->fresh();
     }
 
+    protected function formatPhoneNumber(string $phone): string
+    {
+        $phone = ltrim($phone, '+');
+        $phone = preg_replace('/\D/', '', $phone);
+
+        if (strlen($phone) === 10 && str_starts_with($phone, '9')) {
+            $phone = '63' . $phone;
+        } elseif (strlen($phone) === 11 && $phone[0] === '0') {
+            $phone = '63' . substr($phone, 1);
+        } elseif (strlen($phone) === 12 && str_starts_with($phone, '63')) {
+
+        } else {
+            $phone = '63' . ltrim($phone, '0');
+        }
+
+        return $phone;
+    }
+
     protected function sendViaPhilsms(SmsNotification $notification): void
     {
         $token = config('sms.philsms.api_token');
@@ -61,7 +80,7 @@ class SmsService
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
         ])->post($endpoint, [
-            'recipient' => $notification->recipient,
+            'recipient' => $notification->recipient_phone,
             'sender_id' => $senderId,
             'type' => 'plain',
             'message' => $notification->message_body,

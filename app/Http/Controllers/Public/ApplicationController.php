@@ -343,8 +343,6 @@ class ApplicationController extends Controller
             'resubmission_remarks' => null,
         ]);
 
-        SendSmsJob::dispatch($application, 'application_under_review');
-
         return redirect()->route('track.show', $referenceCode)->with('success', 'Your documents have been resubmitted successfully.');
     }
 }

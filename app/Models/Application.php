@@ -40,6 +40,7 @@ class Application extends Model
         'reviewed_by',
         'reviewed_at',
         'claimed_at',
+        'claiming_date',
     ];
 
     protected function casts(): array
@@ -53,6 +54,7 @@ class Application extends Model
             'beneficiary_dob' => 'date',
             'reviewed_at' => 'datetime',
             'claimed_at' => 'datetime',
+            'claiming_date' => 'date',
         ];
     }
 

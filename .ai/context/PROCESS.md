@@ -219,13 +219,13 @@
 
 - [x] `AuditLogger` — `log(action, module, entityType, entityId, description)` creates `audit_logs` row with user, role, IP, user agent
 - [x] `SmsService` — wraps PhilSMS API (`POST /api/v3/sms/send`, Bearer token auth); driver=`log` by default (writes to log + `sms_notifications`), driver=`philsms` when `PHILSMS_API_TOKEN` is set. Config in `config/sms.php`
-- [x] `SendSmsJob` — queued; reads template from `system_settings` (fallback to hardcoded defaults); builds message with `{reference_code}`, `{claimant_name}`, `{track_url}`, `{remarks}` placeholders; calls `SmsService`; retries on failure
+- [x] `SendSmsJob` — queued; reads template from `system_settings` (fallback to hardcoded defaults); builds message with `{reference_code}`, `{claimant_name}`, `{track_url}`, `{remarks}`, `{claiming_date}` placeholders; calls `SmsService`; retries on failure
 - [x] `FileUploadService` — validates file size against `system_settings.max_file_size_kb`; uploads to `{table}/{entityId}/{filename}` on Supabase Storage
 - [x] `SignedUrlService` — generates temporary signed URL via `Storage::disk('supabase')->temporaryUrl()` with configurable expiry (default 15 min)
 - [x] `ReferenceCodeService` — generates `GMN-YYYY-XXXXXX` format (6 random uppercase alphanumeric); checks uniqueness against `applications.reference_code`
 - [x] Configure Supabase Storage disk in `config/filesystems.php` (`driver => s3` with Supabase endpoint)
 - [ ] Test file upload to Supabase and signed URL generation (requires Supabase credentials)
-- [ ] Test SMS job dispatch and queue processing (`php artisan queue:work`)
+- [x] Test SMS job dispatch and queue processing (`php artisan queue:work`) — working with PhilSMS
 
 ---
 
@@ -236,6 +236,8 @@
 ### Caching (File Driver — No Redis)
 
 Redis skipped by decision: at single-municipality scale the `file` cache driver is sufficient. Same `Cache::remember()` API, zero ops cost.
+
+**Cache removed from dashboards & analytics (Jul 2026):** All dashboard/analytics controllers rewritten to use `Inertia::defer()` with zero caching — `Cache::remember` and cache invalidation removed. `bustPollCache()` stripped of dashboard invalidation. Reason: dashboard data must always be live.
 
 - [x] Add `Cache::remember()` to `Public/CategoryController@index` (1 hour TTL)
 - [x] Add `Cache::remember()` to system settings queries (30 min TTL) — `FileUploadService` + `SendSmsJob`
@@ -354,6 +356,7 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 - [x] `Shared/AccountController@edit` — renders `Auth/AccountSettings.vue` with user data
 - [x] `Shared/AccountController@update` — handles profile + password + profile picture update (uploads to Supabase S3 bucket; avatar served via controller proxy returning raw image bytes; PrimeVue Avatar v-if/v-else fix for null→image transition; cache-busting via `updated_at` timestamp)
+- [x] Account Settings page: clickable avatar with View/Change Photo toggle, edit/save/cancel pattern
 
 ### 3.4 Admin Controllers
 
@@ -366,6 +369,22 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `Admin/AssistanceCategoryController` — full CRUD + search/paginate — implemented
 - [x] `Admin/RequiredDocumentController` — full CRUD + search + category filter — implemented
 - [x] `Admin/AssistanceCodeReferenceController` — full CRUD + search/paginate — implemented
+- [x] `Admin/SmsController` — 5 methods: `updates()`, `saveUpdates()`, `claiming()`, `saveClaimingTemplate()`, `triggerClaiming()` — editable SMS templates + mass claiming trigger
+
+### 3.4b All Panels — Dashboard & Analytics (Cache-Free, Deferred)
+
+- [x] **Admin Dashboard** — 3 KPIs, `users_by_role` doughnut, 2 activity tables; no cache
+- [x] **Admin Analytics** — date-filtered, 4 KPIs + 5 charts
+- [x] **AICS Dashboard** — 4 KPIs, 4 charts, recent DataTable
+- [x] **AICS Analytics** — date-filtered, 5 KPIs in flex row, 4 charts
+- [x] **MSWDO Dashboard** — 4 KPIs, 4 charts, recent apps DataTable
+- [x] **MSWDO Analytics** — date-filtered, 4 KPIs, 4 charts
+- [x] **Accountant Dashboard** — 3 KPIs, 3 amount-based charts, recent vouchers DataTable
+- [x] **Accountant Analytics** — date-filtered, 5 KPIs, 3 amount-focused charts
+- [x] **Treasurer Dashboard** — 3 KPIs, 3 charts (multi-line weekly status), recent DataTable
+- [x] **Treasurer Analytics** — date-filtered, 5 KPIs, 4 charts
+- [x] **Mayor's Office Dashboard** — 8 KPIs (2 rows), 5 charts, 8-row recent DataTable
+- [x] **Mayor's Office Analytics** — date-filtered, 8 KPIs (4-per-row grid), 6 charts incl. pipeline bottleneck
 
 ### 3.5 AICS Staff Controllers
 
@@ -549,6 +568,8 @@ All forms must have a dedicated Form Request class with `rules()`, `prepareForVa
 - [x] `Admin/AssistanceCodeReferences/Index.vue`, `Create.vue`, `Edit.vue` — DataTable + search + InputNumber currency + status Tag + CRUD forms
 - [x] `Admin/AuditLogs.vue` — filterable table + CSV export; colored Tag badges for role/module/action; `window.open` download (bypasses Inertia)
 - [x] `Admin/SystemSettings.vue` — grouped settings form with edit/save/cancel toggle pattern; InputSwitch for boolean values
+- [x] `Admin/Sms/Updates.vue` — 4 editable SMS templates (Submission, Under Review, Need for Resubmission, Cheque Ready) with edit/save/cancel pattern; toast on save
+- [x] `Admin/Sms/Claiming.vue` — claiming template editor + date picker + "Send Claiming Notification" button with confirm dialog; toast on save and send
 
 ### 4.6 AICS Staff Panel Pages
 
@@ -774,10 +795,17 @@ All forms must have a dedicated Form Request class with `rules()`, `prepareForVa
 
 ### 5.4 SMS + Queue Testing
 
-- [ ] `php artisan queue:work` running
-- [ ] Submit application → `sms_notifications` row created → status changes to `sent`
-- [ ] All 4 trigger events fire: `submission_complete`, `application_under_review`, `resubmission_needed`, `cheque_claiming`
-- [ ] SMS failure → retry logic → `failed_jobs` table entry
+- [x] `php artisan queue:work` running — processes jobs successfully
+- [x] Submit application → `sms_notifications` row created → status changes to `sent` via PhilSMS
+- [x] All 5 trigger events defined: `submission_complete`, `application_under_review` (AICS only), `resubmission_needed`, `cheque_ready`, `cheque_claiming`
+- [x] Phone formatting: auto-converts `09xxxxxxxxx` → `639xxxxxxxxx` for PhilSMS international format
+- [x] PhilSMS integration: `dashboard.philsms.com/api/v3/sms/send` endpoint, Bearer token auth, `PhilSMS` sender ID
+- [x] SMS templates editable via System Settings (4 update templates + 1 claiming template)
+- [x] `{reference_code}`, `{claimant_name}`, `{track_url}`, `{remarks}`, `{claiming_date}` placeholders working
+- [x] Mass claiming trigger: dispatches `SendSmsJob` for all `cheque_ready` applications
+- [x] Queue worker verified: SMS delivered successfully (cost 2 credits for long message)
+- [x] `application_under_review` restricted to AICS approval only (removed from MSWDO, Accountant, public resubmission)
+- [x] Default driver set to `log` for development (switch to `philsms` in production)
 
 ### 5.5 Audit Log Testing
 
