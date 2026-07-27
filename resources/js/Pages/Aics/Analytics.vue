@@ -1,17 +1,13 @@
 <script setup>
-import { Head, Deferred } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import { Head, Deferred, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
-import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
-import LineChart from '@/Components/Charts/LineChart.vue'
-import DonutChart from '@/Components/Charts/DonutChart.vue'
-import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
+import AppDateRangeFilter from '@/Components/Common/AppDateRangeFilter.vue'
+import { CHART_COLORS, baseChartOptions, categoryColors } from '@/Utils/chartColors'
+import { fillMissingDates } from '@/Utils/chartDates'
+import { formatCurrency } from '@/Utils/formatCurrency'
 import Skeleton from 'primevue/skeleton'
-import { formatDate } from '@/Utils/formatDate'
-import { getStatusLabel } from '@/Utils/statusLabels'
-import { computed } from 'vue'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
@@ -20,129 +16,193 @@ useBreadcrumb([{ label: 'AICS' }, { label: 'Analytics' }])
 
 const props = defineProps({
   analyticsData: { type: Object, default: () => ({}) },
+  filters: { type: Object, default: () => ({ date_from: '', date_to: '' }) },
 })
 
-const severityColors = {
-  info: { bg: '#3B82F6', hover: '#2563EB' },
-  success: { bg: '#22C55E', hover: '#16A34A' },
-  warn: { bg: '#F59E0B', hover: '#D97706' },
-  danger: { bg: '#EF4444', hover: '#DC2626' },
-  contrast: { bg: '#6B7280', hover: '#4B5563' },
+function applyFilter({ date_from, date_to }) {
+  router.get(route('aics.analytics'), { date_from, date_to }, { preserveState: true })
 }
 
-const statusChartData = computed(() => {
-  const raw = props.analyticsData?.applicationsByStatus
-  const hasData = raw && Object.keys(raw).length > 0
-  const labels = hasData ? Object.keys(raw).map(k => getStatusLabel(k).label) : ['Pending', 'Approved', 'Returned', 'On Hold']
-  const values = hasData ? Object.values(raw) : [12, 8, 3, 2]
-  const keys = hasData ? Object.keys(raw) : []
+function clearFilter() {
+  router.get(route('aics.analytics'), {}, { preserveState: true })
+}
 
-  const colors = keys.length
-    ? keys.map(k => {
-        const sev = getStatusLabel(k).severity
-        return severityColors[sev] ?? severityColors.contrast
-      })
-    : [{ bg: '#3B82F6' }, { bg: '#22C55E' }, { bg: '#EF4444' }, { bg: '#F59E0B' }]
-
+const trendData = computed(() => {
+  const raw = props.analyticsData?.trend ?? []
+  const filled = fillMissingDates(raw, props.filters.date_from, props.filters.date_to)
   return {
-    labels,
-    datasets: [
-      {
-        data: values,
-        backgroundColor: colors.map(c => c.bg),
-        hoverBackgroundColor: colors.map(c => c.hover ?? c.bg),
-      },
-    ],
+    labels: filled.map(d => d.date),
+    datasets: [{
+      label: 'Applications',
+      data: filled.map(d => d.count),
+      borderColor: CHART_COLORS.primary,
+      backgroundColor: CHART_COLORS.primaryBg,
+      tension: 0.4,
+      fill: true,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      pointBackgroundColor: CHART_COLORS.primary,
+    }],
   }
 })
 
-const commonChartOptions = {
-  animation: { duration: 1200, easing: 'easeInOutQuart' },
-  transitions: { resize: { animation: { duration: 1200 } } },
-  responsive: true,
-  maintainAspectRatio: false,
-}
-
-const statusChartOptions = computed(() => ({ ...commonChartOptions }))
-
-const monthlyChartData = computed(() => {
-  const raw = props.analyticsData?.monthlyTrends
-  const hasData = raw && Object.keys(raw).length > 0
-  const entries = hasData ? Object.entries(raw) : []
-  const labels = entries.length ? entries.map(([m]) => m) : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
-  const values = entries.length ? entries.map(([, v]) => v) : [5, 8, 12, 7, 14, 10]
-
+const categoryData = computed(() => {
+  const data = props.analyticsData?.category_distribution ?? []
   return {
-    labels,
-    datasets: [
-      {
-        label: 'Applications',
-        data: values,
-        fill: true,
-        borderColor: '#3B82F6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        tension: 0.4,
-      },
-    ],
+    labels: data.map(d => d.category_name),
+    datasets: [{
+      data: data.map(d => d.count),
+      backgroundColor: categoryColors.slice(0, data.length || 1),
+      borderWidth: 2,
+      borderColor: '#FFFFFF',
+    }],
   }
 })
 
-const monthlyChartOptions = computed(() => ({ ...commonChartOptions }))
+const submissionTypeData = computed(() => {
+  const data = props.analyticsData?.submission_type ?? []
+  return {
+    labels: data.map(d => d.submission_type === 'online' ? 'Online' : 'Walk-in'),
+    datasets: [{
+      data: data.map(d => d.count),
+      backgroundColor: data.map(d => d.submission_type === 'online' ? CHART_COLORS.primary : CHART_COLORS.muted),
+      borderWidth: 2,
+      borderColor: '#FFFFFF',
+    }],
+  }
+})
+
+const barangayData = computed(() => {
+  const data = props.analyticsData?.barangay_distribution ?? []
+  return {
+    labels: data.map(d => d.barangay).reverse(),
+    datasets: [{
+      label: 'Applications',
+      data: data.map(d => d.count).reverse(),
+      backgroundColor: CHART_COLORS.primaryLight,
+      borderColor: CHART_COLORS.primaryLight,
+      borderWidth: 1,
+      borderRadius: 4,
+    }],
+  }
+})
+
+const horizontalBarOptions = baseChartOptions({
+  indexAxis: 'y',
+  interaction: {
+    intersect: false,
+    mode: 'y',
+  },
+  plugins: {
+    legend: { display: false },
+  },
+  scales: {
+    x: {
+      beginAtZero: true,
+      grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
+      ticks: { font: { family: 'Lato, sans-serif', size: 11 } },
+    },
+    y: {
+      grid: { display: false },
+      ticks: { font: { family: 'Lato, sans-serif', size: 11 } },
+    },
+  },
+})
+
+const doughnutOptions = baseChartOptions({
+  cutout: '65%',
+  plugins: {
+    legend: {
+      position: 'bottom',
+      labels: {
+        font: { family: 'Lato, sans-serif', size: 12 },
+        padding: 16,
+        usePointStyle: true,
+        pointStyle: 'rectRounded',
+      },
+    },
+  },
+})
 </script>
 
 <template>
   <Head title="AICS Analytics" />
+
+  <div class="card">
+    <div class="flex items-center justify-between mb-6">
+      <div class="font-semibold text-xl">Analytics</div>
+    </div>
+    <AppDateRangeFilter :date-from="filters.date_from" :date-to="filters.date_to" @apply="applyFilter" @clear="clearFilter" />
+  </div>
+
   <Deferred data="analyticsData">
-    <div class="grid grid-cols-12 gap-8">
-      <div class="col-span-12 lg:col-span-3">
-        <AppKpiCard title="Total" :value="analyticsData?.totalApplications ?? 0" icon="pi pi-file" color="info" subtitle="all applications" />
+    <div class="flex flex-wrap gap-8 mt-8">
+      <div class="flex-1 min-w-[180px]">
+        <AppKpiCard title="Total Applications" :value="analyticsData?.total_applications ?? 0" icon="pi pi-file" color="primary" subtitle="in date range" />
       </div>
-      <div class="col-span-12 lg:col-span-3">
-        <AppKpiCard title="Pending" :value="analyticsData?.pendingApplications ?? 0" icon="pi pi-clock" color="warn" subtitle="needs review" />
+      <div class="flex-1 min-w-[180px]">
+        <AppKpiCard title="Average per Day" :value="analyticsData?.average_per_day ?? 0" icon="pi pi-calendar" color="info" subtitle="in date range" />
       </div>
-      <div class="col-span-12 lg:col-span-3">
-        <AppKpiCard title="Forwarded" :value="analyticsData?.forwardedApplications ?? 0" icon="pi pi-send" color="success" subtitle="to MSWDO" />
+      <div class="flex-1 min-w-[180px]">
+        <AppKpiCard title="Total Coded" :value="analyticsData?.total_coded ?? 0" icon="pi pi-qrcode" color="purple" subtitle="assistance codes" />
       </div>
-      <div class="col-span-12 lg:col-span-3">
-        <AppKpiCard title="Returned" :value="analyticsData?.returnedApplications ?? 0" icon="pi pi-undo" color="danger" subtitle="to applicant" />
+      <div class="flex-1 min-w-[180px]">
+        <AppKpiCard title="Total Amount" :value="formatCurrency(analyticsData?.total_amount ?? 0)" icon="pi pi-money-bill" color="success" subtitle="in date range" />
       </div>
+      <div class="flex-1 min-w-[180px]">
+        <AppKpiCard title="Average Amount" :value="formatCurrency(analyticsData?.average_amount ?? 0)" icon="pi pi-calculator" color="warn" subtitle="per assistance code" />
+      </div>
+    </div>
 
-      <div class="col-span-12 xl:col-span-6">
-        <LineChart :data="monthlyChartData" :options="monthlyChartOptions" title="Monthly Trends" />
-      </div>
-
-      <div class="col-span-12 xl:col-span-6">
-        <DonutChart :data="statusChartData" :options="statusChartOptions" title="Applications by Status" />
-      </div>
-
+    <div class="grid grid-cols-12 gap-8 mt-8">
       <div class="col-span-12">
         <div class="card">
-          <div class="font-semibold text-xl mb-4">Recent Applications</div>
-          <DataTable :value="analyticsData?.recentApplications ?? []" striped-rows class="w-full">
-            <Column field="reference_code" header="Code" />
-            <Column field="claimant_name" header="Claimant" />
-            <Column field="category_name" header="Category" />
-            <Column field="status" header="Status">
-              <template #body="{ data }">
-                <AppStatusBadge :status="data.status" />
-              </template>
-            </Column>
-            <Column field="created_at" header="Date">
-              <template #body="{ data }">
-                {{ formatDate(data.created_at) }}
-              </template>
-            </Column>
-            <template #empty>
-              <AppEmptyState icon="pi pi-inbox" message="No recent applications" />
-            </template>
-          </DataTable>
+          <div class="font-semibold text-xl mb-4">Application Trend</div>
+          <Chart v-if="trendData?.labels?.length" type="line" :data="trendData" :options="baseChartOptions()" class="h-72" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-line text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-span-12 md:col-span-6 xl:col-span-4">
+        <div class="card h-full">
+          <div class="font-semibold text-xl mb-4">Category Distribution</div>
+          <Chart v-if="categoryData?.labels?.length" type="doughnut" :data="categoryData" :options="doughnutOptions" class="h-72" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-span-12 md:col-span-6 xl:col-span-4">
+        <div class="card h-full">
+          <div class="font-semibold text-xl mb-4">Online vs Walk-in</div>
+          <Chart v-if="submissionTypeData?.labels?.length" type="doughnut" :data="submissionTypeData" :options="doughnutOptions" class="h-72" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-span-12 xl:col-span-4">
+        <div class="card h-full">
+          <div class="font-semibold text-xl mb-4">Applications by Barangay</div>
+          <Chart v-if="barangayData?.labels?.length" type="bar" :data="barangayData" :options="horizontalBarOptions" class="h-72" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
         </div>
       </div>
     </div>
 
     <template #fallback>
-      <div class="grid grid-cols-12 gap-8">
-        <div v-for="i in 4" :key="i" class="col-span-12 lg:col-span-3">
+      <div class="grid grid-cols-12 gap-8 mt-8">
+        <div v-for="i in 5" :key="i" class="col-span-12 lg:col-span-6 xl:col-span-3">
           <div class="card">
             <div class="flex items-center gap-3">
               <Skeleton shape="circle" size="3rem" />
@@ -153,24 +213,16 @@ const monthlyChartOptions = computed(() => ({ ...commonChartOptions }))
             </div>
           </div>
         </div>
-        <div class="col-span-12 xl:col-span-6">
-          <div class="card">
-            <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <Skeleton width="100%" height="200px" />
-          </div>
-        </div>
-        <div class="col-span-12 xl:col-span-6">
-          <div class="card">
-            <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <Skeleton width="100%" height="200px" />
-          </div>
-        </div>
         <div class="col-span-12">
           <div class="card">
             <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <div class="space-y-3">
-              <Skeleton v-for="i in 4" :key="i" width="100%" height="2rem" />
-            </div>
+            <Skeleton width="100%" height="260px" />
+          </div>
+        </div>
+        <div v-for="i in 3" :key="i" class="col-span-12 md:col-span-6 xl:col-span-4">
+          <div class="card">
+            <Skeleton width="50%" height="1.5rem" class="mb-4" />
+            <Skeleton width="100%" height="260px" />
           </div>
         </div>
       </div>

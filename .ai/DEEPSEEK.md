@@ -370,3 +370,83 @@ Every controller now calls `$this->authorize()`:
 - `INCIDENT_RESPONSE.md` — emergency commands, breach/corruption/SMS procedures, contacts template
 
 ## Phase 2b — ALL COMPLETE ✅
+
+---
+
+## CURRENT SESSION STATE (July 26, 2026)
+
+### Phase 3.10 — Validation & Security (Form Request Classes) — COMPLETE ✅
+
+All 20 Form Request classes now have `rules()`, `prepareForValidation()` (sanitization), and `messages()`:
+
+#### Public Forms
+- `StoreApplicationRequest` — exists, `prepareForValidation()` added
+- `ResubmitDocumentsRequest` — created
+
+#### Auth Forms
+- `LoginRequest` — created, wired to `LoginController@store`; email lowercased/trimmed
+- `OtpChallengeRequest` — created, wired to `OtpChallengeController@verify`; strips non-digits
+- `ForgotPasswordRequest` — created (Fortify handles POST)
+- `ResetPasswordRequest` — created (Fortify handles POST); `Password::min(12)->mixedCase()->numbers()->symbols()->uncompromised()`
+
+#### AICS Staff Forms
+- `ApproveApplicationRequest` (AICS) — created
+- `ReturnApplicationRequest` (AICS) — created
+- `CreateAssistanceCodeRequest` — created
+
+#### MSWDO Forms
+- `ApproveApplicationRequest` (MSWDO) — exists, `prepareForValidation()` added
+- `ReturnApplicationRequest` (MSWDO) — exists, `prepareForValidation()` added
+- `CreateVoucherRequest` (MSWDO) — exists, `prepareForValidation()` added
+
+#### Accountant Forms
+- `ApproveVoucherRequest` — created
+- `ReturnVoucherRequest` — created
+
+#### Treasurer Forms
+- `AcknowledgeVoucherRequest` — created
+- `HoldChequeRequest` — created
+
+#### Admin Forms
+- `StoreUserRequest` — exists, `messages()` + name `regex` added
+- `UpdateUserRequest` — exists, `messages()` + name `regex` added
+- `UpdateSystemSettingRequest` — created; whitelist of 14 allowed keys; unknown keys silently dropped in `prepareForValidation()`
+
+#### Shared Forms
+- `UpdateAccountRequest` — exists, `prepareForValidation()` added
+
+#### Controller-Level State Validation (7 methods)
+- AICS approve/return: `! in_array($status, ['submitted', 'screening'])`
+- MSWDO approve/return: `$status !== 'mswdo_review'`
+- Voucher store: `! in_array($status, ['voucher_creation', 'voucher_returned'])`
+- Accountant approve/return: `$status !== 'voucher_checking'`
+- Treasurer acknowledge/hold: `$status !== 'with_treasurer'`
+
+#### Sort/Filter Parameter Whitelisting
+- Verified: No index controller accepts `sort_by`/`sort_dir` from user input. All `orderBy()` calls use hardcoded column names. Search/filter params (`search`, `tab`, `category`, `from`, `to`) use Eloquent `where()` with parameter binding.
+
+### Phase 4.4 — Breadcrumb Navigation — COMPLETE ✅
+- `useBreadcrumb.js` composable with provide/inject pattern (module-level Symbol key)
+- Breadcrumbs added to all 36 pages across 6 panels (Admin, AICS, MSWDO, Accountant, Treasurer, Mayor's Office)
+- Hierarchy matches sidebar menu exactly
+- `AppLayout.vue`: `v-if="hasBreadcrumb"` ensures Breadcrumb mounts only when items exist (fixes PrimeVue styling loss on empty→populated transition)
+- Items cleared on component change via `watch(() => usePage().component, () => items.value = [])`
+- Aics/Dashboard.vue: `useBreadcrumb(['Home', 'Dashboard'])`
+
+### Phase 5.7 — Test Infrastructure Issues (Documented)
+- AuthTest.php fails on SQLite due to migration using MySQL `MODIFY COLUMN ENUM` syntax. Pre-existing issue — not introduced by our changes.
+- Fix options: (a) platform-agnostic migration with `DB::statement()` conditional, or (b) install `doctrine/dbal`.
+
+### Phase 5.8 — Performance Observations (Documented)
+| Cause | Impact | Details |
+|---|---|---|
+| SignedUrlService → Supabase S3 calls | Major | Every `show()` page calls `temporaryUrl()` once per document = N serial HTTP requests (~200-500ms each). Review with 5 docs = ~1-2.5s Supabase API latency. |
+| Encrypted field casting | Moderate | PII fields decrypted on every read via Laravel's `encrypted` cast. |
+| File cache driver | Low | `Cache::store('file')` + `Cache::forget()` on every mutation adds filesystem I/O. |
+| SMS dispatch | None | `QUEUE_CONNECTION=database` + `ShouldQueue` = async INSERT. |
+
+### Other Session 5 Work
+- Favicon: `alalay-logo.png` set in `app.blade.php`
+- Topbar: SVG replaced with `<img src="/images/logo/alalay-logo.png">` + `font-bold text-emerald-900` brand text
+- `PROCESS.md` updated throughout with all completed items
+- All syntax checks pass; `npm run build` passes

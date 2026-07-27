@@ -8,24 +8,25 @@ import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Skeleton from 'primevue/skeleton'
-import { CHART_COLORS, baseChartOptions, categoryColors } from '@/Utils/chartColors'
+import { CHART_COLORS, baseChartOptions, paletteColors } from '@/Utils/chartColors'
 import { formatDate } from '@/Utils/formatDate'
+import { formatCurrency } from '@/Utils/formatCurrency'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
 
-useBreadcrumb([{ label: 'AICS' }, { label: 'Dashboard' }])
+useBreadcrumb([{ label: 'Accountant' }, { label: 'Dashboard' }])
 
 const props = defineProps({
   dashboardData: { type: Object, default: () => ({}) },
 })
 
 const trendData = computed(() => {
-  const raw = props.dashboardData?.weekly_trend ?? []
+  const raw = props.dashboardData?.weekly_voucher_trend ?? []
   return {
     labels: raw.map(d => d.date),
     datasets: [{
-      label: 'Applications Submitted',
+      label: 'Vouchers',
       data: raw.map(d => d.count),
       borderColor: CHART_COLORS.primary,
       backgroundColor: CHART_COLORS.primaryBg,
@@ -38,39 +39,28 @@ const trendData = computed(() => {
   }
 })
 
-const categoryData = computed(() => {
-  const data = props.dashboardData?.category_distribution ?? []
+const voucherStatusData = computed(() => {
+  const data = props.dashboardData?.voucher_statuses ?? []
+  const labels = { voucher_checking: 'Pending', with_treasurer: 'Approved', returned: 'Returned' }
+  const colors = { voucher_checking: CHART_COLORS.warning, with_treasurer: CHART_COLORS.success, returned: CHART_COLORS.danger }
   return {
-    labels: data.map(d => d.category_name),
+    labels: data.map(d => labels[d.status] || d.status),
     datasets: [{
       data: data.map(d => d.count),
-      backgroundColor: categoryColors.slice(0, data.length || 1),
+      backgroundColor: data.map(d => colors[d.status] || CHART_COLORS.muted),
       borderWidth: 2,
       borderColor: '#FFFFFF',
     }],
   }
 })
 
-const submissionTypeData = computed(() => {
-  const data = props.dashboardData?.submission_type_distribution ?? []
+const categoryAmountData = computed(() => {
+  const data = props.dashboardData?.category_amount ?? []
   return {
-    labels: data.map(d => d.submission_type === 'online' ? 'Online' : 'Walk-in'),
+    labels: data.map(d => d.category_name).reverse(),
     datasets: [{
-      data: data.map(d => d.count),
-      backgroundColor: data.map(d => d.submission_type === 'online' ? CHART_COLORS.primary : CHART_COLORS.muted),
-      borderWidth: 2,
-      borderColor: '#FFFFFF',
-    }],
-  }
-})
-
-const barangayData = computed(() => {
-  const data = props.dashboardData?.barangay_distribution ?? []
-  return {
-    labels: data.map(d => d.barangay).reverse(),
-    datasets: [{
-      label: 'Applications',
-      data: data.map(d => d.count).reverse(),
+      label: 'Total Amount',
+      data: data.map(d => Number(d.total)).reverse(),
       backgroundColor: CHART_COLORS.primaryLight,
       borderColor: CHART_COLORS.primaryLight,
       borderWidth: 1,
@@ -79,24 +69,21 @@ const barangayData = computed(() => {
   }
 })
 
-const horizontalBarOptions = baseChartOptions({
-  indexAxis: 'y',
-  interaction: {
-    intersect: false,
-    mode: 'y',
-  },
+const categoryAmountOptions = baseChartOptions({
   plugins: {
     legend: { display: false },
   },
   scales: {
-    x: {
-      beginAtZero: true,
-      grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
-      ticks: { font: { family: 'Lato, sans-serif', size: 11 } },
-    },
     y: {
+      beginAtZero: true,
+      ticks: {
+        font: { family: 'Lato, sans-serif', size: 11 },
+        callback: (v) => '₱' + Number(v).toLocaleString(),
+      },
+    },
+    x: {
       grid: { display: false },
-      ticks: { font: { family: 'Lato, sans-serif', size: 11 } },
+      ticks: { font: { family: 'Lato, sans-serif', size: 11 }, maxRotation: 45 },
     },
   },
 })
@@ -118,26 +105,23 @@ const doughnutOptions = baseChartOptions({
 </script>
 
 <template>
-  <Head title="AICS Dashboard" />
+  <Head title="Accountant Dashboard" />
 
   <Deferred data="dashboardData">
     <div class="grid grid-cols-12 gap-8">
-      <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Pending Applications" :value="dashboardData?.pending_applications ?? 0" icon="pi pi-clock" color="primary" subtitle="needs AICS action" />
+      <div class="col-span-12 lg:col-span-4">
+        <AppKpiCard title="Pending Vouchers" :value="dashboardData?.pending_vouchers ?? 0" icon="pi pi-receipt" color="warn" subtitle="needs accountant review" />
       </div>
-      <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Screened Today" :value="dashboardData?.screened_today ?? 0" icon="pi pi-check-circle" color="success" subtitle="forwarded to MSWDO" />
+      <div class="col-span-12 lg:col-span-4">
+        <AppKpiCard title="Approved Today" :value="dashboardData?.approved_today ?? 0" icon="pi pi-check-circle" color="success" subtitle="sent to treasurer" />
       </div>
-      <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Pending Assistance Coding" :value="dashboardData?.pending_coding ?? 0" icon="pi pi-qrcode" color="warn" subtitle="needs assistance code" />
-      </div>
-      <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Coded Today" :value="dashboardData?.coded_today ?? 0" icon="pi pi-verified" color="purple" subtitle="vouchers created" />
+      <div class="col-span-12 lg:col-span-4">
+        <AppKpiCard title="Returned Today" :value="dashboardData?.returned_today ?? 0" icon="pi pi-undo" color="danger" subtitle="sent back to MSWDO" />
       </div>
 
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
-          <div class="font-semibold text-xl mb-4">Applications This Week</div>
+          <div class="font-semibold text-xl mb-4">Voucher Trend This Week</div>
           <Chart v-if="trendData?.labels?.length" type="line" :data="trendData" :options="baseChartOptions()" class="h-72" />
           <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
             <i class="pi pi-chart-line text-4xl mb-3 text-muted-color"></i>
@@ -148,8 +132,8 @@ const doughnutOptions = baseChartOptions({
 
       <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card h-full">
-          <div class="font-semibold text-xl mb-4">Categories This Week</div>
-          <Chart v-if="categoryData?.labels?.length" type="doughnut" :data="categoryData" :options="doughnutOptions" class="h-72" />
+          <div class="font-semibold text-xl mb-4">Voucher Status</div>
+          <Chart v-if="voucherStatusData?.labels?.length" type="doughnut" :data="voucherStatusData" :options="doughnutOptions" class="h-72" />
           <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
             <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
             <span>No data available</span>
@@ -159,19 +143,8 @@ const doughnutOptions = baseChartOptions({
 
       <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card h-full">
-          <div class="font-semibold text-xl mb-4">Submission Type This Week</div>
-          <Chart v-if="submissionTypeData?.labels?.length" type="doughnut" :data="submissionTypeData" :options="doughnutOptions" class="h-72" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-span-12 xl:col-span-6">
-        <div class="card">
-          <div class="font-semibold text-xl mb-4">Barangay Distribution This Week</div>
-          <Chart v-if="barangayData?.labels?.length" type="bar" :data="barangayData" :options="horizontalBarOptions" class="h-72" />
+          <div class="font-semibold text-xl mb-4">Amount by Category</div>
+          <Chart v-if="categoryAmountData?.labels?.length" type="bar" :data="categoryAmountData" :options="categoryAmountOptions" class="h-72" />
           <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
             <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
             <span>No data available</span>
@@ -179,28 +152,20 @@ const doughnutOptions = baseChartOptions({
         </div>
       </div>
 
-      <div class="col-span-12 xl:col-span-6">
+      <div class="col-span-12">
         <div class="card">
-          <div class="font-semibold text-xl mb-4">Recent Applications</div>
-          <DataTable :value="dashboardData?.recent_applications ?? []" striped-rows class="w-full">
-            <Column field="reference_code" header="Code">
+          <div class="font-semibold text-xl mb-4">Recent Vouchers</div>
+          <DataTable :value="dashboardData?.recent_vouchers ?? []" striped-rows class="w-full">
+            <Column field="reference_code" header="Reference">
               <template #body="{ data }">
-                <span class="font-mono text-sm font-medium" style="color: #1B4F72">{{ data.reference_code }}</span>
+                <span class="font-mono text-sm font-medium" style="color: var(--p-primary-color)">{{ data.reference_code }}</span>
               </template>
             </Column>
-            <Column field="beneficiary_first_name" header="Beneficiary">
+            <Column field="beneficiary_name" header="Beneficiary" />
+            <Column field="category_name" header="Category" />
+            <Column field="amount" header="Amount">
               <template #body="{ data }">
-                {{ data.beneficiary_first_name }} {{ data.beneficiary_last_name }}
-              </template>
-            </Column>
-            <Column field="category_name" header="Category">
-              <template #body="{ data }">
-                {{ data.category?.category_name || '—' }}
-              </template>
-            </Column>
-            <Column field="submission_type" header="Type">
-              <template #body="{ data }">
-                <span class="capitalize">{{ data.submission_type }}</span>
+                {{ data.amount ? formatCurrency(data.amount) : '—' }}
               </template>
             </Column>
             <Column field="status" header="Status">
@@ -208,13 +173,18 @@ const doughnutOptions = baseChartOptions({
                 <AppStatusBadge :status="data.status" />
               </template>
             </Column>
-            <Column field="created_at" header="Date">
+            <Column field="prepared_at" header="Prepared">
               <template #body="{ data }">
-                {{ formatDate(data.created_at) }}
+                {{ data.prepared_at ? formatDate(data.prepared_at) : '—' }}
+              </template>
+            </Column>
+            <Column field="returned_at" header="Returned">
+              <template #body="{ data }">
+                {{ data.returned_at ? formatDate(data.returned_at) : '—' }}
               </template>
             </Column>
             <template #empty>
-              <AppEmptyState icon="pi pi-inbox" message="No applications yet" />
+              <AppEmptyState icon="pi pi-inbox" message="No vouchers yet" />
             </template>
           </DataTable>
         </div>
@@ -223,7 +193,7 @@ const doughnutOptions = baseChartOptions({
 
     <template #fallback>
       <div class="grid grid-cols-12 gap-8">
-        <div v-for="i in 4" :key="i" class="col-span-12 lg:col-span-6 xl:col-span-3">
+        <div v-for="i in 3" :key="i" class="col-span-12 lg:col-span-4">
           <div class="card">
             <div class="flex items-center gap-3">
               <Skeleton shape="circle" size="3rem" />
@@ -252,18 +222,12 @@ const doughnutOptions = baseChartOptions({
             <Skeleton width="100%" height="260px" />
           </div>
         </div>
-        <div class="col-span-12 xl:col-span-6">
+        <div class="col-span-12">
           <div class="card">
             <Skeleton width="50%" height="1.5rem" class="mb-4" />
             <div class="space-y-3">
               <Skeleton v-for="i in 4" :key="i" width="100%" height="3rem" />
             </div>
-          </div>
-        </div>
-        <div class="col-span-12 xl:col-span-6">
-          <div class="card">
-            <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <Skeleton width="100%" height="260px" />
           </div>
         </div>
       </div>

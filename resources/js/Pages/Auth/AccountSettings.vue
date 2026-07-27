@@ -228,8 +228,19 @@ onUnmounted(() => {
           <Transition appear mode="out-in">
             <form @submit.prevent="handleButtonClick">
             <div class="flex items-center gap-6 mb-2">
-              <Avatar v-if="profilePictureUrl" :key="profilePictureUrl" :image="profilePictureUrl" size="xlarge" shape="circle" class="shrink-0" />
-              <Avatar v-else :key="authUser?.id" :label="authUser?.first_name?.charAt(0)" size="xlarge" shape="circle" class="shrink-0" />
+              <Avatar
+                v-if="profilePictureUrl" :key="profilePictureUrl" :image="profilePictureUrl"
+                size="xlarge" shape="circle"
+                class="shrink-0"
+                :class="{ 'cursor-pointer hover:opacity-80': !previewUrl }"
+                @click="isEditing ? triggerFilePicker() : viewPhoto()"
+              />
+              <Avatar
+                v-else :key="authUser?.id" :label="authUser?.first_name?.charAt(0)"
+                size="xlarge" shape="circle"
+                class="shrink-0 cursor-pointer hover:opacity-80"
+                @click="isEditing ? triggerFilePicker() : undefined"
+              />
               <div>
                 <Button
                   v-if="!isEditing && authUser?.profile_picture_url"

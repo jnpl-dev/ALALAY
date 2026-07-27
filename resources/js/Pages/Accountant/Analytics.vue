@@ -1,15 +1,13 @@
 <script setup>
-import { Head, Deferred } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import { Head, Deferred, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
-import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
-import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import Chart from 'primevue/chart'
-import Skeleton from 'primevue/skeleton'
-import { computed, toRaw } from 'vue'
+import AppDateRangeFilter from '@/Components/Common/AppDateRangeFilter.vue'
+import { CHART_COLORS, baseChartOptions, paletteColors } from '@/Utils/chartColors'
+import { fillMissingDates } from '@/Utils/chartDates'
 import { formatCurrency } from '@/Utils/formatCurrency'
+import Skeleton from 'primevue/skeleton'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
@@ -18,90 +16,167 @@ useBreadcrumb([{ label: 'Accountant' }, { label: 'Analytics' }])
 
 const props = defineProps({
   analyticsData: { type: Object, default: () => ({}) },
+  filters: { type: Object, default: () => ({ date_from: '', date_to: '' }) },
 })
 
-const chartData = computed(() => {
-  const trends = props.analyticsData?.monthlyTrends ?? []
-  if (!trends.length) return null
+function applyFilter({ date_from, date_to }) {
+  router.get(route('accountant.analytics'), { date_from, date_to }, { preserveState: true })
+}
+
+function clearFilter() {
+  router.get(route('accountant.analytics'), {}, { preserveState: true })
+}
+
+const trendData = computed(() => {
+  const raw = props.analyticsData?.voucher_trend ?? []
+  const filled = fillMissingDates(raw, props.filters.date_from, props.filters.date_to)
   return {
-    labels: trends.map(t => t.month),
-    datasets: [
-      {
-        label: 'Applications',
-        backgroundColor: '#42A5F5',
-        borderRadius: 4,
-        data: trends.map(t => t.count),
-      },
-    ],
+    labels: filled.map(d => d.date),
+    datasets: [{
+      label: 'Vouchers',
+      data: filled.map(d => d.count),
+      borderColor: CHART_COLORS.primary,
+      backgroundColor: CHART_COLORS.primaryBg,
+      tension: 0.4,
+      fill: true,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      pointBackgroundColor: CHART_COLORS.primary,
+    }],
   }
 })
 
-const chartOptions = computed(() => ({
-  responsive: true,
-  maintainAspectRatio: false,
+const amountTrendData = computed(() => {
+  const raw = props.analyticsData?.amount_trend ?? []
+  const filled = fillMissingDates(raw, props.filters.date_from, props.filters.date_to)
+  return {
+    labels: filled.map(d => d.date),
+    datasets: [{
+      label: 'Approved Amount',
+      data: filled.map(d => Number(d.total) || 0),
+      backgroundColor: CHART_COLORS.success,
+      borderRadius: 4,
+    }],
+  }
+})
+
+const amountTrendOptions = baseChartOptions({
   plugins: {
     legend: { display: false },
   },
   scales: {
     y: {
       beginAtZero: true,
-      ticks: { stepSize: 1 },
+      ticks: {
+        font: { family: 'Lato, sans-serif', size: 11 },
+        callback: (v) => '₱' + Number(v).toLocaleString(),
+      },
     },
   },
-}))
+})
+
+const categoryAmountData = computed(() => {
+  const data = props.analyticsData?.category_amount ?? []
+  return {
+    labels: data.map(d => d.category_name).reverse(),
+    datasets: [{
+      label: 'Total Amount',
+      data: data.map(d => Number(d.total)).reverse(),
+      backgroundColor: CHART_COLORS.primaryLight,
+      borderColor: CHART_COLORS.primaryLight,
+      borderWidth: 1,
+      borderRadius: 4,
+    }],
+  }
+})
+
+const categoryAmountOptions = baseChartOptions({
+  plugins: {
+    legend: { display: false },
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+      ticks: {
+        font: { family: 'Lato, sans-serif', size: 11 },
+        callback: (v) => '₱' + Number(v).toLocaleString(),
+      },
+    },
+    x: {
+      grid: { display: false },
+      ticks: { font: { family: 'Lato, sans-serif', size: 11 }, maxRotation: 45 },
+    },
+  },
+})
 </script>
 
 <template>
   <Head title="Accountant Analytics" />
-  <Deferred data="analyticsData">
-    <div class="grid grid-cols-12 gap-8">
-      <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Vouchers" :value="analyticsData?.vouchersForReview ?? 0" icon="pi pi-receipt" color="info"
-          :subtitle="(analyticsData?.approvedThisMonth ?? 0) + ' approved this month'" />
-      </div>
-      <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Approved" :value="analyticsData?.approvedThisMonth ?? 0" icon="pi pi-check-circle" color="success" subtitle="this month" />
-      </div>
-      <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Budget" :value="formatCurrency(analyticsData?.totalAmount ?? 0)" icon="pi pi-wallet" color="info" subtitle="allocated funds" />
-      </div>
-      <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Disbursed" :value="formatCurrency(analyticsData?.disbursedThisMonth ?? 0)" icon="pi pi-money-bill" color="warn" subtitle="total disbursed" />
-      </div>
 
-      <div class="col-span-12 xl:col-span-6 transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]">
+  <div class="card">
+    <div class="flex items-center justify-between mb-6">
+      <div class="font-semibold text-xl">Analytics</div>
+    </div>
+    <AppDateRangeFilter :date-from="filters.date_from" :date-to="filters.date_to" @apply="applyFilter" @clear="clearFilter" />
+  </div>
+
+  <Deferred data="analyticsData">
+    <div class="flex flex-wrap gap-8 mt-8">
+      <div class="flex-1 min-w-[180px]">
+        <AppKpiCard title="Total Vouchers" :value="analyticsData?.total_vouchers ?? 0" icon="pi pi-receipt" color="primary" subtitle="in date range" />
+      </div>
+      <div class="flex-1 min-w-[180px]">
+        <AppKpiCard title="Approved" :value="analyticsData?.total_approved ?? 0" icon="pi pi-check-circle" color="success" subtitle="ready for treasurer" />
+      </div>
+      <div class="flex-1 min-w-[180px]">
+        <AppKpiCard title="Returned" :value="analyticsData?.total_returned ?? 0" icon="pi pi-undo" color="danger" subtitle="sent back to MSWDO" />
+      </div>
+      <div class="flex-1 min-w-[180px]">
+        <AppKpiCard title="Total Amount" :value="formatCurrency(analyticsData?.total_amount_approved ?? 0)" icon="pi pi-money-bill" color="success" subtitle="approved vouchers" />
+      </div>
+      <div class="flex-1 min-w-[180px]">
+        <AppKpiCard title="Average Amount" :value="formatCurrency(analyticsData?.average_amount ?? 0)" icon="pi pi-calculator" color="info" subtitle="per approved voucher" />
+      </div>
+    </div>
+
+    <div class="grid grid-cols-12 gap-8 mt-8">
+      <div class="col-span-12 xl:col-span-6">
         <div class="card">
-          <div class="font-semibold text-xl mb-4">Budget Overview</div>
-          <Chart v-if="chartData" type="bar" :data="chartData" :options="chartOptions" class="h-64" />
-          <AppEmptyState v-else icon="pi pi-chart-bar" message="Analytics data will appear here" />
+          <div class="font-semibold text-xl mb-4">Voucher Volume</div>
+          <Chart v-if="trendData?.labels?.length" type="line" :data="trendData" :options="baseChartOptions()" class="h-72" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-line text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
         </div>
       </div>
 
-      <div class="col-span-12 xl:col-span-6 transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]">
+      <div class="col-span-12 xl:col-span-6">
         <div class="card">
-          <div class="font-semibold text-xl mb-4">Recent Transactions</div>
-          <DataTable v-if="(analyticsData?.recentTransactions ?? []).length" :value="toRaw(analyticsData.recentTransactions)" striped-rows class="w-full">
-            <Column field="reference_code" header="Reference" sortable />
-            <Column field="claimant_name" header="Claimant" sortable />
-            <Column field="status" header="Status" sortable>
-              <template #body="{ data }">
-                <AppStatusBadge :status="data.status" />
-              </template>
-            </Column>
-            <Column field="amount" header="Amount" sortable>
-              <template #body="{ data }">
-                {{ data.amount ? formatCurrency(data.amount) : '—' }}
-              </template>
-            </Column>
-          </DataTable>
-          <AppEmptyState v-else icon="pi pi-inbox" message="No recent transactions" />
+          <div class="font-semibold text-xl mb-4">Approved Amount Over Time</div>
+          <Chart v-if="amountTrendData?.labels?.length" type="bar" :data="amountTrendData" :options="amountTrendOptions" class="h-72" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-span-12">
+        <div class="card">
+          <div class="font-semibold text-xl mb-4">Approved Amount by Category</div>
+          <Chart v-if="categoryAmountData?.labels?.length" type="bar" :data="categoryAmountData" :options="categoryAmountOptions" class="h-72" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
         </div>
       </div>
     </div>
 
     <template #fallback>
-      <div class="grid grid-cols-12 gap-8">
-        <div v-for="i in 4" :key="i" class="col-span-12 lg:col-span-6 xl:col-span-3">
+      <div class="grid grid-cols-12 gap-8 mt-8">
+        <div v-for="i in 5" :key="i" class="col-span-12 lg:col-span-6 xl:col-span-2">
           <div class="card">
             <div class="flex items-center gap-3">
               <Skeleton shape="circle" size="3rem" />
@@ -115,15 +190,19 @@ const chartOptions = computed(() => ({
         <div class="col-span-12 xl:col-span-6">
           <div class="card">
             <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <Skeleton width="100%" height="16rem" class="mb-4" />
+            <Skeleton width="100%" height="260px" />
           </div>
         </div>
         <div class="col-span-12 xl:col-span-6">
           <div class="card">
             <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <div class="space-y-3">
-              <Skeleton v-for="i in 3" :key="i" width="100%" height="2rem" />
-            </div>
+            <Skeleton width="100%" height="260px" />
+          </div>
+        </div>
+        <div class="col-span-12 xl:col-span-6">
+          <div class="card">
+            <Skeleton width="50%" height="1.5rem" class="mb-4" />
+            <Skeleton width="100%" height="260px" />
           </div>
         </div>
       </div>

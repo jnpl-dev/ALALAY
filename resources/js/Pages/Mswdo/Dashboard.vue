@@ -14,7 +14,7 @@ import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
 
-useBreadcrumb([{ label: 'AICS' }, { label: 'Dashboard' }])
+useBreadcrumb([{ label: 'MSWDO' }, { label: 'Dashboard' }])
 
 const props = defineProps({
   dashboardData: { type: Object, default: () => ({}) },
@@ -25,7 +25,7 @@ const trendData = computed(() => {
   return {
     labels: raw.map(d => d.date),
     datasets: [{
-      label: 'Applications Submitted',
+      label: 'Applications',
       data: raw.map(d => d.count),
       borderColor: CHART_COLORS.primary,
       backgroundColor: CHART_COLORS.primaryBg,
@@ -118,21 +118,21 @@ const doughnutOptions = baseChartOptions({
 </script>
 
 <template>
-  <Head title="AICS Dashboard" />
+  <Head title="MSWDO Dashboard" />
 
   <Deferred data="dashboardData">
     <div class="grid grid-cols-12 gap-8">
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Pending Applications" :value="dashboardData?.pending_applications ?? 0" icon="pi pi-clock" color="primary" subtitle="needs AICS action" />
+        <AppKpiCard title="Pending Applications" :value="dashboardData?.pending_applications ?? 0" icon="pi pi-clock" color="primary" subtitle="needs MSWDO review" />
       </div>
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Screened Today" :value="dashboardData?.screened_today ?? 0" icon="pi pi-check-circle" color="success" subtitle="forwarded to MSWDO" />
+        <AppKpiCard title="Approved Today" :value="dashboardData?.approved_today ?? 0" icon="pi pi-check-circle" color="success" subtitle="social case study uploaded" />
       </div>
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Pending Assistance Coding" :value="dashboardData?.pending_coding ?? 0" icon="pi pi-qrcode" color="warn" subtitle="needs assistance code" />
+        <AppKpiCard title="Pending Voucher" :value="dashboardData?.pending_voucher_creation ?? 0" icon="pi pi-receipt" color="warn" subtitle="needs voucher creation" />
       </div>
       <div class="col-span-12 lg:col-span-6 xl:col-span-3">
-        <AppKpiCard title="Coded Today" :value="dashboardData?.coded_today ?? 0" icon="pi pi-verified" color="purple" subtitle="vouchers created" />
+        <AppKpiCard title="Vouchers Today" :value="dashboardData?.vouchers_created_today ?? 0" icon="pi pi-verified" color="purple" subtitle="sent to checking" />
       </div>
 
       <div class="col-span-12 xl:col-span-6">
@@ -159,7 +159,7 @@ const doughnutOptions = baseChartOptions({
 
       <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card h-full">
-          <div class="font-semibold text-xl mb-4">Submission Type This Week</div>
+          <div class="font-semibold text-xl mb-4">Submission Type</div>
           <Chart v-if="submissionTypeData?.labels?.length" type="doughnut" :data="submissionTypeData" :options="doughnutOptions" class="h-72" />
           <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
             <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
@@ -185,7 +185,7 @@ const doughnutOptions = baseChartOptions({
           <DataTable :value="dashboardData?.recent_applications ?? []" striped-rows class="w-full">
             <Column field="reference_code" header="Code">
               <template #body="{ data }">
-                <span class="font-mono text-sm font-medium" style="color: #1B4F72">{{ data.reference_code }}</span>
+                <span class="font-mono text-sm font-medium" style="color: var(--p-primary-color)">{{ data.reference_code }}</span>
               </template>
             </Column>
             <Column field="beneficiary_first_name" header="Beneficiary">
@@ -208,9 +208,9 @@ const doughnutOptions = baseChartOptions({
                 <AppStatusBadge :status="data.status" />
               </template>
             </Column>
-            <Column field="created_at" header="Date">
+            <Column field="updated_at" header="Updated">
               <template #body="{ data }">
-                {{ formatDate(data.created_at) }}
+                {{ formatDate(data.updated_at) }}
               </template>
             </Column>
             <template #empty>
@@ -255,15 +255,15 @@ const doughnutOptions = baseChartOptions({
         <div class="col-span-12 xl:col-span-6">
           <div class="card">
             <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <div class="space-y-3">
-              <Skeleton v-for="i in 4" :key="i" width="100%" height="3rem" />
-            </div>
+            <Skeleton width="100%" height="260px" />
           </div>
         </div>
         <div class="col-span-12 xl:col-span-6">
           <div class="card">
             <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <Skeleton width="100%" height="260px" />
+            <div class="space-y-3">
+              <Skeleton v-for="i in 4" :key="i" width="100%" height="3rem" />
+            </div>
           </div>
         </div>
       </div>
