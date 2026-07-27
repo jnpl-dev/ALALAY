@@ -43,10 +43,12 @@ const {
 
 const scanFileInputRef = ref(null)
 const showOverlay = ref(false)
-const cornerDragIndex = ref(-1)
 const cropImageRef = ref(null)
 const cropContainerRef = ref(null)
 const imgRect = reactive({ left: 0, top: 0, width: 0, height: 0 })
+
+let activeHandleIndex = -1
+let cachedRect = null
 
 const isConfirmed = computed(() => !!props.modelValue || scannerConfirmed.value)
 
@@ -125,21 +127,33 @@ function closeOverlay() {
 
 function onCornerPointerDown(index, e) {
   e.preventDefault()
-  cornerDragIndex.value = index
+  e.target.setPointerCapture(e.pointerId)
+  activeHandleIndex = index
+  const img = cropImageRef.value
+  if (img) cachedRect = img.getBoundingClientRect()
+  document.documentElement.style.overflow = 'hidden'
+  document.body.style.overflow = 'hidden'
+  document.body.style.position = 'fixed'
+  document.body.style.width = '100%'
 }
 
 function onPointerMove(e) {
-  if (cornerDragIndex.value < 0 || !detectedCorners.value) return
-  const img = cropImageRef.value
-  if (!img) return
-  const rect = img.getBoundingClientRect()
-  const x = ((e.clientX - rect.left) / rect.width) * rawCaptureWidth.value
-  const y = ((e.clientY - rect.top) / rect.height) * rawCaptureHeight.value
-  updateCorner(cornerDragIndex.value, Math.round(x), Math.round(y))
+  if (activeHandleIndex < 0 || !detectedCorners.value || !cachedRect) return
+  const x = ((e.clientX - cachedRect.left) / cachedRect.width) * rawCaptureWidth.value
+  const y = ((e.clientY - cachedRect.top) / cachedRect.height) * rawCaptureHeight.value
+  updateCorner(activeHandleIndex, Math.round(x), Math.round(y))
 }
 
-function onPointerUp() {
-  cornerDragIndex.value = -1
+function onPointerUp(e) {
+  if (activeHandleIndex >= 0) {
+    e.target.releasePointerCapture(e.pointerId)
+    document.documentElement.style.overflow = ''
+    document.body.style.overflow = ''
+    document.body.style.position = ''
+    document.body.style.width = ''
+  }
+  activeHandleIndex = -1
+  cachedRect = null
 }
 
 const cropOverlayStyle = computed(() => ({
@@ -189,14 +203,25 @@ watch(() => cropStage.value === 'cropping' && previewUrl.value, (isCropping) => 
   }
 })
 
+function forceBlockNativeScroll(e) {
+  if (activeHandleIndex >= 0) {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+}
+
 onMounted(() => {
   if (cropStage.value === 'cropping' && previewUrl.value) {
     nextTick(setupResizeObserver)
   }
+  window.addEventListener('touchmove', forceBlockNativeScroll, { passive: false })
+  window.addEventListener('touchstart', forceBlockNativeScroll, { passive: false })
 })
 
 onBeforeUnmount(() => {
   if (resizeObserver) resizeObserver.disconnect()
+  window.removeEventListener('touchmove', forceBlockNativeScroll)
+  window.removeEventListener('touchstart', forceBlockNativeScroll)
 })
 </script>
 
@@ -313,7 +338,7 @@ onBeforeUnmount(() => {
           >
             <div
               ref="cropContainerRef"
-              class="flex-1 min-h-0 flex items-center justify-center relative overflow-hidden"
+              class="flex-1 min-h-0 flex items-center justify-center relative overflow-hidden crop-container"
               @pointermove="onPointerMove"
               @pointerup="onPointerUp"
               @pointerleave="onPointerUp"
@@ -334,13 +359,15 @@ onBeforeUnmount(() => {
                     stroke-dasharray="2,2"
                   />
                 </svg>
-                <div
-                  v-for="(corner, i) in detectedCorners"
-                  :key="i"
-                  class="absolute p-3 md:p-0 -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing touch-manipulation flex items-center justify-center"
-                  :style="getCornerStyle(corner)"
-                  @pointerdown="(e) => onCornerPointerDown(i, e)"
-                >
+              <div
+                v-for="(corner, i) in detectedCorners"
+                :key="i"
+                class="absolute p-3 md:p-0 -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing flex items-center justify-center crop-handle"
+                :style="getCornerStyle(corner)"
+                @pointerdown="(e) => onCornerPointerDown(i, e)"
+                @pointermove="onPointerMove"
+                @pointerup="onPointerUp"
+              >
                   <div class="w-full h-full rounded-full border-2 border-emerald-400 bg-emerald-500/30 flex items-center justify-center">
                     <div class="w-3 h-3 md:w-2 md:h-2 rounded-full bg-emerald-500"></div>
                   </div>
@@ -482,6 +509,15 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.crop-container {
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+.crop-handle {
+  touch-action: none !important;
+}
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.2s ease-out;
