@@ -293,7 +293,7 @@ class ChequeController extends Controller
             'created_at' => now(),
         ]);
 
-        SendSmsJob::dispatch($application, 'cheque_claiming');
+        SendSmsJob::dispatch($application, 'cheque_ready');
 
         $this->bustPollCache();
 
@@ -359,7 +359,7 @@ class ChequeController extends Controller
             'created_at' => now(),
         ]);
 
-        SendSmsJob::dispatch($application, 'cheque_claiming');
+        SendSmsJob::dispatch($application, 'cheque_ready');
 
         $this->bustPollCache();
 

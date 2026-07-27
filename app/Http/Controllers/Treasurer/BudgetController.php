@@ -167,7 +167,7 @@ class BudgetController extends Controller
             'created_at' => now(),
         ]);
 
-        SendSmsJob::dispatch($application, 'cheque_claiming');
+        SendSmsJob::dispatch($application, 'cheque_ready');
 
         return redirect()
             ->route('treasurer.budget.index')
@@ -225,7 +225,7 @@ class BudgetController extends Controller
             'created_at' => now(),
         ]);
 
-        SendSmsJob::dispatch($application, 'cheque_claiming');
+        SendSmsJob::dispatch($application, 'cheque_ready');
 
         return redirect()
             ->route('treasurer.budget.index')

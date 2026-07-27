@@ -34,6 +34,15 @@ const model = computed(() => {
           { label: 'Code References', icon: 'pi pi-fw pi-qrcode', to: route('admin.assistance-code-references.index') },
         ],
       },
+      {
+        label: 'SMS Notification',
+        icon: 'pi pi-fw pi-envelope',
+        path: '/sms',
+        items: [
+          { label: 'Updates', icon: 'pi pi-fw pi-sync', to: route('admin.sms.updates') },
+          { label: 'Claiming', icon: 'pi pi-fw pi-calendar', to: route('admin.sms.claiming') },
+        ],
+      },
     ],
     aics_staff: [
       { label: 'Analytics', icon: 'pi pi-fw pi-chart-bar', to: route('aics.analytics') },
