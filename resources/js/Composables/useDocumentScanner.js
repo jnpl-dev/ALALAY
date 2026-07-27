@@ -28,35 +28,7 @@ export function useDocumentScanner(captureType = 'single') {
   const rawCaptureHeight = ref(0)
   const rawCroppedDataUrl = ref(null)
 
-  let stream = null
-  let videoElement = null
   let rawCaptureCanvas = null
-
-  function setVideoElement(el) {
-    videoElement = el
-  }
-
-  async function startCamera(facingMode = 'environment') {
-    cameraError.value = null
-    isScanning.value = true
-    isConfirmed.value = false
-    cropStage.value = 'capturing'
-
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: false,
-      })
-      if (videoElement) {
-        videoElement.srcObject = stream
-        await videoElement.play()
-      }
-    } catch (err) {
-      isScanning.value = false
-      cameraError.value = err.message || 'Camera access denied or unavailable'
-      stream = null
-    }
-  }
 
   function downscale(sourceCanvas, maxWidth = 1200) {
     const scale = Math.min(1, maxWidth / sourceCanvas.width)
@@ -71,25 +43,25 @@ export function useDocumentScanner(captureType = 'single') {
     return canvas.toDataURL('image/jpeg', 0.88)
   }
 
-  async function capture() {
-    if (!videoElement || !stream) return
-    isProcessing.value = true
+  async function captureWithFile(file) {
+    if (!file) return
+    isAnimating.value = true
     previewUrl.value = null
     rawPreviewUrl.value = null
+    cameraError.value = null
 
-    const srcCanvas = document.createElement('canvas')
-    srcCanvas.width = videoElement.videoWidth
-    srcCanvas.height = videoElement.videoHeight
-    srcCanvas.getContext('2d').drawImage(videoElement, 0, 0)
+    const img = await createImageBitmap(file)
 
-    stopCamera()
+    const fullResCanvas = document.createElement('canvas')
+    fullResCanvas.width = img.width
+    fullResCanvas.height = img.height
+    fullResCanvas.getContext('2d').drawImage(img, 0, 0)
+    img.close()
 
-    isAnimating.value = true
+    await new Promise((resolve) => setTimeout(resolve, 800))
 
-    await new Promise((resolve) => setTimeout(resolve, 1200))
-
-    const down = downscale(srcCanvas)
-    rawCaptureCanvas = down
+    const down = downscale(fullResCanvas)
+    rawCaptureCanvas = fullResCanvas
 
     const { edges, width, height } = cannyEdgeDetection(
       down.getContext('2d').getImageData(0, 0, down.width, down.height)
@@ -97,28 +69,33 @@ export function useDocumentScanner(captureType = 'single') {
 
     const corners = findDocumentCorners(edges, width, height)
 
+    const scaleX = fullResCanvas.width / down.width
+    const scaleY = fullResCanvas.height / down.height
+
     if (corners) {
-      detectedCorners.value = corners
+      detectedCorners.value = corners.map(c => ({
+        x: Math.round(c.x * scaleX),
+        y: Math.round(c.y * scaleY),
+      }))
       showCornerEditor.value = true
     } else {
-      const marginX = Math.round(width * 0.1)
-      const marginY = Math.round(height * 0.1)
+      const marginX = Math.round(fullResCanvas.width * 0.1)
+      const marginY = Math.round(fullResCanvas.height * 0.1)
       detectedCorners.value = [
         { x: marginX, y: marginY },
-        { x: width - marginX, y: marginY },
-        { x: width - marginX, y: height - marginY },
-        { x: marginX, y: height - marginY },
+        { x: fullResCanvas.width - marginX, y: marginY },
+        { x: fullResCanvas.width - marginX, y: fullResCanvas.height - marginY },
+        { x: marginX, y: fullResCanvas.height - marginY },
       ]
       showCornerEditor.value = true
     }
 
     rawPreviewUrl.value = canvasToDataUrl(down)
     previewUrl.value = canvasToDataUrl(down)
-    rawCaptureWidth.value = down.width
-    rawCaptureHeight.value = down.height
+    rawCaptureWidth.value = fullResCanvas.width
+    rawCaptureHeight.value = fullResCanvas.height
     cropStage.value = 'cropping'
 
-    isProcessing.value = false
     isAnimating.value = false
   }
 
@@ -238,7 +215,6 @@ export function useDocumentScanner(captureType = 'single') {
     showCornerEditor.value = false
     cropStage.value = 'capturing'
     rawCaptureCanvas = null
-    startCamera()
   }
 
   function addPage() {
@@ -249,7 +225,6 @@ export function useDocumentScanner(captureType = 'single') {
     showCornerEditor.value = false
     cropStage.value = 'capturing'
     rawCaptureCanvas = null
-    startCamera()
   }
 
   function confirmPages() {
@@ -362,18 +337,10 @@ export function useDocumentScanner(captureType = 'single') {
   }
 
   function stopCamera() {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop())
-      stream = null
-    }
-    if (videoElement) {
-      videoElement.srcObject = null
-    }
     isScanning.value = false
   }
 
   function reset() {
-    stopCamera()
     previewUrl.value = null
     rawPreviewUrl.value = null
     capturedPages.value = []
@@ -410,15 +377,12 @@ export function useDocumentScanner(captureType = 'single') {
     rawCaptureWidth,
     rawCaptureHeight,
     rawCroppedDataUrl,
-    setVideoElement,
-    startCamera,
-    capture,
+    captureWithFile,
     applyCrop,
     retakeLast,
     addPage,
     confirmPages,
     generatePdfBlob,
-    stopCamera,
     reset,
     updateCorner,
     recropWithCurrentCorners,

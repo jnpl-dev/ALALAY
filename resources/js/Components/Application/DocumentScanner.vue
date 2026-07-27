@@ -30,36 +30,23 @@ const {
   cropStage,
   rawCaptureWidth,
   rawCaptureHeight,
-  setVideoElement,
-  startCamera,
-  capture: scannerCapture,
+  captureWithFile,
   applyCrop,
   retakeLast,
   addPage,
   confirmPages,
   generatePdfBlob,
-  stopCamera,
   reset,
   updateCorner,
-  recropWithCurrentCorners,
   changeFilter,
 } = useDocumentScanner(props.captureType)
 
-const videoRef = ref(null)
-const fileInputRef = ref(null)
-const showFallback = ref(false)
+const scanFileInputRef = ref(null)
 const showOverlay = ref(false)
 const cornerDragIndex = ref(-1)
-const scanLineRef = ref(null)
 const cropImageRef = ref(null)
 const cropContainerRef = ref(null)
 const imgRect = reactive({ left: 0, top: 0, width: 0, height: 0 })
-
-setVideoElement(videoRef.value)
-
-watch(videoRef, (el) => {
-  if (el) setVideoElement(el)
-})
 
 const isConfirmed = computed(() => !!props.modelValue || scannerConfirmed.value)
 
@@ -75,15 +62,16 @@ const stateLabel = computed(() => {
   return ''
 })
 
-async function startCapture() {
-  showFallback.value = false
+function startCapture() {
   showOverlay.value = true
-  await nextTick()
-  await startCamera('environment')
+  nextTick(() => scanFileInputRef.value?.click())
 }
 
-function handleCapture() {
-  scannerCapture()
+function handleFileCapture(e) {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file) return
+  captureWithFile(file)
 }
 
 function handleUseCapture() {
@@ -123,47 +111,6 @@ function handleRecapture() {
   showOverlay.value = false
 }
 
-function handleFallbackFile(e) {
-  const file = e.target.files?.[0]
-  if (!file) return
-
-  const img = new Image()
-  img.onload = () => {
-    const canvas = document.createElement('canvas')
-    const MAX_WIDTH = 1200
-    let targetWidth = img.width
-    let targetHeight = img.height
-    if (img.width > MAX_WIDTH) {
-      targetWidth = MAX_WIDTH
-      targetHeight = Math.round((img.height / img.width) * MAX_WIDTH)
-    }
-    canvas.width = targetWidth
-    canvas.height = targetHeight
-    canvas.getContext('2d').drawImage(img, 0, 0, targetWidth, targetHeight)
-
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.88)
-    capturedPages.value.push({
-      data: dataUrl,
-      width: targetWidth,
-      height: targetHeight,
-    })
-
-    confirmPages()
-    const blob = generatePdfBlob()
-    const pdfFile = new File([blob], `${props.docName}.pdf`, { type: 'application/pdf' })
-    emit('update:modelValue', pdfFile)
-    emit('captured', {
-      file: pdfFile,
-      preview: capturedPages.value[0]?.data || null,
-      pageCount: capturedPages.value.length,
-      pages: capturedPages.value.map(p => ({ ...p })),
-    })
-    showOverlay.value = false
-  }
-  img.src = URL.createObjectURL(file)
-  e.target.value = ''
-}
-
 function handleClear() {
   emit('update:modelValue', null)
   emit('cleared')
@@ -172,7 +119,6 @@ function handleClear() {
 }
 
 function closeOverlay() {
-  stopCamera()
   reset()
   showOverlay.value = false
 }
@@ -251,7 +197,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (resizeObserver) resizeObserver.disconnect()
-  stopCamera()
 })
 </script>
 
@@ -292,16 +237,6 @@ onBeforeUnmount(() => {
         <button @click="startCapture" class="px-5 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition-colors cursor-pointer">
           Scan Document
         </button>
-        <p v-if="cameraError" class="text-xs text-red-500 text-center max-w-xs">{{ cameraError }}</p>
-        <div class="flex items-center gap-3 w-full">
-          <hr class="flex-1 border-gray-200">
-          <span class="text-xs text-gray-400">or</span>
-          <hr class="flex-1 border-gray-200">
-        </div>
-        <button @click="fileInputRef?.click()" class="text-sm font-medium text-emerald-600 hover:text-emerald-800 transition-colors cursor-pointer">
-          Upload image instead
-        </button>
-        <input ref="fileInputRef" type="file" accept="image/*" class="hidden" @change="handleFallbackFile" />
         <span class="text-xs text-gray-400">Accepts images (converted to PDF)</span>
       </div>
     </div>
@@ -309,7 +244,7 @@ onBeforeUnmount(() => {
     <Teleport to="body">
       <Transition name="fade">
         <div
-          v-if="showOverlay && (isScanning || isProcessing || isAnimating || previewUrl || (captureType === 'multi' && capturedPages.length > 0 && !isConfirmed))"
+          v-if="showOverlay"
           class="fixed inset-0 z-[9999] bg-black flex flex-col"
         >
 
@@ -318,15 +253,11 @@ onBeforeUnmount(() => {
             class="relative flex-1 bg-black flex items-center justify-center overflow-hidden"
           >
             <div class="text-white text-center">
-              <div class="relative w-64 h-80 mx-auto border-2 border-white/20 rounded-lg overflow-hidden">
-                <div class="absolute inset-0 bg-gradient-to-b from-emerald-500/10 via-transparent to-emerald-500/10"></div>
-                <div
-                  ref="scanLineRef"
-                  class="absolute left-0 right-0 h-1 animate-scan-line"
-                  style="background: linear-gradient(90deg, transparent, #10b981, #34d399, #10b981, transparent); box-shadow: 0 0 20px #10b981, 0 0 60px #10b981;"
-                ></div>
-              </div>
-              <p class="mt-4 text-sm text-white/70">Scanning document...</p>
+              <svg class="w-12 h-12 text-emerald-400 animate-spin mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <p class="text-sm text-white/70">Processing document...</p>
             </div>
           </div>
 
@@ -342,41 +273,36 @@ onBeforeUnmount(() => {
           </div>
 
           <div
-            v-if="isScanning && !isProcessing && !isAnimating"
-            class="relative flex-1 flex items-center justify-center bg-black overflow-hidden"
+            v-if="!isProcessing && !isAnimating && !previewUrl"
+            class="relative flex-1 flex items-center justify-center bg-black"
           >
-            <video
-              ref="videoRef"
-              autoplay
-              playsinline
-              class="absolute inset-0 w-full h-full object-cover"
+            <input
+              ref="scanFileInputRef"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              class="hidden"
+              @change="handleFileCapture"
             />
-
-            <div class="absolute inset-0 pointer-events-none border-[3px] border-white/20 m-8 rounded-xl"></div>
-
-            <div class="absolute top-14 left-0 right-0 flex justify-center pointer-events-none z-10">
-              <span class="px-4 py-1.5 rounded-full bg-black/50 text-white text-xs font-medium backdrop-blur-sm">
-                {{ stateLabel || docName }}
-              </span>
-            </div>
-
-            <div class="absolute bottom-10 left-0 right-0 flex justify-center z-10">
+            <div class="flex flex-col items-center gap-6">
               <button
-                @click="handleCapture"
-                class="w-16 h-16 rounded-full bg-white/90 border-4 border-white/60 shadow-xl flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
+                @click="scanFileInputRef?.click()"
+                class="w-24 h-24 rounded-full bg-emerald-500 hover:bg-emerald-400 transition-colors flex items-center justify-center cursor-pointer shadow-lg shadow-emerald-500/30"
               >
-                <div class="w-11 h-11 rounded-full border-2 border-gray-800"></div>
+                <svg class="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.16a15.53 15.53 0 01-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+                </svg>
               </button>
-            </div>
-
-            <div class="absolute top-4 right-4 z-10">
+              <div class="text-center">
+                <p class="text-white text-lg font-semibold">Scan Document</p>
+                <p class="text-white/50 text-sm mt-1">Opens your camera for a high-quality capture</p>
+              </div>
               <button
                 @click="closeOverlay"
-                class="w-9 h-9 rounded-full bg-black/50 text-white flex items-center justify-center border-none cursor-pointer backdrop-blur-sm hover:bg-black/70 transition-colors"
+                class="mt-4 text-sm text-white/40 hover:text-white/60 transition-colors cursor-pointer"
               >
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                Cancel
               </button>
             </div>
           </div>
@@ -411,18 +337,18 @@ onBeforeUnmount(() => {
                 <div
                   v-for="(corner, i) in detectedCorners"
                   :key="i"
-                  class="absolute w-7 h-7 -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing"
+                  class="absolute p-3 md:p-0 -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing touch-manipulation flex items-center justify-center"
                   :style="getCornerStyle(corner)"
                   @pointerdown="(e) => onCornerPointerDown(i, e)"
                 >
                   <div class="w-full h-full rounded-full border-2 border-emerald-400 bg-emerald-500/30 flex items-center justify-center">
-                    <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                    <div class="w-3 h-3 md:w-2 md:h-2 rounded-full bg-emerald-500"></div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent pt-16 pb-6 px-6">
+            <div class="shrink-0 bg-gradient-to-t from-black/80 to-transparent pt-16 pb-6 px-6">
               <div class="flex gap-3">
                 <button
                   @click="handleRetake"
@@ -523,7 +449,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div
-            v-if="captureType === 'multi' && capturedPages.length > 0 && !isConfirmed && !previewUrl && !isScanning && !isProcessing && !isAnimating"
+            v-if="captureType === 'multi' && capturedPages.length > 0 && !isConfirmed && !previewUrl && !isProcessing && !isAnimating"
             class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60"
           >
             <div class="bg-black/70 backdrop-blur-xl rounded-2xl px-8 py-6 flex flex-col items-center gap-4">
@@ -566,15 +492,3 @@ onBeforeUnmount(() => {
 }
 </style>
 
-<style>
-@keyframes scan-line {
-  0% { top: 0; opacity: 0; }
-  5% { opacity: 1; }
-  90% { opacity: 1; }
-  95% { top: 100%; opacity: 0; }
-  100% { top: 100%; opacity: 0; }
-}
-.animate-scan-line {
-  animation: scan-line 1.5s ease-in-out forwards;
-}
-</style>
