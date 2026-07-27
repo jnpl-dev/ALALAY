@@ -238,15 +238,15 @@ function solveLinearSystem(A, b) {
   return aug.map(row => row[n])
 }
 
-export function correctPerspective(sourceCanvas, corners, targetWidth, targetHeight) {
+export function correctPerspective(sourceCanvas, corners, targetWidth, targetHeight, margin = 40) {
   const ordered = orderCorners(corners)
   const dst = [
-    { x: 0, y: 0 },
-    { x: targetWidth - 1, y: 0 },
-    { x: targetWidth - 1, y: targetHeight - 1 },
-    { x: 0, y: targetHeight - 1 },
+    { x: margin, y: margin },
+    { x: targetWidth - 1 - margin, y: margin },
+    { x: targetWidth - 1 - margin, y: targetHeight - 1 - margin },
+    { x: margin, y: targetHeight - 1 - margin },
   ]
-  const map = computeHomography(ordered, dst)
+  const map = computeHomography(dst, ordered)
   if (!map) return sourceCanvas
 
   const srcCtx = sourceCanvas.getContext('2d')
