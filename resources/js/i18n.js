@@ -15,4 +15,7 @@ export const i18n = createI18n({
   locale: getInitialLocale(),
   fallbackLocale: 'en',
   messages: { en, fil },
+  missingWarn: false,
+  fallbackWarn: false,
+  warnHtmlMessage: false,
 })

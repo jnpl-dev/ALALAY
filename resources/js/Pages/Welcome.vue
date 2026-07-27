@@ -325,7 +325,7 @@ const trackUrl = route('track')
                 </div>
                 <div>
                   <h4 class="text-sm font-semibold text-gray-800">{{ $t('contact.email') }}</h4>
-                  <p class="text-sm text-gray-700">{{ $t('contact.email_value') }}</p>
+                  <p class="text-sm text-gray-700">{{ $t('contact.email_value') }}@{{ $t('contact.email_domain') }}</p>
                 </div>
               </div>
               <div class="flex items-start gap-4">
@@ -372,7 +372,7 @@ const trackUrl = route('track')
                   v-model="contactForm.email"
                   type="email"
                   class="w-full px-4 py-2.5 rounded-lg border border-emerald-200 bg-white text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
-                  :placeholder="$t('contact.form_email_placeholder')"
+                  :placeholder="$t('contact.form_email_placeholder') + '@' + $t('contact.form_email_domain')"
                 />
               </div>
               <div>
