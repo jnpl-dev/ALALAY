@@ -7,6 +7,7 @@ export function useDocumentScanner(captureType = 'single') {
   const isProcessing = ref(false)
   const isAnimating = ref(false)
   const previewUrl = ref(null)
+  const rawPreviewUrl = ref(null)
   const capturedPages = ref([])
   const cameraError = ref(null)
   const isConfirmed = ref(false)
@@ -17,11 +18,15 @@ export function useDocumentScanner(captureType = 'single') {
     return capturedPages.value.length > 0
   })
   const pageLabel = ref('')
+  const cropStage = ref('capturing')
 
   const detectedCorners = ref(null)
   const showCornerEditor = ref(false)
   const selectedFilter = ref('enhanced')
   const filters = ['original', 'enhanced', 'bw']
+  const rawCaptureWidth = ref(0)
+  const rawCaptureHeight = ref(0)
+  const rawCroppedDataUrl = ref(null)
 
   let stream = null
   let videoElement = null
@@ -35,6 +40,7 @@ export function useDocumentScanner(captureType = 'single') {
     cameraError.value = null
     isScanning.value = true
     isConfirmed.value = false
+    cropStage.value = 'capturing'
 
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -61,7 +67,27 @@ export function useDocumentScanner(captureType = 'single') {
     return dest
   }
 
-  function processCapture(srcCanvas) {
+  function canvasToDataUrl(canvas) {
+    return canvas.toDataURL('image/jpeg', 0.88)
+  }
+
+  async function capture() {
+    if (!videoElement || !stream) return
+    isProcessing.value = true
+    previewUrl.value = null
+    rawPreviewUrl.value = null
+
+    const srcCanvas = document.createElement('canvas')
+    srcCanvas.width = videoElement.videoWidth
+    srcCanvas.height = videoElement.videoHeight
+    srcCanvas.getContext('2d').drawImage(videoElement, 0, 0)
+
+    stopCamera()
+
+    isAnimating.value = true
+
+    await new Promise((resolve) => setTimeout(resolve, 1200))
+
     const down = downscale(srcCanvas)
     rawCaptureCanvas = down
 
@@ -71,34 +97,201 @@ export function useDocumentScanner(captureType = 'single') {
 
     const corners = findDocumentCorners(edges, width, height)
 
-    let resultCanvas
     if (corners) {
       detectedCorners.value = corners
       showCornerEditor.value = true
-      const perspCanvas = correctPerspective(down, corners, 1240, 1754)
-      resultCanvas = perspCanvas
     } else {
-      detectedCorners.value = null
-      showCornerEditor.value = false
-      resultCanvas = down
+      const marginX = Math.round(width * 0.1)
+      const marginY = Math.round(height * 0.1)
+      detectedCorners.value = [
+        { x: marginX, y: marginY },
+        { x: width - marginX, y: marginY },
+        { x: width - marginX, y: height - marginY },
+        { x: marginX, y: height - marginY },
+      ]
+      showCornerEditor.value = true
     }
 
-    const enhancedCanvas = selectedFilter.value === 'original'
-      ? resultCanvas
-      : selectedFilter.value === 'bw'
-        ? applyBW(resultCanvas)
-        : magicFilter(resultCanvas)
+    rawPreviewUrl.value = canvasToDataUrl(down)
+    previewUrl.value = canvasToDataUrl(down)
+    rawCaptureWidth.value = down.width
+    rawCaptureHeight.value = down.height
+    cropStage.value = 'cropping'
 
-    const dataUrl = canvasToDataUrl(enhancedCanvas)
+    isProcessing.value = false
+    isAnimating.value = false
+  }
+
+  function applyCrop() {
+    if (!rawCaptureCanvas) return
+    isProcessing.value = true
+
+    let resultCanvas, rawCroppedCanvas
+    if (detectedCorners.value) {
+      const perspCanvas = correctPerspective(rawCaptureCanvas, detectedCorners.value, 1240, 1754)
+      rawCroppedCanvas = perspCanvas
+      resultCanvas = magicFilter(perspCanvas)
+    } else {
+      rawCroppedCanvas = rawCaptureCanvas
+      resultCanvas = magicFilter(rawCaptureCanvas)
+    }
+
+    rawCroppedDataUrl.value = canvasToDataUrl(rawCroppedCanvas)
+
+    const dataUrl = canvasToDataUrl(resultCanvas)
 
     capturedPages.value.push({
       data: dataUrl,
-      width: enhancedCanvas.width,
-      height: enhancedCanvas.height,
+      width: resultCanvas.width,
+      height: resultCanvas.height,
     })
 
     previewUrl.value = dataUrl
+    rawPreviewUrl.value = null
+    cropStage.value = 'preview'
     rawCaptureCanvas = null
+    isProcessing.value = false
+  }
+
+  function updateCorner(index, x, y) {
+    if (!detectedCorners.value) return
+    detectedCorners.value[index] = { x, y }
+  }
+
+  function recropWithCurrentCorners() {
+    if (!detectedCorners.value || capturedPages.value.length === 0) return
+
+    const lastCapture = capturedPages.value[capturedPages.value.length - 1]
+    const img = new Image()
+    img.onload = () => {
+      const srcCanvas = document.createElement('canvas')
+      srcCanvas.width = img.width
+      srcCanvas.height = img.height
+      srcCanvas.getContext('2d').drawImage(img, 0, 0)
+
+      const perspCanvas = correctPerspective(
+        srcCanvas,
+        detectedCorners.value,
+        1240, 1754,
+      )
+
+      const resultCanvas = selectedFilter.value === 'original'
+        ? perspCanvas
+        : selectedFilter.value === 'bw'
+          ? applyBW(perspCanvas)
+          : magicFilter(perspCanvas)
+
+      const dataUrl = canvasToDataUrl(resultCanvas)
+      capturedPages.value[capturedPages.value.length - 1] = {
+        data: dataUrl,
+        width: resultCanvas.width,
+        height: resultCanvas.height,
+      }
+      previewUrl.value = dataUrl
+    }
+    img.src = lastCapture.data
+  }
+
+  function applyFilterToLatest() {
+    if (!rawCroppedDataUrl.value || capturedPages.value.length === 0) return
+
+    const img = new Image()
+    img.onload = () => {
+      const srcCanvas = document.createElement('canvas')
+      srcCanvas.width = img.width
+      srcCanvas.height = img.height
+      srcCanvas.getContext('2d').drawImage(img, 0, 0)
+
+      const resultCanvas = selectedFilter.value === 'original'
+        ? srcCanvas
+        : selectedFilter.value === 'bw'
+          ? applyBW(srcCanvas)
+          : magicFilter(srcCanvas)
+
+      const dataUrl = canvasToDataUrl(resultCanvas)
+      capturedPages.value[capturedPages.value.length - 1] = {
+        data: dataUrl,
+        width: resultCanvas.width,
+        height: resultCanvas.height,
+      }
+      previewUrl.value = dataUrl
+    }
+    img.src = rawCroppedDataUrl.value
+  }
+
+  function changeFilter(filter) {
+    selectedFilter.value = filter
+    if (capturedPages.value.length > 0) {
+      applyFilterToLatest()
+    }
+  }
+
+  function retakeLast() {
+    if (capturedPages.value.length > 0) {
+      capturedPages.value.pop()
+    }
+    previewUrl.value = null
+    rawPreviewUrl.value = null
+    rawCroppedDataUrl.value = null
+    cameraError.value = null
+    detectedCorners.value = null
+    showCornerEditor.value = false
+    cropStage.value = 'capturing'
+    rawCaptureCanvas = null
+    startCamera()
+  }
+
+  function addPage() {
+    previewUrl.value = null
+    rawPreviewUrl.value = null
+    rawCroppedDataUrl.value = null
+    detectedCorners.value = null
+    showCornerEditor.value = false
+    cropStage.value = 'capturing'
+    rawCaptureCanvas = null
+    startCamera()
+  }
+
+  function confirmPages() {
+    isConfirmed.value = true
+    showCornerEditor.value = false
+  }
+
+  function generatePdfBlob() {
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    })
+
+    const pageW = pdf.internal.pageSize.getWidth()
+    const pageH = pdf.internal.pageSize.getHeight()
+    const margin = 10
+    const maxW = pageW - margin * 2
+    const maxH = pageH - margin * 2
+
+    capturedPages.value.forEach((img, index) => {
+      if (index > 0) pdf.addPage('a4', 'portrait')
+
+      const imgAspect = img.width / img.height
+      const pageAspect = maxW / maxH
+
+      let drawW, drawH
+      if (imgAspect > pageAspect) {
+        drawW = maxW
+        drawH = maxW / imgAspect
+      } else {
+        drawH = maxH
+        drawW = maxH * imgAspect
+      }
+
+      const x = (pageW - drawW) / 2
+      const y = (pageH - drawH) / 2
+
+      pdf.addImage(img.data, 'JPEG', x, y, drawW, drawH)
+    })
+
+    return pdf.output('blob')
   }
 
   function applyBW(canvas) {
@@ -168,138 +361,6 @@ export function useDocumentScanner(captureType = 'single') {
     return outCanvas
   }
 
-  function canvasToDataUrl(canvas) {
-    return canvas.toDataURL('image/jpeg', 0.88)
-  }
-
-  async function capture() {
-    if (!videoElement || !stream) return
-    isProcessing.value = true
-    previewUrl.value = null
-
-    const srcCanvas = document.createElement('canvas')
-    srcCanvas.width = videoElement.videoWidth
-    srcCanvas.height = videoElement.videoHeight
-    srcCanvas.getContext('2d').drawImage(videoElement, 0, 0)
-
-    stopCamera()
-
-    isAnimating.value = true
-
-    await new Promise((resolve) => setTimeout(resolve, 1200))
-
-    processCapture(srcCanvas)
-
-    isProcessing.value = false
-    isAnimating.value = false
-  }
-
-  function updateCorner(index, x, y) {
-    if (!detectedCorners.value) return
-    detectedCorners.value[index] = { x, y }
-  }
-
-  function recropWithCurrentCorners() {
-    if (!detectedCorners.value || capturedPages.value.length === 0) return
-
-    const lastCapture = capturedPages.value[capturedPages.value.length - 1]
-    const img = new Image()
-    img.onload = () => {
-      const srcCanvas = document.createElement('canvas')
-      srcCanvas.width = img.width
-      srcCanvas.height = img.height
-      srcCanvas.getContext('2d').drawImage(img, 0, 0)
-
-      const perspCanvas = correctPerspective(
-        srcCanvas,
-        detectedCorners.value,
-        1240, 1754,
-      )
-
-      const resultCanvas = selectedFilter.value === 'original'
-        ? perspCanvas
-        : selectedFilter.value === 'bw'
-          ? applyBW(perspCanvas)
-          : magicFilter(perspCanvas)
-
-      const dataUrl = canvasToDataUrl(resultCanvas)
-      capturedPages.value[capturedPages.value.length - 1] = {
-        data: dataUrl,
-        width: resultCanvas.width,
-        height: resultCanvas.height,
-      }
-      previewUrl.value = dataUrl
-    }
-    img.src = lastCapture.data
-  }
-
-  function changeFilter(filter) {
-    selectedFilter.value = filter
-    if (capturedPages.value.length > 0) {
-      recropWithCurrentCorners()
-    }
-  }
-
-  function retakeLast() {
-    if (capturedPages.value.length > 0) {
-      capturedPages.value.pop()
-    }
-    previewUrl.value = null
-    cameraError.value = null
-    detectedCorners.value = null
-    showCornerEditor.value = false
-    startCamera()
-  }
-
-  function addPage() {
-    previewUrl.value = null
-    detectedCorners.value = null
-    showCornerEditor.value = false
-    startCamera()
-  }
-
-  function confirmPages() {
-    isConfirmed.value = true
-    showCornerEditor.value = false
-  }
-
-  function generatePdfBlob() {
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
-    })
-
-    const pageW = pdf.internal.pageSize.getWidth()
-    const pageH = pdf.internal.pageSize.getHeight()
-    const margin = 10
-    const maxW = pageW - margin * 2
-    const maxH = pageH - margin * 2
-
-    capturedPages.value.forEach((img, index) => {
-      if (index > 0) pdf.addPage('a4', 'portrait')
-
-      const imgAspect = img.width / img.height
-      const pageAspect = maxW / maxH
-
-      let drawW, drawH
-      if (imgAspect > pageAspect) {
-        drawW = maxW
-        drawH = maxW / imgAspect
-      } else {
-        drawH = maxH
-        drawW = maxH * imgAspect
-      }
-
-      const x = (pageW - drawW) / 2
-      const y = (pageH - drawH) / 2
-
-      pdf.addImage(img.data, 'JPEG', x, y, drawW, drawH)
-    })
-
-    return pdf.output('blob')
-  }
-
   function stopCamera() {
     if (stream) {
       stream.getTracks().forEach((track) => track.stop())
@@ -314,6 +375,7 @@ export function useDocumentScanner(captureType = 'single') {
   function reset() {
     stopCamera()
     previewUrl.value = null
+    rawPreviewUrl.value = null
     capturedPages.value = []
     cameraError.value = null
     isProcessing.value = false
@@ -323,7 +385,9 @@ export function useDocumentScanner(captureType = 'single') {
     detectedCorners.value = null
     showCornerEditor.value = false
     selectedFilter.value = 'enhanced'
+    cropStage.value = 'capturing'
     rawCaptureCanvas = null
+    rawCroppedDataUrl.value = null
   }
 
   return {
@@ -331,6 +395,7 @@ export function useDocumentScanner(captureType = 'single') {
     isProcessing,
     isAnimating,
     previewUrl,
+    rawPreviewUrl,
     capturedPages,
     cameraError,
     hasCapture,
@@ -341,9 +406,14 @@ export function useDocumentScanner(captureType = 'single') {
     showCornerEditor,
     selectedFilter,
     filters,
+    cropStage,
+    rawCaptureWidth,
+    rawCaptureHeight,
+    rawCroppedDataUrl,
     setVideoElement,
     startCamera,
     capture,
+    applyCrop,
     retakeLast,
     addPage,
     confirmPages,
