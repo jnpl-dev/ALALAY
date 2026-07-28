@@ -106,7 +106,7 @@ class SmsService
     {
         Log::info('SmsService: SMS logged (driver=log)', [
             'notification_id' => $notification->id,
-            'recipient' => $notification->recipient,
+            'recipient' => $notification->recipient_phone,
             'message' => $notification->message_body,
         ]);
 

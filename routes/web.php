@@ -51,8 +51,8 @@ Route::post('/apply', [ApplicationController::class, 'store']);
 Route::get('/track', [ApplicationController::class, 'track'])->name('track');
 Route::get('/track/poll', [ApplicationController::class, 'trackPoll'])->name('track.poll');
 Route::get('/track/{referenceCode}', [ApplicationController::class, 'show'])->name('track.show');
-Route::post('/track/{referenceCode}/send-otp', [ApplicationController::class, 'sendTrackOtp'])->name('track.send-otp');
-Route::post('/track/{referenceCode}/verify-otp', [ApplicationController::class, 'verifyTrackOtp'])->name('track.verify-otp');
+Route::post('/track/{referenceCode}/send-otp', [ApplicationController::class, 'sendTrackOtp'])->name('track.send-otp')->middleware('throttle:3,5');
+Route::post('/track/{referenceCode}/verify-otp', [ApplicationController::class, 'verifyTrackOtp'])->name('track.verify-otp')->middleware('throttle:10,5');
 Route::post('/track/{referenceCode}/resubmit', [ApplicationController::class, 'resubmit'])->name('track.resubmit');
 
 // Real-time validation (public)
