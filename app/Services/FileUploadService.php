@@ -16,6 +16,7 @@ class FileUploadService
         string $entityId,
         ?int $maxSizeKb = null,
         ?array $allowedMimes = null,
+        string $disk = 'supabase',
     ): array {
         $maxSizeKb = $maxSizeKb ?? (int) Cache::remember('settings.max_file_size_kb', 1800, fn () =>
             \App\Models\SystemSetting::byKey('max_file_size_kb')->first()?->setting_value ?? 5120
@@ -39,7 +40,7 @@ class FileUploadService
 
         $path = "{$table}/{$entityId}/" . $file->hashName();
 
-        Storage::disk('supabase')->put($path, file_get_contents($file->getRealPath()));
+        Storage::disk($disk)->put($path, file_get_contents($file->getRealPath()));
 
         return [
             'file_name' => $file->getClientOriginalName(),

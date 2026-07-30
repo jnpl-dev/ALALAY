@@ -45,23 +45,23 @@ class BudgetController extends Controller
             default => (clone $query)->where('status', 'budget_checking'),
         };
 
-        $apps = $applications->latest()
-            ->paginate(10)
-            ->through(fn ($app) => [
-                'id' => $app->id,
-                'reference_code' => $app->reference_code,
-                'status' => $app->status,
-                'category_name' => $app->category?->category_name,
-                'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
-                'code_type' => $app->assistanceCode?->reference?->code_type,
-                'amount' => $app->assistanceCode?->amount,
-                'created_at' => $app->created_at,
-            ]);
-
         $categories = \App\Models\AssistanceCategory::where('is_active', true)->pluck('category_name');
 
         return Inertia::render('Treasurer/Budget/Index', [
-            'applications' => $apps,
+            'applications' => Inertia::defer(fn () =>
+                $applications->latest()
+                    ->paginate(10)
+                    ->through(fn ($app) => [
+                        'id' => $app->id,
+                        'reference_code' => $app->reference_code,
+                        'status' => $app->status,
+                        'category_name' => $app->category?->category_name,
+                        'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
+                        'code_type' => $app->assistanceCode?->reference?->code_type,
+                        'amount' => $app->assistanceCode?->amount,
+                        'created_at' => $app->created_at,
+                    ])
+            ),
             'tab' => $tab,
             'search' => $search,
             'category' => $category,
@@ -167,7 +167,7 @@ class BudgetController extends Controller
             'created_at' => now(),
         ]);
 
-        SendSmsJob::dispatch($application, 'cheque_claiming');
+        SendSmsJob::dispatch($application, 'cheque_ready');
 
         return redirect()
             ->route('treasurer.budget.index')
@@ -225,7 +225,7 @@ class BudgetController extends Controller
             'created_at' => now(),
         ]);
 
-        SendSmsJob::dispatch($application, 'cheque_claiming');
+        SendSmsJob::dispatch($application, 'cheque_ready');
 
         return redirect()
             ->route('treasurer.budget.index')

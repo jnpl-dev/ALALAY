@@ -14,6 +14,30 @@ class StoreApplicationRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'claimant_last_name'   => preg_replace('/\s+/', ' ', trim(strip_tags($this->claimant_last_name ?? ''))),
+            'claimant_first_name'  => preg_replace('/\s+/', ' ', trim(strip_tags($this->claimant_first_name ?? ''))),
+            'claimant_middle_name' => $this->claimant_middle_name
+                ? preg_replace('/\s+/', ' ', trim(strip_tags($this->claimant_middle_name)))
+                : null,
+            'claimant_name_extension' => $this->claimant_name_extension ?: null,
+            'claimant_email'       => $this->claimant_email
+                ? strtolower(trim($this->claimant_email))
+                : null,
+            'claimant_phone'       => preg_replace('/[^\d+]/', '', $this->claimant_phone ?? ''),
+            'claimant_address'     => trim(strip_tags($this->claimant_address ?? '')),
+            'beneficiary_last_name'   => preg_replace('/\s+/', ' ', trim(strip_tags($this->beneficiary_last_name ?? ''))),
+            'beneficiary_first_name'  => preg_replace('/\s+/', ' ', trim(strip_tags($this->beneficiary_first_name ?? ''))),
+            'beneficiary_middle_name' => $this->beneficiary_middle_name
+                ? preg_replace('/\s+/', ' ', trim(strip_tags($this->beneficiary_middle_name)))
+                : null,
+            'beneficiary_name_extension' => $this->beneficiary_name_extension ?: null,
+            'beneficiary_address'  => trim(strip_tags($this->beneficiary_address ?? '')),
+        ]);
+    }
+
     public function rules(): array
     {
         return [

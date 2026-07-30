@@ -2,10 +2,20 @@
 import { computed } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import AppMenuItem from './AppMenuItem.vue'
+import { usePendingCounts } from '@/Composables/usePendingCounts'
 
 const page = usePage()
 const user = page.props.auth?.user
 const role = user?.role
+
+const { counts } = usePendingCounts()
+
+const badgeLabelMap = {
+  Applications: 'applications',
+  Vouchers: 'vouchers',
+  Cheques: 'cheques',
+  Analytics: 'analytics',
+}
 
 const model = computed(() => {
   const roleRoutes = {
@@ -22,6 +32,15 @@ const model = computed(() => {
           { label: 'Assistance Categories', icon: 'pi pi-fw pi-tags', to: route('admin.assistance-categories.index') },
           { label: 'Required Documents', icon: 'pi pi-fw pi-file', to: route('admin.required-documents.index') },
           { label: 'Code References', icon: 'pi pi-fw pi-qrcode', to: route('admin.assistance-code-references.index') },
+        ],
+      },
+      {
+        label: 'SMS Notification',
+        icon: 'pi pi-fw pi-envelope',
+        path: '/sms',
+        items: [
+          { label: 'Updates', icon: 'pi pi-fw pi-sync', to: route('admin.sms.updates') },
+          { label: 'Claiming', icon: 'pi pi-fw pi-calendar', to: route('admin.sms.claiming') },
         ],
       },
     ],
@@ -67,9 +86,17 @@ const model = computed(() => {
   ]
 
   if (role && roleRoutes[role]) {
+    const roleItems = roleRoutes[role].map(item => {
+      const key = badgeLabelMap[item.label]
+      if (key && counts.value[key]) {
+        return { ...item, badge: counts.value[key] }
+      }
+      return item
+    })
+
     items.push({
       label: roleLabel,
-      items: roleRoutes[role],
+      items: roleItems,
     })
   }
 

@@ -15,12 +15,16 @@ class AuditLogger
     ): AuditLog {
         $user = request()->user();
 
+        $safeDescription = $description
+            ? preg_replace('/\b(09\d{9}|\+639\d{9})\b/', '[PHONE REDACTED]', $description)
+            : null;
+
         return AuditLog::create([
             'user_id' => $user?->id,
             'role' => $user?->role,
             'module' => $module,
             'action' => $action,
-            'description' => $description,
+            'description' => $safeDescription,
             'entity_type' => $entityType,
             'entity_id' => $entityId,
             'ip_address' => request()->ip(),

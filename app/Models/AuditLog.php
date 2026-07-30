@@ -14,6 +14,21 @@ class AuditLog extends Model
     protected $keyType = 'string';
     public $incrementing = false;
 
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function (AuditLog $log) {
+            if ($log->description) {
+                $log->description = preg_replace(
+                    '/(?<!\d)(09\d{9}|\+639\d{9})(?!\d)/',
+                    '[PHONE REDACTED]',
+                    $log->description
+                );
+            }
+        });
+    }
+
     protected $fillable = [
         'user_id',
         'role',

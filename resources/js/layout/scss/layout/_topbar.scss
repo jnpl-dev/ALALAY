@@ -85,9 +85,18 @@
         gap: 1rem;
     }
 
-    .layout-topbar-menu-content {
+    .layout-topbar-user {
         display: flex;
-        gap: 1rem;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0;
+    }
+
+    .layout-topbar-user-name {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text-color);
+        white-space: nowrap;
     }
 
     .layout-config-menu {

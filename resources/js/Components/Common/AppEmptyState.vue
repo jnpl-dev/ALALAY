@@ -7,7 +7,7 @@ defineProps({
 
 <template>
   <div class="flex flex-col items-center justify-center py-8 text-muted-color">
-    <i :class="[icon, 'text-4xl mb-3']" style="color: var(--text-color-secondary);"></i>
+    <i :class="[icon, 'text-4xl mb-3 text-muted-color']"></i>
     <span>{{ message }}</span>
     <slot />
   </div>

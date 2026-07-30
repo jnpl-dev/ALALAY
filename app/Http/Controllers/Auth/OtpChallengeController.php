@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\OtpChallengeRequest;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\NewLoginDetected;
 use App\Services\EmailOtpService;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -24,15 +24,13 @@ class OtpChallengeController extends Controller
         return Inertia::render('Auth/EmailOtpChallenge');
     }
 
-    public function verify(Request $request, EmailOtpService $otpService)
+    public function verify(OtpChallengeRequest $request, EmailOtpService $otpService)
     {
         if (! session()->has('otp_user_id')) {
             return redirect()->route('login');
         }
 
-        $request->validate([
-            'otp_code' => ['required', 'string', 'size:6'],
-        ]);
+        $validated = $request->validated();
 
         $user = User::find(session('otp_user_id'));
 
@@ -40,7 +38,7 @@ class OtpChallengeController extends Controller
             return redirect()->route('login');
         }
 
-        if (! $otpService->verify($user, $request->otp_code)) {
+        if (! $otpService->verify($user, $validated['otp_code'])) {
             throw ValidationException::withMessages([
                 'otp_code' => ['The verification code is invalid or has expired.'],
             ]);

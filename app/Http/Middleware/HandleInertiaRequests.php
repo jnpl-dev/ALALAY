@@ -31,6 +31,9 @@ class HandleInertiaRequests extends Middleware
                     'profile_picture_url' => $request->user()->profile_picture_path
                         ? route('account.profile-picture')
                         : null,
+                    'profile_picture_version' => $request->user()->profile_picture_path
+                        ? $request->user()->updated_at->timestamp
+                        : 0,
                     'aup_accepted' => $request->user()->acceptable_use_policy_accepted_at !== null,
                 ] : null,
             ],

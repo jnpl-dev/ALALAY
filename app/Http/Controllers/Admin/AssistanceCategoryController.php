@@ -32,7 +32,7 @@ class AssistanceCategoryController extends Controller
             ]);
 
         return Inertia::render('Admin/AssistanceCategories/Index', [
-            'categories' => $categories,
+            'categories' => Inertia::defer(fn () => $categories),
             'filters' => request()->only(['search']),
         ]);
     }

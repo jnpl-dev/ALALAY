@@ -651,27 +651,31 @@ Improvements** section, between Phase 2 and Phase 3:
 - [x] Add new-IP login notification in OTP verification controller (after successful OTP verify)
 
 ### Query Optimization
-- [ ] Add slow query logger to AppServiceProvider@boot (local env only)
+- [x] Add slow query logger to AppServiceProvider@boot (local env only)
 - [x] Eager loading already implemented in all index/show methods
-- [ ] Add Inertia::lazy() to all analytics controllers
+- [x] Add Inertia::lazy() to all analytics controllers
 
 ### Backup
-- [ ] Create alalay-backups private bucket in Supabase Storage
-- [ ] Add offsite backup upload to scripts/backup.sh
-- [ ] Create app/Console/Commands/VerifyBackup.php
-- [ ] Register weekly backup:verify schedule
+- [x] Create config/backup.php — centralized config for path, encryption, retention, Supabase bucket
+- [x] Create scripts/backup.sh — full backup script (mysqldump → gzip → AES-256-CBC encrypt → local save → S3-compatible upload to Supabase → prune old)
+- [x] Create app/Console/Commands/VerifyBackup.php — decrypts + restores latest backup to test database
+- [x] Create app/Console/Commands/BackupDatabase.php — Laravel command for daily backup (mysqldump → encrypt → upload → prune)
+- [x] Register daily backup:run schedule in routes/console.php (daily 02:00)
+- [x] Register weekly backup:verify schedule in routes/console.php (Sundays 03:00)
+- [x] Manual: Create alalay-backups private bucket in Supabase Storage
 
 ### Emergency Maintenance
-- [ ] Add APP_MAINTENANCE_SECRET to .env
-- [ ] Add toggleMaintenance() to Admin/SystemSettingController
-- [ ] Add maintenance toggle route to web.php
-- [ ] Add maintenance toggle button to Admin/SystemSettings.vue
+- [x] Add APP_MAINTENANCE_SECRET to .env + maintenance_secret to config/app.php
+- [x] Add toggleMaintenance() to Admin/SystemSettingController
+- [x] Add maintenance toggle route to web.php
+- [x] Add maintenance toggle button to Admin/SystemSettings.vue
+- [x] Create resources/views/errors/503.blade.php
 - [ ] Print emergency command reference — store physically in IT office
 
 ### Zero-Day
-- [ ] Add composer audit check to deploy.sh
-- [ ] Add PII redaction to AuditLogger::log() description field
-- [ ] Document incident response procedure in .ai/context/
+- [x] Add composer audit check to scripts/deploy.sh
+- [x] Add PII redaction to AuditLogger::log() description field
+- [x] Create .ai/context/INCIDENT_RESPONSE.md with emergency commands and incident procedures
 ```
 
 ---
@@ -681,17 +685,20 @@ Improvements** section, between Phase 2 and Phase 3:
 Items marked **[DONE]** are already implemented.
 
 | Priority | Improvement | Status |
-|---|---|---|
+|---|---|---|---|
 | 1 | Redis installation + driver switch | **SKIPPED** — file cache sufficient |
 | 2 | Caching (categories, settings, KPIs, dashboard, analytics) | **[DONE]** |
 | 3 | Composite database indexes | **[DONE]** |
-| 4 | Security headers middleware | Pending |
-| 5 | Login lockout logging | Pending |
-| 6 | Inertia lazy loading for analytics | Pending |
-| 7 | Offsite backup to Supabase | Pending |
-| 8 | Emergency maintenance toggle | Pending |
-| 9 | Query optimizer / slow query logger | Pending |
-| 10 | Backup verify command | Pending |
+| 4 | Security headers middleware | **[DONE]** |
+| 5 | Login lockout logging / New IP notification | **[DONE]** |
+| 6 | Inertia lazy loading for analytics | **[DONE]** |
+| 7 | Slow query logger (local dev) | **[DONE]** |
+| 8 | Offsite backup to Supabase | **[DONE]** |
+| 9 | Emergency maintenance toggle | **[DONE]** |
+| 10 | Backup verify command | **[DONE]** |
+| 11 | Deploy script with security audit | **[DONE]** |
+| 12 | PII redaction in audit logs | **[DONE]** |
+| 13 | Incident response documentation | **[DONE]** |
 
 ---
 

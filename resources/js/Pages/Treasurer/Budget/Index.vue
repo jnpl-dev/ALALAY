@@ -1,5 +1,5 @@
 <script setup>
-import { Head, router } from '@inertiajs/vue3'
+import { Head, router, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
@@ -11,17 +11,20 @@ import Button from 'primevue/button'
 import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
-import Tag from 'primevue/tag'
 import Select from 'primevue/select'
 import Paginator from 'primevue/paginator'
+import Skeleton from 'primevue/skeleton'
 import { ref, toRaw, watch } from 'vue'
 import { formatDate } from '@/Utils/formatDate'
 import { formatCurrency } from '@/Utils/formatCurrency'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
 
+useBreadcrumb([{ label: 'Treasurer' }, { label: 'Budget' }])
+
 const props = defineProps({
-  applications: { type: Object, required: true },
+  applications: { type: Object, default: () => ({}) },
   tab: { type: String, default: 'pending' },
   search: { type: String, default: '' },
   category: { type: String, default: '' },
@@ -72,7 +75,7 @@ function onPage(event) {
 <template>
   <Head title="Treasurer - Budget" />
 
-  <div class="grid grid-cols-12 gap-8">
+  <div class="grid grid-cols-12 gap-8 transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]">
     <div class="col-span-12">
       <div class="card">
         <div class="flex items-center justify-between mb-4">
@@ -90,48 +93,109 @@ function onPage(event) {
 
         <TabView :activeIndex="tabIndex" @tab-change="onTabChange">
           <TabPanel header="Pending">
-            <DataTable :value="toRaw(props.applications.data)" striped-rows class="w-full">
-              <Column field="reference_code" header="Reference" sortable />
-              <Column field="claimant_name" header="Claimant" sortable />
-              <Column field="category_name" header="Category" sortable />
-              <Column field="code_type" header="Code" sortable />
-              <Column field="amount" header="Amount" sortable>
-                <template #body="{ data }">
-                  {{ data.amount ? formatCurrency(data.amount) : '—' }}
+            <Deferred data="applications">
+              <DataTable :value="toRaw(props.applications.data)" striped-rows class="w-full">
+                <Column field="reference_code" header="Reference" sortable />
+                <Column field="claimant_name" header="Claimant" sortable />
+                <Column field="category_name" header="Category" sortable />
+                <Column field="code_type" header="Code" sortable />
+                <Column field="amount" header="Amount" sortable>
+                  <template #body="{ data }">
+                    {{ data.amount ? formatCurrency(data.amount) : '—' }}
+                  </template>
+                </Column>
+                <Column field="status" header="Status" sortable>
+                  <template #body="{ data }">
+                    <AppStatusBadge :status="data.status" />
+                  </template>
+                </Column>
+                <Column field="created_at" header="Submitted" sortable>
+                  <template #body="{ data }">
+                    {{ formatDate(data.created_at) }}
+                  </template>
+                </Column>
+                <Column header="Actions" style="width: 6rem">
+                  <template #body="{ data }">
+                    <Button icon="pi pi-eye" severity="info" text rounded size="small" v-tooltip.left="'View details'"
+                      @click="router.get(route('treasurer.budget.show', data.id))" />
+                  </template>
+                </Column>
+                <template #empty>
+                  <AppEmptyState icon="pi pi-inbox" message="No pending budget checks" />
                 </template>
-              </Column>
-              <Column field="status" header="Status" sortable>
-                <template #body="{ data }">
-                  <AppStatusBadge :status="data.status" />
-                </template>
-              </Column>
-              <Column field="created_at" header="Submitted" sortable>
-                <template #body="{ data }">
-                  {{ formatDate(data.created_at) }}
-                </template>
-              </Column>
-              <Column header="Actions" style="width: 6rem">
-                <template #body="{ data }">
-                  <Button icon="pi pi-eye" severity="info" text rounded size="small"
-                    @click="router.get(route('treasurer.budget.show', data.id))" />
-                </template>
-              </Column>
-            </DataTable>
+              </DataTable>
 
-            <Paginator
-              v-if="total > props.applications.per_page"
-              :first="(props.applications.current_page - 1) * props.applications.per_page"
-              :rows="props.applications.per_page"
-              :total-records="total"
-              @page="onPage"
-              template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
-              class="mt-4"
-            />
+              <Paginator
+                v-if="total > (props.applications?.per_page ?? 10)"
+                :first="((props.applications?.current_page ?? 1) - 1) * (props.applications?.per_page ?? 10)"
+                :rows="props.applications?.per_page ?? 10"
+                :total-records="total"
+                @page="onPage"
+                template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+                class="mt-4"
+              />
 
-            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-inbox" message="No pending budget checks" />
+              <template #fallback>
+                <div class="flex flex-col gap-2">
+                  <Skeleton v-for="i in 5" :key="i" height="3rem" />
+                </div>
+              </template>
+            </Deferred>
           </TabPanel>
 
           <TabPanel header="Cheque Ready">
+            <Deferred data="applications">
+              <DataTable :value="toRaw(props.applications.data)" striped-rows class="w-full">
+                <Column field="reference_code" header="Reference" sortable />
+                <Column field="claimant_name" header="Claimant" sortable />
+                <Column field="category_name" header="Category" sortable />
+                <Column field="code_type" header="Code" sortable />
+                <Column field="amount" header="Amount" sortable>
+                  <template #body="{ data }">
+                    {{ data.amount ? formatCurrency(data.amount) : '—' }}
+                  </template>
+                </Column>
+              <Column field="status" header="Status" sortable>
+                <template #body="{ data }">
+                  <AppStatusBadge status="cheque_ready" />
+                </template>
+              </Column>
+              <Column field="created_at" header="Submitted" sortable>
+                <template #body="{ data }">
+                  {{ formatDate(data.created_at) }}
+                </template>
+              </Column>
+              <Column header="Actions" style="width: 6rem">
+                <template #body="{ data }">
+                  <Button icon="pi pi-eye" severity="info" text rounded size="small" v-tooltip.left="'View details'"
+                    @click="router.get(route('treasurer.budget.show', data.id))" />
+                </template>
+              </Column>
+              <template #empty>
+                <AppEmptyState icon="pi pi-check-circle" message="No cheque ready items" />
+              </template>
+            </DataTable>
+
+            <Paginator
+              v-if="total > (props.applications?.per_page ?? 10)"
+              :first="((props.applications?.current_page ?? 1) - 1) * (props.applications?.per_page ?? 10)"
+              :rows="props.applications?.per_page ?? 10"
+              :total-records="total"
+              @page="onPage"
+              template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+              class="mt-4"
+            />
+
+            <template #fallback>
+              <div class="flex flex-col gap-2">
+                <Skeleton v-for="i in 5" :key="i" height="3rem" />
+              </div>
+            </template>
+          </Deferred>
+        </TabPanel>
+
+        <TabPanel header="On Hold">
+          <Deferred data="applications">
             <DataTable :value="toRaw(props.applications.data)" striped-rows class="w-full">
               <Column field="reference_code" header="Reference" sortable />
               <Column field="claimant_name" header="Claimant" sortable />
@@ -144,7 +208,7 @@ function onPage(event) {
               </Column>
               <Column field="status" header="Status" sortable>
                 <template #body="{ data }">
-                  <Tag value="Cheque Ready" severity="success" />
+                  <AppStatusBadge status="on_hold" />
                 </template>
               </Column>
               <Column field="created_at" header="Submitted" sortable>
@@ -154,65 +218,31 @@ function onPage(event) {
               </Column>
               <Column header="Actions" style="width: 6rem">
                 <template #body="{ data }">
-                  <Button icon="pi pi-eye" severity="info" text rounded size="small"
+                  <Button icon="pi pi-eye" severity="info" text rounded size="small" v-tooltip.left="'View details'"
                     @click="router.get(route('treasurer.budget.show', data.id))" />
                 </template>
               </Column>
+              <template #empty>
+                <AppEmptyState icon="pi pi-pause-circle" message="No applications on hold" />
+              </template>
             </DataTable>
 
             <Paginator
-              v-if="total > props.applications.per_page"
-              :first="(props.applications.current_page - 1) * props.applications.per_page"
-              :rows="props.applications.per_page"
+              v-if="total > (props.applications?.per_page ?? 10)"
+              :first="((props.applications?.current_page ?? 1) - 1) * (props.applications?.per_page ?? 10)"
+              :rows="props.applications?.per_page ?? 10"
               :total-records="total"
               @page="onPage"
               template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
               class="mt-4"
             />
 
-            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-check-circle" message="No cheque ready items" />
-          </TabPanel>
-
-          <TabPanel header="On Hold">
-            <DataTable :value="toRaw(props.applications.data)" striped-rows class="w-full">
-              <Column field="reference_code" header="Reference" sortable />
-              <Column field="claimant_name" header="Claimant" sortable />
-              <Column field="category_name" header="Category" sortable />
-              <Column field="code_type" header="Code" sortable />
-              <Column field="amount" header="Amount" sortable>
-                <template #body="{ data }">
-                  {{ data.amount ? formatCurrency(data.amount) : '—' }}
-                </template>
-              </Column>
-              <Column field="status" header="Status" sortable>
-                <template #body="{ data }">
-                  <Tag value="On Hold" severity="warn" />
-                </template>
-              </Column>
-              <Column field="created_at" header="Submitted" sortable>
-                <template #body="{ data }">
-                  {{ formatDate(data.created_at) }}
-                </template>
-              </Column>
-              <Column header="Actions" style="width: 6rem">
-                <template #body="{ data }">
-                  <Button icon="pi pi-eye" severity="info" text rounded size="small"
-                    @click="router.get(route('treasurer.budget.show', data.id))" />
-                </template>
-              </Column>
-            </DataTable>
-
-            <Paginator
-              v-if="total > props.applications.per_page"
-              :first="(props.applications.current_page - 1) * props.applications.per_page"
-              :rows="props.applications.per_page"
-              :total-records="total"
-              @page="onPage"
-              template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
-              class="mt-4"
-            />
-
-            <AppEmptyState v-if="!props.applications.data.length" icon="pi pi-pause-circle" message="No applications on hold" />
+            <template #fallback>
+                <div class="flex flex-col gap-2">
+                  <Skeleton v-for="i in 5" :key="i" height="3rem" />
+                </div>
+              </template>
+            </Deferred>
           </TabPanel>
         </TabView>
       </div>

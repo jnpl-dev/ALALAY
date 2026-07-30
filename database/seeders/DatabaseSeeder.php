@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             RequiredDocumentSeeder::class,
             AssistanceCodeReferenceSeeder::class,
             SystemSettingsSeeder::class,
+            SmsTemplateSeeder::class,
         ]);
     }
 }

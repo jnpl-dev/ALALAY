@@ -2,7 +2,8 @@ import { computed, isRef, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useDocumentVisibility } from '@vueuse/core'
 import axios from 'axios'
 
-export function usePolling(url, params, onNewData, intervalSeconds = 20) {
+export function usePolling(url, params, onNewData, intervalSeconds = 20, options = {}) {
+  const { enabled = null } = options
   const lastChecked = ref(null)
   const isPolling = ref(false)
   const isBusy = ref(false)
@@ -11,6 +12,13 @@ export function usePolling(url, params, onNewData, intervalSeconds = 20) {
   const isVisible = computed(() => visibility.value === 'visible')
 
   let timer = null
+
+  function isEnabled() {
+    if (enabled !== null) {
+      return typeof enabled === 'function' ? enabled() : enabled
+    }
+    return true
+  }
 
   function resolveParams() {
     if (params && typeof params === 'object' && isRef(params)) {
@@ -23,7 +31,7 @@ export function usePolling(url, params, onNewData, intervalSeconds = 20) {
   }
 
   async function poll() {
-    if (isPolling.value) return
+    if (isPolling.value || !isEnabled()) return
     isPolling.value = true
 
     try {

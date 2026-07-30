@@ -219,13 +219,13 @@
 
 - [x] `AuditLogger` — `log(action, module, entityType, entityId, description)` creates `audit_logs` row with user, role, IP, user agent
 - [x] `SmsService` — wraps PhilSMS API (`POST /api/v3/sms/send`, Bearer token auth); driver=`log` by default (writes to log + `sms_notifications`), driver=`philsms` when `PHILSMS_API_TOKEN` is set. Config in `config/sms.php`
-- [x] `SendSmsJob` — queued; reads template from `system_settings` (fallback to hardcoded defaults); builds message with `{reference_code}`, `{claimant_name}`, `{track_url}`, `{remarks}` placeholders; calls `SmsService`; retries on failure
+- [x] `SendSmsJob` — queued; reads template from `system_settings` (fallback to hardcoded defaults); builds message with `{reference_code}`, `{claimant_name}`, `{track_url}`, `{remarks}`, `{claiming_date}` placeholders; calls `SmsService`; retries on failure
 - [x] `FileUploadService` — validates file size against `system_settings.max_file_size_kb`; uploads to `{table}/{entityId}/{filename}` on Supabase Storage
 - [x] `SignedUrlService` — generates temporary signed URL via `Storage::disk('supabase')->temporaryUrl()` with configurable expiry (default 15 min)
 - [x] `ReferenceCodeService` — generates `GMN-YYYY-XXXXXX` format (6 random uppercase alphanumeric); checks uniqueness against `applications.reference_code`
 - [x] Configure Supabase Storage disk in `config/filesystems.php` (`driver => s3` with Supabase endpoint)
 - [ ] Test file upload to Supabase and signed URL generation (requires Supabase credentials)
-- [ ] Test SMS job dispatch and queue processing (`php artisan queue:work`)
+- [x] Test SMS job dispatch and queue processing (`php artisan queue:work`) — working with PhilSMS
 
 ---
 
@@ -236,6 +236,8 @@
 ### Caching (File Driver — No Redis)
 
 Redis skipped by decision: at single-municipality scale the `file` cache driver is sufficient. Same `Cache::remember()` API, zero ops cost.
+
+**Cache removed from dashboards & analytics (Jul 2026):** All dashboard/analytics controllers rewritten to use `Inertia::defer()` with zero caching — `Cache::remember` and cache invalidation removed. `bustPollCache()` stripped of dashboard invalidation. Reason: dashboard data must always be live.
 
 - [x] Add `Cache::remember()` to `Public/CategoryController@index` (1 hour TTL)
 - [x] Add `Cache::remember()` to system settings queries (30 min TTL) — `FileUploadService` + `SendSmsJob`
@@ -282,31 +284,50 @@ Redis skipped by decision: at single-municipality scale the `file` cache driver 
 
 ### Query Optimization
 
-- [ ] Add slow query logger to `AppServiceProvider@boot` (local env only)
+- [x] Add slow query logger to `AppServiceProvider@boot` (local env only)
 - [x] Eager loading (`->with()`) — already implemented in all index/show methods
-- [ ] Add `Inertia::lazy()` to all analytics controllers
+- [x] Migrate `Inertia::lazy()` + `router.reload()` → `Inertia::defer()` + `<Deferred #fallback>` skeleton pattern across all analytics, admin sidebar, and dashboard controllers/pages
+- [x] Consolidate multiple individual lazy props into single deferred object per page (`analyticsData`, `dashboardData`, `groups`, `users`, `documents`, `categories`, `references`, `logs`, `userData`)
+- [x] Add `<Deferred>` inside each `<TabPanel>` (not wrapping entire `<TabView>`) so tab headers stay visible during loading
+- [x] Change index page list props from `required: true` to `default: []` + optional chaining (`data?.total`)
+- [x] Add full KPI skeleton cards in `#fallback` on all analytics pages
+- [x] Add skeleton row fallback on all admin sidebar index pages
+- [x] Fix: SystemSettings empty form bug — replaced compile-time `initialValues` loop with `watch(() => props.groups)` (ran before deferred data loaded)
 - [x] Fix: Login errors now return `Inertia::render()` with errors instead of `throw ValidationException` (Inertia v3 XHR compatibility)
+- [x] Replace `whereMonth()` (non-sargable, wraps column in `MONTH()`) with `whereBetween(column, [startOfMonth, endOfMonth])` — 9 occurrences across 6 dashboard + analytics controllers
+- [x] Fix: MayorsOffice Dashboard — `sum('amount_granted')` threw SQL error (column doesn't exist); replaced with `count()` + proper `whereBetween` + join to `assistance_codes.amount`
+- [x] Fix: Cache key precision `YmdHi` → `YmdH` so full 300s TTL is honored (was regenerating every minute)
+- [x] Add Admin Dashboard 4th KPI `totalUsers` for 4-card KPI row
+
+### Database Indexes (covering index)
+
+- [x] Create migration `add_assistance_codes_covering_index` — `(application_id, amount)` composite index for index-only SUM queries on analytics
+- [x] `php artisan migrate`
 
 ### Backup
 
-- [ ] Create `alalay-backups` private bucket in Supabase Storage
-- [ ] Add offsite backup upload to `scripts/backup.sh`
-- [ ] Create `app/Console/Commands/VerifyBackup.php`
-- [ ] Register weekly `backup:verify` schedule
+- [x] Create `config/backup.php` — centralized config for path, encryption pass, retention, Supabase bucket
+- [x] Create `scripts/backup.sh` — full backup script (mysqldump → gzip → AES-256-CBC encrypt → local save → S3 PUT to Supabase → prune old backups)
+- [x] Create `app/Console/Commands/BackupDatabase.php` — Laravel command wrapping mysqldump + encrypt + Supabase upload + prune
+- [x] Create `app/Console/Commands/VerifyBackup.php` — decrypt + restore latest backup to test database, log result
+- [x] Schedule `backup:run` daily at 02:00 in `routes/console.php`
+- [x] Schedule `backup:verify` weekly on Sundays at 03:00 in `routes/console.php`
+- [x] Manual: Create `alalay-backups` private bucket in Supabase Storage via dashboard
 
 ### Emergency Maintenance
 
-- [ ] Add `APP_MAINTENANCE_SECRET` to `.env`
-- [ ] Add `toggleMaintenance()` to `Admin/SystemSettingController`
-- [ ] Add maintenance toggle route to `web.php`
-- [ ] Add maintenance toggle button to `Admin/SystemSettings.vue`
+- [x] Add `maintenance_secret` to `config/app.php` + `APP_MAINTENANCE_SECRET` to `.env` / `.env.example`
+- [x] Add `toggleMaintenance()` to `Admin/SystemSettingController` — calls `php artisan up`/`down`, logs to `audit_logs`
+- [x] Add maintenance toggle route `admin.maintenance.toggle` to `web.php` (POST)
+- [x] Add maintenance toggle button to `Admin/SystemSettings.vue` — red "Enable" / green "Bring Online"
+- [x] Create `resources/views/errors/503.blade.php` — branded maintenance page
 - [ ] Print emergency command reference — store physically in IT office
 
 ### Zero-Day
 
-- [ ] Add `composer audit` check to `deploy.sh`
-- [ ] Add PII redaction to `AuditLogger::log()` description field
-- [ ] Document incident response procedure in `.ai/context/`
+- [x] Create `scripts/deploy.sh` — full deploy script with `composer audit --no-dev` (fails on vuln), `npm audit`, cache, migrate
+- [x] Add PII redaction to `AuditLogger::log()` — strips `09xxxxxxxxx` / `+639xxxxxxxxx` from description
+- [x] Create `.ai/context/INCIDENT_RESPONSE.md` — emergency commands, incident types (breach/compromise/corruption/SMS), contacts, documentation requirements
 
 ---
 
@@ -334,7 +355,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 ### 3.3 Shared Controllers
 
 - [x] `Shared/AccountController@edit` — renders `Auth/AccountSettings.vue` with user data
-- [x] `Shared/AccountController@update` — handles profile + password + profile picture update (uploads to Supabase S3 bucket; avatar display via proxy endpoint → signed URL redirect — ON HOLD: browser shows initial letter instead of image)
+- [x] `Shared/AccountController@update` — handles profile + password + profile picture update (uploads to Supabase S3 bucket; avatar served via controller proxy returning raw image bytes; PrimeVue Avatar v-if/v-else fix for null→image transition; cache-busting via `updated_at` timestamp)
+- [x] Account Settings page: clickable avatar with View/Change Photo toggle, edit/save/cancel pattern
 
 ### 3.4 Admin Controllers
 
@@ -347,6 +369,22 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `Admin/AssistanceCategoryController` — full CRUD + search/paginate — implemented
 - [x] `Admin/RequiredDocumentController` — full CRUD + search + category filter — implemented
 - [x] `Admin/AssistanceCodeReferenceController` — full CRUD + search/paginate — implemented
+- [x] `Admin/SmsController` — 5 methods: `updates()`, `saveUpdates()`, `claiming()`, `saveClaimingTemplate()`, `triggerClaiming()` — editable SMS templates + mass claiming trigger
+
+### 3.4b All Panels — Dashboard & Analytics (Cache-Free, Deferred)
+
+- [x] **Admin Dashboard** — 3 KPIs, `users_by_role` doughnut, 2 activity tables; no cache
+- [x] **Admin Analytics** — date-filtered, 4 KPIs + 5 charts
+- [x] **AICS Dashboard** — 4 KPIs, 4 charts, recent DataTable
+- [x] **AICS Analytics** — date-filtered, 5 KPIs in flex row, 4 charts
+- [x] **MSWDO Dashboard** — 4 KPIs, 4 charts, recent apps DataTable
+- [x] **MSWDO Analytics** — date-filtered, 4 KPIs, 4 charts
+- [x] **Accountant Dashboard** — 3 KPIs, 3 amount-based charts, recent vouchers DataTable
+- [x] **Accountant Analytics** — date-filtered, 5 KPIs, 3 amount-focused charts
+- [x] **Treasurer Dashboard** — 3 KPIs, 3 charts (multi-line weekly status), recent DataTable
+- [x] **Treasurer Analytics** — date-filtered, 5 KPIs, 4 charts
+- [x] **Mayor's Office Dashboard** — 8 KPIs (2 rows), 5 charts, 8-row recent DataTable
+- [x] **Mayor's Office Analytics** — date-filtered, 8 KPIs (4-per-row grid), 6 charts incl. pipeline bottleneck
 
 ### 3.5 AICS Staff Controllers
 
@@ -396,6 +434,63 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 - [x] `MayorsOffice/DashboardController@index` — renders generic Dashboard.vue (consolidated KPIs)
 - [x] `MayorsOffice/AnalyticsController@index` — consolidated charts; category_name fix
+
+### 3.10 Validation & Security (Form Request Classes)
+
+Reference: `.ai/context/VALIDATION&SANITIZATION.md`
+
+All forms must have a dedicated Form Request class with `rules()`, `prepareForValidation()` (sanitization), and `messages()`. Each mutating controller must verify workflow state before processing. All index endpoints must whitelist sort/filter params.
+
+#### Public Forms
+- [x] `StoreApplicationRequest` — **exists, `prepareForValidation()` added**
+- [x] `ResubmitDocumentsRequest` — **created**
+
+#### Auth Forms
+- [x] `LoginRequest` — **created**, wired to `LoginController@store`; email lowercased/trimmed
+- [x] `OtpChallengeRequest` — **created**, wired to `OtpChallengeController@verify`; strips non-digits
+- [x] `ForgotPasswordRequest` — **created** (Fortify handles POST internally)
+- [x] `ResetPasswordRequest` — **created** (Fortify handles POST internally); `Password::min(12)->mixedCase()->numbers()->symbols()->uncompromised()`
+
+#### AICS Staff Forms
+- [x] `ApproveApplicationRequest` (AICS) — **created**
+- [x] `ReturnApplicationRequest` (AICS) — **created**
+- [x] `CreateAssistanceCodeRequest` — **created**
+
+#### MSWDO Forms
+- [x] `ApproveApplicationRequest` (MSWDO) — **exists, `prepareForValidation()` added**
+- [x] `ReturnApplicationRequest` (MSWDO) — **exists, `prepareForValidation()` added**
+- [x] `CreateVoucherRequest` (MSWDO) — **exists, `prepareForValidation()` added**
+
+#### Accountant Forms
+- [x] `ApproveVoucherRequest` — **created**
+- [x] `ReturnVoucherRequest` — **created**
+
+#### Treasurer Forms
+- [x] `AcknowledgeVoucherRequest` — **created**
+- [x] `HoldChequeRequest` — **created**
+
+#### Admin Forms
+- [x] `StoreUserRequest` — **exists, `messages()` + name `regex` added**
+- [x] `UpdateUserRequest` — **exists, `messages()` + name `regex` added**
+- [x] `UpdateSystemSettingRequest` — **created**, whitelist of 14 allowed keys; unknown keys silently dropped in `prepareForValidation()`
+
+#### Shared Forms
+- [x] `UpdateAccountRequest` — **exists, `prepareForValidation()` added**
+
+#### Controller-Level State Validation
+- [x] AICS approve: check `! in_array($application->status, ['submitted', 'screening'])`
+- [x] AICS return: check `! in_array($application->status, ['submitted', 'screening'])`
+- [x] Assistance code store: check `$application->status !== 'assistance_coding'`
+- [x] MSWDO approve: check `$application->status !== 'mswdo_review'`
+- [x] MSWDO return: check `$application->status !== 'mswdo_review'`
+- [x] Voucher store: check `! in_array($application->status, ['voucher_creation', 'voucher_returned'])`
+- [x] Accountant approve: check `$application->status !== 'voucher_checking'`
+- [x] Accountant return: check `$application->status !== 'voucher_checking'`
+- [x] Treasurer acknowledge: check `$application->status !== 'with_treasurer'`
+- [x] Treasurer hold: check `$application->status !== 'with_treasurer'`
+
+#### Sort/Filter Parameter Whitelisting
+- [x] Verified: No index controller accepts `sort_by`/`sort_dir` from user input. All `orderBy()` calls use hardcoded column names. Search/filter params (`search`, `tab`, `category`, `from`, `to`) use Eloquent `where()` with parameter binding — no injection risk.
 
 ---
 
@@ -473,6 +568,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [x] `Admin/AssistanceCodeReferences/Index.vue`, `Create.vue`, `Edit.vue` — DataTable + search + InputNumber currency + status Tag + CRUD forms
 - [x] `Admin/AuditLogs.vue` — filterable table + CSV export; colored Tag badges for role/module/action; `window.open` download (bypasses Inertia)
 - [x] `Admin/SystemSettings.vue` — grouped settings form with edit/save/cancel toggle pattern; InputSwitch for boolean values
+- [x] `Admin/Sms/Updates.vue` — 4 editable SMS templates (Submission, Under Review, Need for Resubmission, Cheque Ready) with edit/save/cancel pattern; toast on save
+- [x] `Admin/Sms/Claiming.vue` — claiming template editor + date picker + "Send Claiming Notification" button with confirm dialog; toast on save and send
 
 ### 4.6 AICS Staff Panel Pages
 
@@ -698,10 +795,17 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 
 ### 5.4 SMS + Queue Testing
 
-- [ ] `php artisan queue:work` running
-- [ ] Submit application → `sms_notifications` row created → status changes to `sent`
-- [ ] All 4 trigger events fire: `submission_complete`, `application_under_review`, `resubmission_needed`, `cheque_claiming`
-- [ ] SMS failure → retry logic → `failed_jobs` table entry
+- [x] `php artisan queue:work` running — processes jobs successfully
+- [x] Submit application → `sms_notifications` row created → status changes to `sent` via PhilSMS
+- [x] All 5 trigger events defined: `submission_complete`, `application_under_review` (AICS only), `resubmission_needed`, `cheque_ready`, `cheque_claiming`
+- [x] Phone formatting: auto-converts `09xxxxxxxxx` → `639xxxxxxxxx` for PhilSMS international format
+- [x] PhilSMS integration: `dashboard.philsms.com/api/v3/sms/send` endpoint, Bearer token auth, `PhilSMS` sender ID
+- [x] SMS templates editable via System Settings (4 update templates + 1 claiming template)
+- [x] `{reference_code}`, `{claimant_name}`, `{track_url}`, `{remarks}`, `{claiming_date}` placeholders working
+- [x] Mass claiming trigger: dispatches `SendSmsJob` for all `cheque_ready` applications
+- [x] Queue worker verified: SMS delivered successfully (cost 2 credits for long message)
+- [x] `application_under_review` restricted to AICS approval only (removed from MSWDO, Accountant, public resubmission)
+- [x] Default driver set to `log` for development (switch to `philsms` in production)
 
 ### 5.5 Audit Log Testing
 
@@ -711,6 +815,46 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [ ] Approve application → entry with `entity_type = 'application'`
 - [ ] Export CSV → export action logged
 - [ ] Failed login → `action = 'login_failed'`, `user_id = null`
+
+### 5.6 Validation & Sanitization Testing
+
+Reference: `.ai/context/VALIDATION&SANITIZATION.md`
+
+- [ ] Submit Apply form with empty fields — verify all required errors shown
+- [ ] Submit Apply form with invalid phone (`09123`) — verify phone regex error
+- [ ] Submit Apply form with HTML in name fields (`<script>alert(1)</script>`) — verify `strip_tags` removes it before saving
+- [ ] Submit Apply form as Representative without Authorization Letter — verify required error
+- [ ] Submit Apply form as Spouse/Child without Authorization Letter — verify NOT required (direct relative exemption)
+- [ ] Submit wrong file type (jpg instead of pdf) — verify `mimes:pdf` error
+- [ ] Submit file over size limit — verify `max` error
+- [ ] Submit OTP with 5 digits — verify `digits:6` error
+- [ ] Submit reset password shorter than 12 chars — verify `min` error
+- [ ] Submit reset password without symbol — verify `symbols` error
+- [ ] Submit createUser with duplicate email — verify `unique` error
+- [ ] Submit approve application when status is not `submitted` — verify controller-level state check blocks it
+- [ ] Test sort_by injection: `?sort_by=id;DROP TABLE users` — verify whitelist prevents reaching `orderBy()`
+- [ ] Submit remarks with HTML tags — verify `strip_tags` removes them
+- [ ] Verify amounts with commas (`5,000.00`) are normalized correctly in assistance code
+- [ ] Submit system settings with unknown key not in whitelist — verify the key is silently dropped
+- [ ] Verify `claimant_phone` is stripped to digits-only before validation
+
+### 5.7 Test Infrastructure Issues
+
+- [x] Documented: AuthTest.php fails on SQLite due to migration using MySQL `MODIFY COLUMN ENUM` syntax (`ALTER TABLE applications MODIFY COLUMN status ENUM(...)`). SQLite does not support `MODIFY COLUMN` or `ENUM`. Fix requires either: (a) refactoring migration to be platform-agnostic using `DB::statement()` with conditional logic, or (b) installing `doctrine/dbal` for cross-platform column modifications. **Not introduced by our changes** — pre-existing issue.
+- [ ] Fix migration to be SQLite-compatible for `php artisan test` to pass
+
+### 5.8 Performance Observations (Dev Profile)
+
+Observed slowness on review/show pages. Root causes identified — **none introduced by Form Request / state validation work**.
+
+| Cause | Impact | Details |
+|---|---|---|
+| **SignedUrlService -> Supabase S3 calls** | Major | Every `show()` page calls `temporaryUrl()` once per document = N serial HTTP requests (~200-500ms each). Review with 5 docs = ~1-2.5s Supabase API latency before page renders. Affects: Aics/ApplicationController@show, Mswdo/ApplicationController@show, Accountant/Treasurer review pages. |
+| **Encrypted field casting** | Moderate | Each PII field (`claimant_address`, `claimant_phone`, `claimant_email`, `beneficiary_address`) decrypted on every read by Laravel's `encrypted` cast. Review pages load all of them. |
+| **File cache driver** | Low | `Cache::store('file')` + `Cache::forget()` on every mutation adds filesystem I/O. Acceptable at single-municipality scale. |
+| **SMS dispatch** | None | `QUEUE_CONNECTION=database` + `SendSmsJob implements ShouldQueue` = async INSERT into `jobs` table. Does not block response. |
+
+- [ ] Fix: Batch signed URL generation or cache signed URLs per document with short TTL to eliminate serial Supabase calls on review pages.
 
 ---
 
@@ -748,6 +892,8 @@ Read `.ai/context/06_inertia_controller_props.md` before building each controlle
 - [ ] Verify: reference code validation shows error immediately on blur if code does not exist
 - [ ] Verify: live validation errors disappear when user edits the field
 - [ ] Verify: live validation never prevents form submission
+
+---
 
 ---
 

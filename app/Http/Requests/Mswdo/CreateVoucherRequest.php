@@ -11,6 +11,13 @@ class CreateVoucherRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('adjustment_remarks') && $this->adjustment_remarks) {
+            $this->merge(['adjustment_remarks' => trim(strip_tags($this->adjustment_remarks))]);
+        }
+    }
+
     public function rules(): array
     {
         return [

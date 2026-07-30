@@ -9,6 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement("ALTER TABLE reviews MODIFY COLUMN stage ENUM(
             'aics_screening', 'mswdo_review', 'assistance_coding',
             'voucher_creation', 'voucher_checking', 'accountant_review',
@@ -18,6 +22,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement("ALTER TABLE reviews MODIFY COLUMN stage ENUM(
             'aics_screening', 'mswdo_review', 'assistance_coding',
             'voucher_creation', 'voucher_checking', 'treasurer_acknowledgment',

@@ -35,10 +35,12 @@ class Application extends Model
         'beneficiary_sex',
         'beneficiary_dob',
         'beneficiary_address',
+        'beneficiary_barangay',
         'resubmission_remarks',
         'reviewed_by',
         'reviewed_at',
         'claimed_at',
+        'claiming_date',
     ];
 
     protected function casts(): array
@@ -52,6 +54,7 @@ class Application extends Model
             'beneficiary_dob' => 'date',
             'reviewed_at' => 'datetime',
             'claimed_at' => 'datetime',
+            'claiming_date' => 'date',
         ];
     }
 
@@ -103,6 +106,23 @@ class Application extends Model
     public function smsNotifications()
     {
         return $this->hasMany(SmsNotification::class, 'application_id');
+    }
+
+    public function getBeneficiaryBarangayAttribute()
+    {
+        if ($this->attributes['beneficiary_barangay'] ?? null) {
+            return $this->attributes['beneficiary_barangay'];
+        }
+        if (!$this->beneficiary_address) return null;
+        $parts = array_map('trim', explode(',', $this->beneficiary_address));
+        return count($parts) >= 2 ? ($parts[count($parts) - 3] ?? null) : null;
+    }
+
+    public static function parseBarangayFromAddress(?string $address): ?string
+    {
+        if (!$address) return null;
+        $parts = array_map('trim', explode(',', $address));
+        return count($parts) >= 2 ? ($parts[count($parts) - 3] ?? null) : null;
     }
 
     public function scopeByStatus($query, $status)

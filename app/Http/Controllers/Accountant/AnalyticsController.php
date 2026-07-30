@@ -4,62 +4,64 @@ namespace App\Http\Controllers\Accountant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Application;
-use Illuminate\Support\Facades\Cache;
+use App\Models\Voucher;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class AnalyticsController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $from = request('from', now()->startOfMonth()->toDateString());
-        $to = request('to', now()->toDateString());
-        $cacheKey = 'analytics.accountant.' . md5("{$from}-{$to}");
+        $dateFrom = $request->date_from
+            ? Carbon::parse($request->date_from)->startOfDay()
+            : now()->startOfMonth();
 
-        $data = Cache::remember($cacheKey, 900, function () use ($from, $to) {
-            $vouchersForReview = Application::whereIn('status', ['voucher_creation', 'voucher_checking'])->count();
-            $approvedThisMonth = Application::whereIn('status', ['budget_checking', 'with_treasurer', 'cheque_ready', 'claimed'])
-                ->whereMonth('created_at', now()->month)
-                ->count();
-            $totalAmount = Application::whereIn('applications.status', [
-                'voucher_creation', 'voucher_checking', 'budget_checking',
-                'with_treasurer', 'cheque_ready', 'claimed',
-            ])->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')
-                ->sum('assistance_codes.amount');
+        $dateTo = $request->date_to
+            ? Carbon::parse($request->date_to)->endOfDay()
+            : now()->endOfDay();
 
-            $disbursedThisMonth = Application::where('applications.status', 'claimed')
-                ->whereMonth('applications.created_at', now()->month)
-                ->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')
-                ->sum('assistance_codes.amount');
+        return Inertia::render('Accountant/Analytics', [
+            'analyticsData' => Inertia::defer(function () use ($dateFrom, $dateTo) {
+                $vouchers = Voucher::whereBetween('vouchers.created_at', [$dateFrom, $dateTo]);
+                $approvedVouchers = (clone $vouchers)->whereNull('returned_at');
+                $returnedVouchers = (clone $vouchers)->whereNotNull('returned_at');
 
-            $monthlyTrends = Application::selectRaw("DATE_FORMAT(applications.created_at, '%Y-%m') as month, count(*) as count, sum(assistance_codes.amount) as total")
-                ->whereBetween('applications.created_at', [$from, $to . ' 23:59:59'])
-                ->whereIn('applications.status', ['voucher_creation', 'voucher_checking', 'budget_checking', 'with_treasurer', 'cheque_ready', 'claimed'])
-                ->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')
-                ->groupBy('month')
-                ->orderBy('month')
-                ->get();
+                $totalApproved = (clone $approvedVouchers)->count();
 
-            $recentTransactions = Application::with('category', 'encoder', 'assistanceCode')
-                ->whereIn('status', ['voucher_creation', 'voucher_checking', 'budget_checking', 'with_treasurer', 'cheque_ready', 'claimed'])
-                ->latest()
-                ->take(10)
-                ->get()
-                ->map(fn ($app) => [
-                    'id' => $app->id,
-                    'reference_code' => $app->reference_code,
-                    'status' => $app->status,
-                    'category_name' => $app->category?->category_name,
-                    'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
-                    'amount' => $app->assistanceCode?->amount,
-                    'created_at' => $app->created_at,
-                ]);
+                return [
+                    'total_vouchers' => (clone $vouchers)->count(),
+                    'total_approved' => $totalApproved,
+                    'total_returned' => (clone $returnedVouchers)->count(),
+                    'total_amount_approved' => (clone $approvedVouchers)
+                        ->join('assistance_codes', 'vouchers.assistance_code_id', '=', 'assistance_codes.id')
+                        ->sum('assistance_codes.amount'),
+                    'average_amount' => $totalApproved > 0
+                        ? round((clone $approvedVouchers)
+                            ->join('assistance_codes', 'vouchers.assistance_code_id', '=', 'assistance_codes.id')
+                            ->sum('assistance_codes.amount') / $totalApproved, 2)
+                        : 0,
 
-            return compact('vouchersForReview', 'approvedThisMonth', 'totalAmount', 'disbursedThisMonth', 'monthlyTrends', 'recentTransactions');
-        });
+                    'voucher_trend' => (clone $vouchers)
+                        ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+                        ->groupBy('date')->orderBy('date')->get(),
 
-        return Inertia::render('Accountant/Analytics', array_merge($data, [
-            'dateFrom' => $from,
-            'dateTo' => $to,
-        ]));
+                    'amount_trend' => (clone $approvedVouchers)
+                        ->join('assistance_codes', 'vouchers.assistance_code_id', '=', 'assistance_codes.id')
+                        ->selectRaw('DATE(vouchers.created_at) as date, SUM(assistance_codes.amount) as total')
+                        ->groupBy('date')->orderBy('date')->get(),
+
+                    'category_amount' => Voucher::whereNull('returned_at')
+                        ->whereBetween('vouchers.created_at', [$dateFrom, $dateTo])
+                        ->join('assistance_codes', 'vouchers.assistance_code_id', '=', 'assistance_codes.id')
+                        ->join('applications', 'assistance_codes.application_id', '=', 'applications.id')
+                        ->join('assistance_categories', 'applications.category_id', '=', 'assistance_categories.id')
+                        ->selectRaw('assistance_categories.category_name, SUM(assistance_codes.amount) as total')
+                        ->groupBy('assistance_categories.category_name')
+                        ->orderByDesc('total')->get(),
+                ];
+            }),
+            'filters' => ['date_from' => $dateFrom->toDateString(), 'date_to' => $dateTo->toDateString()],
+        ]);
     }
 }
