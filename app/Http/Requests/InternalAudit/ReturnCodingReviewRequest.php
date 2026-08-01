@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests\Treasurer;
+namespace App\Http\Requests\InternalAudit;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class HoldChequeRequest extends FormRequest
+class ReturnCodingReviewRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -28,7 +28,7 @@ class HoldChequeRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'remarks.required' => 'Please provide a reason for placing this application on hold.',
+            'remarks.required' => 'Please provide remarks explaining why the coding is being returned.',
             'remarks.min' => 'Remarks must be at least 10 characters.',
             'remarks.max' => 'Remarks must not exceed 1,000 characters.',
         ];

@@ -38,9 +38,10 @@ class ApplicationDemoSeeder extends Seeder
 
         $statuses = [
             'submitted', 'returned_to_applicant', 'mswdo_review',
-            'social_case_study_uploaded', 'assistance_coding', 'voucher_creation',
-            'voucher_checking', 'voucher_returned', 'with_treasurer',
-            'on_hold', 'cheque_ready', 'claimed',
+            'social_case_study_uploaded', 'assistance_coding', 'internal_audit_review',
+            'returned_assistance_coding', 'voucher_creation', 'budget_checking',
+            'voucher_on_hold', 'voucher_recording', 'with_treasurer',
+            'cheque_ready', 'claimed',
         ];
 
         $claimantNames = [
@@ -116,7 +117,7 @@ class ApplicationDemoSeeder extends Seeder
                 'resubmission_remarks' => $status === 'returned_to_applicant' ? 'Please attach updated proof of income and barangay certificate.' : null,
                 'claimed_at' => $status === 'claimed' ? now()->subDays(rand(1, 30)) : null,
                 'claiming_date' => $status === 'claimed' ? now()->subDays(rand(1, 30))->format('Y-m-d') : null,
-                'created_at' => now()->subDays(rand(1, 60)),
+                'created_at' => now()->subDays($i % 4 === 0 ? rand(8, 14) : rand(0, 7))->startOfDay()->addMinutes(rand(0, 1439)),
                 'updated_at' => now(),
             ]);
         }

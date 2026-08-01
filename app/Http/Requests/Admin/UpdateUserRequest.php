@@ -35,7 +35,7 @@ class UpdateUserRequest extends FormRequest
             'middle_name' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-zÑñ\s\-\'\.]*$/'],
             'name_extension' => ['nullable', 'string', 'max:10', 'regex:/^(Jr\.|Sr\.|III|IV|V)?$/i'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $userId],
-            'role' => ['required', 'string', 'in:admin,aics_staff,mswdo,accountant,treasurer,mayors_office'],
+            'role' => ['required', 'string', 'in:admin,aics_staff,mswdo,accountant,treasurer,internal_audit,budget_officer'],
             'password' => ['nullable', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols()->uncompromised()],
         ];
     }

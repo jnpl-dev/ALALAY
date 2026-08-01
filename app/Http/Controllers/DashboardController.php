@@ -16,7 +16,8 @@ class DashboardController extends Controller
             'mswdo' => 'mswdo.dashboard',
             'accountant' => 'accountant.dashboard',
             'treasurer' => 'treasurer.dashboard',
-            'mayors_office' => 'mayors-office.dashboard',
+            'internal_audit' => 'internal-audit.dashboard',
+            'budget_officer' => 'budget-office.dashboard',
             default => 'account.edit',
         };
 

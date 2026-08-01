@@ -62,8 +62,13 @@ const model = computed(() => {
       { label: 'Analytics', icon: 'pi pi-fw pi-chart-bar', to: route('treasurer.analytics') },
       { label: 'Cheques', icon: 'pi pi-fw pi-money-bill', to: route('treasurer.cheques.index') },
     ],
-    mayors_office: [
-      { label: 'Analytics', icon: 'pi pi-fw pi-chart-bar', to: route('mayors-office.analytics') },
+    internal_audit: [
+      { label: 'Analytics', icon: 'pi pi-fw pi-chart-bar', to: route('internal-audit.analytics') },
+      { label: 'Coding Review', icon: 'pi pi-fw pi-check-circle', to: route('internal-audit.applications.index') },
+    ],
+    budget_officer: [
+      { label: 'Analytics', icon: 'pi pi-fw pi-chart-bar', to: route('budget-office.analytics') },
+      { label: 'Vouchers', icon: 'pi pi-fw pi-receipt', to: route('budget-office.vouchers.index') },
     ],
   }
 
@@ -72,7 +77,8 @@ const model = computed(() => {
     : role === 'mswdo' ? 'MSWDO'
     : role === 'accountant' ? 'Accountant'
     : role === 'treasurer' ? 'Treasurer'
-    : role === 'mayors_office' ? "Mayor's Office"
+    : role === 'internal_audit' ? 'Internal Audit'
+    : role === 'budget_officer' ? 'Budget Office'
     : 'Panel'
 
   const items = [

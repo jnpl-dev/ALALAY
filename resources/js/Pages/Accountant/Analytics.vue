@@ -129,9 +129,6 @@ const categoryAmountOptions = baseChartOptions({
         <AppKpiCard title="Approved" :value="analyticsData?.total_approved ?? 0" icon="pi pi-check-circle" color="success" subtitle="ready for treasurer" />
       </div>
       <div class="flex-1 min-w-[180px]">
-        <AppKpiCard title="Returned" :value="analyticsData?.total_returned ?? 0" icon="pi pi-undo" color="danger" subtitle="sent back to MSWDO" />
-      </div>
-      <div class="flex-1 min-w-[180px]">
         <AppKpiCard title="Total Amount" :value="formatCurrency(analyticsData?.total_amount_approved ?? 0)" icon="pi pi-money-bill" color="success" subtitle="approved vouchers" />
       </div>
       <div class="flex-1 min-w-[180px]">

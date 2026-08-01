@@ -27,11 +27,10 @@ function clearFilter() {
   router.get(route('treasurer.analytics'), {}, { preserveState: true })
 }
 
-const statusLabels = { with_treasurer: 'Pending', cheque_ready: 'Ready', on_hold: 'On Hold', claimed: 'Claimed' }
+const statusLabels = { with_treasurer: 'Pending', cheque_ready: 'Ready', claimed: 'Claimed' }
 const statusColors = {
   with_treasurer: CHART_COLORS.warning,
   cheque_ready: CHART_COLORS.success,
-  on_hold: CHART_COLORS.danger,
   claimed: CHART_COLORS.primary,
 }
 
@@ -159,9 +158,6 @@ const doughnutOptions = baseChartOptions({
       </div>
       <div class="flex-1 min-w-[160px]">
         <AppKpiCard title="Cheque Ready" :value="analyticsData?.total_cheque_ready ?? 0" icon="pi pi-check-circle" color="success" subtitle="ready for release" />
-      </div>
-      <div class="flex-1 min-w-[160px]">
-        <AppKpiCard title="On Hold" :value="analyticsData?.total_on_hold ?? 0" icon="pi pi-pause-circle" color="danger" subtitle="currently on hold" />
       </div>
       <div class="flex-1 min-w-[160px]">
         <AppKpiCard title="Claimed" :value="analyticsData?.total_claimed ?? 0" icon="pi pi-verified" color="purple" subtitle="released to beneficiary" />

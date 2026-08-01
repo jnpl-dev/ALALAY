@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests\Accountant;
+namespace App\Http\Requests\InternalAudit;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class ReturnVoucherRequest extends FormRequest
+class ApproveCodingReviewRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -21,15 +21,13 @@ class ReturnVoucherRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'remarks' => ['required', 'string', 'min:10', 'max:1000'],
+            'remarks' => ['nullable', 'string', 'max:1000'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'remarks.required' => 'Please provide a reason for returning the voucher.',
-            'remarks.min' => 'Remarks must be at least 10 characters.',
             'remarks.max' => 'Remarks must not exceed 1,000 characters.',
         ];
     }

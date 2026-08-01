@@ -39,7 +39,7 @@ const showReturnModal = ref(false)
 const approving = ref(false)
 const returning = ref(false)
 
-const canReview = computed(() => ['submitted', 'screening'].includes(props.application.status))
+const canReview = computed(() => props.application.status === 'submitted')
 
 function viewDocument(doc, idx) {
   viewerUrl.value = route('aics.applications.document-url', [props.application.id, doc.id])

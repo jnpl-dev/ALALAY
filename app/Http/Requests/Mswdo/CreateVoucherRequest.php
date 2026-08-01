@@ -11,19 +11,11 @@ class CreateVoucherRequest extends FormRequest
         return true;
     }
 
-    protected function prepareForValidation(): void
-    {
-        if ($this->has('adjustment_remarks') && $this->adjustment_remarks) {
-            $this->merge(['adjustment_remarks' => trim(strip_tags($this->adjustment_remarks))]);
-        }
-    }
-
     public function rules(): array
     {
         return [
             'voucher_file' => 'required|file|mimes:pdf|max:20480',
             'page_count' => 'required|integer|min:1|max:10',
-            'adjustment_remarks' => 'nullable|string|max:1000',
         ];
     }
 

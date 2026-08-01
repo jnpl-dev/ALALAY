@@ -47,7 +47,8 @@ const roleOptions = [
   { label: 'MSWDO', value: 'mswdo' },
   { label: 'Accountant', value: 'accountant' },
   { label: 'Treasurer', value: 'treasurer' },
-  { label: "Mayor's Office", value: 'mayors_office' },
+  { label: 'Internal Audit', value: 'internal_audit' },
+  { label: 'Budget Office', value: 'budget_officer' },
 ]
 
 const submit = () => {

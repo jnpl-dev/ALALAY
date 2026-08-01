@@ -15,23 +15,26 @@ class PendingCountController extends Controller
 
         match ($user->role) {
             'aics_staff' => [
-                $counts['applications'] = Application::whereIn('status', ['submitted', 'screening'])->count(),
+                $counts['applications'] = Application::where('status', 'submitted')->count(),
             ],
             'mswdo' => [
-                $counts['applications'] = Application::whereIn('status', ['submitted', 'screening', 'mswdo_review'])->count(),
-                $counts['vouchers'] = Application::whereIn('status', ['voucher_creation', 'voucher_returned'])->count(),
+                $counts['applications'] = Application::whereIn('status', ['submitted', 'mswdo_review'])->count(),
+                $counts['vouchers'] = Application::where('status', 'voucher_creation')->count(),
             ],
             'accountant' => [
-                $counts['vouchers'] = Application::where('status', 'voucher_checking')->count(),
+                $counts['vouchers'] = Application::where('status', 'voucher_recording')->count(),
             ],
             'treasurer' => [
                 $counts['cheques'] = Application::where('status', 'with_treasurer')->count(),
             ],
-            'mayors_office' => [
-                $counts['analytics'] = Application::whereIn('status', ['claimed', 'cheque_ready'])->count(),
+            'internal_audit' => [
+                $counts['applications'] = Application::where('status', 'internal_audit_review')->count(),
+            ],
+            'budget_officer' => [
+                $counts['applications'] = Application::whereIn('status', ['budget_checking', 'voucher_on_hold'])->count(),
             ],
             'admin' => [
-                $counts['applications'] = Application::whereIn('status', ['submitted', 'screening'])->count(),
+                $counts['applications'] = Application::where('status', 'submitted')->count(),
             ],
             default => [],
         };

@@ -21,7 +21,7 @@ class AnalyticsController extends Controller
             ? Carbon::parse($request->date_to)->endOfDay()
             : now()->endOfDay();
 
-        $treasurerStatuses = ['with_treasurer', 'cheque_ready', 'on_hold', 'claimed'];
+        $treasurerStatuses = ['with_treasurer', 'cheque_ready', 'claimed'];
 
         return Inertia::render('Treasurer/Analytics', [
             'analyticsData' => Inertia::defer(function () use ($dateFrom, $dateTo, $treasurerStatuses) {
@@ -31,7 +31,6 @@ class AnalyticsController extends Controller
                 return [
                     'total_processed' => (clone $base)->count(),
                     'total_cheque_ready' => (clone $base)->where('status', 'cheque_ready')->count(),
-                    'total_on_hold' => (clone $base)->where('status', 'on_hold')->count(),
                     'total_claimed' => (clone $base)->where('status', 'claimed')->count(),
                     'total_amount_disbursed' => (clone $base)->where('status', 'claimed')
                         ->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')

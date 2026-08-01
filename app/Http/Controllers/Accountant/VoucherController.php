@@ -9,7 +9,6 @@ use App\Models\Review;
 use App\Services\SignedUrlService;
 use App\Jobs\SendSmsJob;
 use App\Http\Requests\Accountant\ApproveVoucherRequest;
-use App\Http\Requests\Accountant\ReturnVoucherRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -46,8 +45,7 @@ class VoucherController extends Controller
 
         $applications = match ($tab) {
             'approved' => (clone $query)->where('status', 'with_treasurer'),
-            'returned' => (clone $query)->where('status', 'voucher_returned'),
-            default => (clone $query)->where('status', 'voucher_checking'),
+            default => (clone $query)->where('status', 'voucher_recording'),
         };
 
         return $applications->latest()->get()->map(fn ($app) => [
@@ -107,8 +105,7 @@ class VoucherController extends Controller
 
         $applications = match ($tab) {
             'approved' => (clone $query)->where('status', 'with_treasurer'),
-            'returned' => (clone $query)->where('status', 'voucher_returned'),
-            default => (clone $query)->where('status', 'voucher_checking'),
+            default => (clone $query)->where('status', 'voucher_recording'),
         };
 
         return $applications->latest()
@@ -158,8 +155,7 @@ class VoucherController extends Controller
 
         $applications = (match ($tab) {
             'approved' => (clone $query)->where('status', 'with_treasurer'),
-            'returned' => (clone $query)->where('status', 'voucher_returned'),
-            default => (clone $query)->where('status', 'voucher_checking'),
+            default => (clone $query)->where('status', 'voucher_recording'),
         })->latest()->get();
 
         $filename = 'alalay-accountant-vouchers-' . $tab . '-' . now()->format('Y-m-d') . '.csv';
@@ -195,7 +191,9 @@ class VoucherController extends Controller
     {
         $application = Application::with([
             'category',
+            'documents.requiredDocument',
             'reviews.reviewer',
+            'socialCaseStudy',
             'assistanceCode.reference',
             'assistanceCode.assignedBy',
             'vouchers' => fn($q) => $q->latest(),
@@ -217,6 +215,20 @@ class VoucherController extends Controller
                 'created_at' => $r->created_at,
             ]);
 
+        $documents = $application->documents->map(fn ($d) => [
+            'id' => $d->id,
+            'doc_name' => $d->requiredDocument?->doc_name ?? 'Document',
+            'file_name' => $d->file_name,
+            'file_path' => $d->file_path,
+            'mime_type' => $d->mime_type,
+            'is_resubmission' => $d->is_resubmission,
+            'signed_url' => $this->signedUrlService->generate($d->file_path),
+        ]);
+
+        $scsUrl = $application->socialCaseStudy
+            ? $this->signedUrlService->generate($application->socialCaseStudy->file_path)
+            : null;
+
         $voucher = $application->vouchers()->latest()->first();
         $voucherData = $voucher ? [
             'id' => $voucher->id,
@@ -226,9 +238,6 @@ class VoucherController extends Controller
             'page_count' => $voucher->page_count,
             'prepared_at' => $voucher->prepared_at,
             'prepared_by' => $voucher->preparedBy?->full_name,
-            'returned_at' => $voucher->returned_at,
-            'returned_by' => $voucher->returnedBy?->full_name,
-            'adjustment_remarks' => $voucher->adjustment_remarks,
             'signed_url' => $this->signedUrlService->generate($voucher->file_path),
         ] : null;
 
@@ -261,8 +270,20 @@ class VoucherController extends Controller
             'assistanceCode' => $application->assistanceCode ? [
                 'id' => $application->assistanceCode->id,
                 'code_type' => $application->assistanceCode->reference?->code_type,
+                'description' => $application->assistanceCode->reference?->description,
                 'amount' => $application->assistanceCode->amount,
+                'default_amount' => $application->assistanceCode->reference?->default_amount,
                 'assigned_by' => $application->assistanceCode->assignedBy?->full_name,
+                'assigned_at' => $application->assistanceCode->created_at?->format('M d, Y'),
+            ] : null,
+            'documents' => $documents,
+            'socialCaseStudy' => $application->socialCaseStudy ? [
+                'id' => $application->socialCaseStudy->id,
+                'signed_url' => $scsUrl,
+                'uploaded_by' => $application->socialCaseStudy->conductedBy?->full_name,
+                'conducted_at' => $application->socialCaseStudy->conducted_at,
+                'page_count' => $application->socialCaseStudy->page_count,
+                'file_size_label' => $application->socialCaseStudy->file_size_label,
             ] : null,
             'voucher' => $voucherData,
             'reviews' => $reviews,
@@ -272,9 +293,9 @@ class VoucherController extends Controller
     public function approve(ApproveVoucherRequest $request, $id): RedirectResponse
     {
         $application = Application::findOrFail($id);
-        $this->authorize('approve', $application->vouchers()->latest()->first());
+        $this->authorize('approve', $application->vouchers()->latest()->first() ?? new \App\Models\Voucher);
 
-        if ($application->status !== 'voucher_checking') {
+        if ($application->status !== 'voucher_recording') {
             return redirect()->back()->with('error', 'This voucher is not currently awaiting accountant review.');
         }
 
@@ -287,9 +308,9 @@ class VoucherController extends Controller
         Review::create([
             'application_id' => $application->id,
             'reviewed_by' => $request->user()->id,
-            'stage' => 'accountant_review',
+            'stage' => 'voucher_recording',
             'decision' => 'approved',
-            'from_status' => 'voucher_checking',
+            'from_status' => 'voucher_recording',
             'to_status' => 'with_treasurer',
             'remarks' => $request->input('remarks'),
             'created_at' => now(),
@@ -300,45 +321,5 @@ class VoucherController extends Controller
         return redirect()
             ->route('accountant.vouchers.index')
             ->with('success', 'Voucher approved. Application forwarded to Treasurer.');
-    }
-
-    public function return(ReturnVoucherRequest $request, $id): RedirectResponse
-    {
-        $application = Application::findOrFail($id);
-        $voucher = $application->vouchers()->latest()->first();
-        $this->authorize('returnVoucher', $voucher);
-
-        if ($application->status !== 'voucher_checking') {
-            return redirect()->back()->with('error', 'This voucher is not currently awaiting accountant review.');
-        }
-
-        $voucher->update([
-            'returned_at' => now(),
-            'returned_by' => $request->user()->id,
-            'adjustment_remarks' => $request->input('remarks'),
-        ]);
-
-        $application->update([
-            'status' => 'voucher_returned',
-            'reviewed_by' => $request->user()->id,
-            'reviewed_at' => now(),
-        ]);
-
-        Review::create([
-            'application_id' => $application->id,
-            'reviewed_by' => $request->user()->id,
-            'stage' => 'accountant_review',
-            'decision' => 'returned',
-            'from_status' => 'voucher_checking',
-            'to_status' => 'voucher_returned',
-            'remarks' => $request->input('remarks'),
-            'created_at' => now(),
-        ]);
-
-        $this->bustPollCache();
-
-        return redirect()
-            ->route('accountant.vouchers.index')
-            ->with('success', 'Voucher returned to MSWDO for revision.');
     }
 }
