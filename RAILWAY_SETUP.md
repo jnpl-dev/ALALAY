@@ -83,7 +83,7 @@ editable in the dashboard. Copy-paste these exactly:
 
 **Build Command:**
 ```bash
-chmod +x ./railway/init.sh && sh ./railway/init.sh
+chmod +x ./railway/init.sh && bash ./railway/init.sh
 ```
 
 **PreDeploy Command** (runs on every deploy, in order: caches → migrate → seed):
@@ -113,7 +113,7 @@ php artisan config:cache
 
 **Start Command:**
 ```bash
-sh ./railway/worker.sh
+bash ./railway/worker.sh
 ```
 
 **Healthcheck:** leave off / not applicable
@@ -134,7 +134,7 @@ php artisan config:cache
 
 **Start Command:**
 ```bash
-sh ./railway/cron.sh
+bash ./railway/cron.sh
 ```
 
 **Healthcheck:** leave off
