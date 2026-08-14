@@ -24,7 +24,9 @@ use App\Policies\UserPolicy;
 use App\Policies\VoucherPolicy;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 
 class AppServiceProvider extends ServiceProvider
@@ -49,6 +51,14 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $testRecipient = config('mail.test_recipient');
+
+        if ($testRecipient) {
+            Event::listen(MessageSending::class, function (MessageSending $event) use ($testRecipient) {
+                $event->message->to($testRecipient);
+            });
+        }
+
         if (app()->environment('local')) {
             DB::listen(function (QueryExecuted $query) {
                 if ($query->time > 200) {
