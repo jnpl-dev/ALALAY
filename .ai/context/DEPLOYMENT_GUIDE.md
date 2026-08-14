@@ -23,15 +23,15 @@ XAMPP is used **for local development only** and is never used in production.
 ```
 Railway project "alalay"
 ├── Service: web (Railpack)        # FrankenPHP: HTTP server + PHP-FPM
-│     buildCommand: sh ./railway/init.sh
+│     buildCommand: bash ./railway/init.sh
 │     preDeployCommand (dashboard): config/event/route/view caches + migrate --force + db:seed --force
 │     healthcheck (dashboard): /up
 │     variables: RAILPACK_SKIP_MIGRATIONS=true   # stop Railpack auto migrate+seed on start
 ├── Service: worker (Railpack)     # php artisan queue:work database
-│     startCommand (dashboard): sh ./railway/worker.sh
+│     startCommand (dashboard): bash ./railway/worker.sh
 │     variables: RAILPACK_SKIP_MIGRATIONS=true
 ├── Service: cron (Railpack)       # php artisan schedule:run every 60s
-│     startCommand (dashboard): sh ./railway/cron.sh
+│     startCommand (dashboard): bash ./railway/cron.sh
 │     variables: RAILPACK_SKIP_MIGRATIONS=true
 ├── Plugin: MySQL                   # managed MySQL 8, referenced via ${{MySQL.*}} env refs
 └── Config: railway.json            # Railpack build only (builder + buildCommand); deploy settings are set per-service in the dashboard, and must be chained with `&&` (schema: single string)
