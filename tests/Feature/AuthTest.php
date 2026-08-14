@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\EmailOtp;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class AuthTest extends TestCase
@@ -27,6 +29,26 @@ class AuthTest extends TestCase
         ]);
 
         $response->assertSessionHasErrors('email');
+    }
+
+    public function test_multiple_pending_otps_any_valid_code_succeeds(): void
+    {
+        $user = User::factory()->create();
+
+        EmailOtp::create([
+            'user_id' => $user->id,
+            'otp_code' => Hash::make('111111'),
+            'expires_at' => now()->addMinutes(5),
+        ]);
+        EmailOtp::create([
+            'user_id' => $user->id,
+            'otp_code' => Hash::make('222222'),
+            'expires_at' => now()->addMinutes(5),
+        ]);
+
+        $service = app(\App\Services\EmailOtpService::class);
+
+        $this->assertTrue($service->verify($user, '111111'));
     }
 
     public function test_login_with_valid_credentials_redirects_to_otp(): void

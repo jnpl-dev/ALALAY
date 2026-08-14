@@ -18,6 +18,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Test Recipient Override
+    |--------------------------------------------------------------------------
+    |
+    | When set, every outgoing email is redirected to this single address.
+    | Useful for sandbox/staging environments where the mail provider only
+    | allows delivery to a verified/whitelisted address (e.g. a Resend free
+    | test sender). Leave empty in production to send to real recipients.
+    |
+    */
+
+    'test_recipient' => env('MAIL_TEST_RECIPIENT'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Mailer Configurations
     |--------------------------------------------------------------------------
     |
@@ -45,7 +59,7 @@ return [
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            'timeout' => env('MAIL_TIMEOUT', 15),
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
