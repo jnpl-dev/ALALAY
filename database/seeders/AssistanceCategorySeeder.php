@@ -37,16 +37,11 @@ class AssistanceCategorySeeder extends Seeder
             ],
         ];
 
-        foreach ($categories as $category) {
-            DB::table('assistance_categories')->updateOrInsert(
-                ['category_name' => $category['category_name']],
-                [
-                    'category_description' => $category['category_description'],
-                    'is_active'            => $category['is_active'],
-                    'updated_at'           => now(),
-                ]
-            );
-        }
+        DB::table('assistance_categories')->upsert(
+            $categories,
+            ['category_name'],
+            ['category_description', 'is_active', 'updated_at']
+        );
 
         $this->command->info('Assistance categories seeded successfully.');
     }
