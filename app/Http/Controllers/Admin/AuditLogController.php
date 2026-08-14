@@ -40,7 +40,8 @@ class AuditLogController extends Controller
                     'mswdo' => 'MSWDO',
                     'accountant' => 'Accountant',
                     'treasurer' => 'Treasurer',
-                    'mayors_office' => "Mayor's Office",
+                    'internal_audit' => 'Internal Audit',
+                    'budget_officer' => 'Budget Office',
                 ][$r] ?? $r)($log->role),
                 'module' => $log->module,
                 'module_label' => (fn ($m) => [
@@ -51,7 +52,8 @@ class AuditLogController extends Controller
                     'mswdo' => 'MSWDO',
                     'accountant' => 'Accountant',
                     'treasurer' => 'Treasurer',
-                    'mayors_office' => "Mayor's Office",
+                    'internal-audit' => 'Internal Audit',
+                    'budget-office' => 'Budget Office',
                     'applications' => 'Applications',
                     'assistance-categories' => 'Assistance Categories',
                     'required-documents' => 'Required Documents',
@@ -86,7 +88,7 @@ class AuditLogController extends Controller
         $actions = AuditLog::distinct()->pluck('action')->sort()->values();
 
         return Inertia::render('Admin/AuditLogs', [
-            'logs' => $logs,
+            'logs' => Inertia::defer(fn () => $logs),
             'filters' => request()->only(['search', 'module', 'action', 'from', 'to']),
             'modules' => $modules,
             'actions' => $actions,

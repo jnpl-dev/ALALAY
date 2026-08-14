@@ -1,15 +1,23 @@
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3'
+import { useI18n } from 'vue-i18n'
 import { usePolling } from '@/Composables/usePolling'
 import { useFieldValidation } from '@/Composables/useFieldValidation'
 import DocumentScanner from '@/Components/Application/DocumentScanner.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   application: Object,
   documents: Array,
   reviews: Array,
   resubmission_docs_required: Array,
+  otp_required: Boolean,
+  otp_sent: Boolean,
+  otp_expired: Boolean,
+  otp_attempts: Number,
+  reference_code: String,
 })
 
 const homeUrl = route('home')
@@ -36,6 +44,69 @@ watch(() => usePage().props.errors, (errors) => {
 onBeforeUnmount(() => clearTimeout(toastTimer))
 
 const hasApplication = computed(() => !!props.application)
+
+const otpForm = useForm({
+  otp_code: '',
+})
+
+const digits = ref(['', '', '', '', '', ''])
+const inputRefs = ref([])
+
+const otpString = computed(() => digits.value.join(''))
+
+function sendOtp() {
+  if (!props.reference_code) return
+  router.post(route('track.send-otp', props.reference_code), {}, {
+    preserveState: true,
+    preserveScroll: true,
+  })
+}
+
+function submitOtp() {
+  if (!props.reference_code || otpString.value.length !== 6) return
+  otpForm.otp_code = otpString.value
+  otpForm.post(route('track.verify-otp', props.reference_code), {
+    preserveState: false,
+    preserveScroll: true,
+  })
+}
+
+function handleInput(index, e) {
+  const val = e.target.value
+  if (!/^\d*$/.test(val)) {
+    e.target.value = digits.value[index]
+    return
+  }
+  digits.value[index] = val.slice(-1)
+  if (val && index < 5) {
+    inputRefs.value[index + 1]?.focus()
+  }
+}
+
+function handleKeydown(index, e) {
+  if (e.key === 'Backspace' && !digits.value[index] && index > 0) {
+    inputRefs.value[index - 1]?.focus()
+  }
+  if (e.key === 'Enter') {
+    submitOtp()
+  }
+}
+
+function handlePaste(e) {
+  e.preventDefault()
+  const paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6)
+  paste.split('').forEach((char, i) => {
+    if (i < 6) digits.value[i] = char
+  })
+  const nextEmpty = digits.value.findIndex(d => !d)
+  const focusIndex = nextEmpty === -1 ? 5 : nextEmpty
+  inputRefs.value[focusIndex]?.focus()
+}
+
+function setRef(el, index) {
+  if (el) inputRefs.value[index] = el
+}
+
 const isReturned = computed(() => props.application?.status === 'returned_to_applicant')
 
 const pollParams = computed(() => {
@@ -51,10 +122,16 @@ const { lastChecked } = usePolling(
       router.reload({ only: ['application', 'reviews'] })
     }
   },
+  20,
+  { enabled: () => !!props.application?.reference_code },
 )
 
 watch(() => props.application?.reference_code, () => {
   lastChecked.value = null
+})
+
+const lookupForm = useForm({
+  reference_code: '',
 })
 
 const refCodeValid = useFieldValidation(
@@ -63,10 +140,6 @@ const refCodeValid = useFieldValidation(
   {},
   { debounceMs: 400 },
 )
-
-const lookupForm = useForm({
-  reference_code: '',
-})
 
 function lookupApplication() {
   const code = lookupForm.reference_code.trim()
@@ -105,49 +178,53 @@ function submitResubmission() {
 }
 
 const stageLabels = {
-  aics_screening: 'AICS Screening',
-  mswdo_review: 'MSWDO Review',
-  assistance_coding: 'Assistance Coding',
-  voucher_creation: 'Voucher Creation',
-  accountant_review: 'Accountant Review',
-  treasurer_review: 'Treasurer Review',
-  mayors_approval: "Mayor's Approval",
+  aics_screening: () => t('stage.aics_screening'),
+  mswdo_review: () => t('stage.mswdo_review'),
+  assistance_coding: () => t('stage.assistance_coding'),
+  internal_audit_review: () => t('stage.internal_audit_review'),
+  voucher_creation: () => t('stage.voucher_creation'),
+  budget_checking: () => t('stage.budget_checking'),
+  voucher_recording: () => t('stage.voucher_recording'),
+  treasurer_acknowledgment: () => t('stage.treasurer_acknowledgment'),
+  treasurer_review: () => t('stage.treasurer_review'),
 }
 
 const decisionLabels = {
-  approved: 'Approved',
-  coded: 'Coded',
-  voucher_created: 'Created',
-  returned: 'Returned',
-  pending: 'Pending',
+  approved: () => t('decision.approved'),
+  coded: () => t('decision.coded'),
+  voucher_created: () => t('decision.created'),
+  returned: () => t('decision.returned'),
+  hold: () => t('decision.hold'),
+  pending: () => t('decision.pending'),
 }
 
 const decisionBadgeClass = (decision) => {
   if (decision === 'approved' || decision === 'coded' || decision === 'voucher_created') return 'bg-emerald-100 text-emerald-700'
-  if (decision === 'returned') return 'bg-amber-100 text-amber-700'
+  if (decision === 'returned' || decision === 'hold') return 'bg-amber-100 text-amber-700'
   return 'bg-gray-100 text-gray-600'
 }
 
 const statusConfig = {
-  submitted: { label: 'Submitted', color: 'bg-blue-100 text-blue-700' },
-  screening: { label: 'Under AICS Screening', color: 'bg-cyan-100 text-cyan-700' },
-  returned_to_applicant: { label: 'Returned for Revision', color: 'bg-amber-100 text-amber-700' },
-  mswdo_review: { label: 'Under MSWDO Review', color: 'bg-cyan-100 text-cyan-700' },
-  social_case_study_uploaded: { label: 'Case Study Uploaded', color: 'bg-indigo-100 text-indigo-700' },
-  assistance_coding: { label: 'Assistance Coding', color: 'bg-purple-100 text-purple-700' },
-  voucher_creation: { label: 'Voucher Creation', color: 'bg-teal-100 text-teal-700' },
-  voucher_checking: { label: 'Voucher Checking', color: 'bg-emerald-100 text-emerald-700' },
-  voucher_returned: { label: 'Voucher Returned', color: 'bg-orange-100 text-orange-700' },
-  with_treasurer: { label: 'With Treasurer', color: 'bg-blue-100 text-blue-700' },
-  budget_checking: { label: 'Budget Checking', color: 'bg-violet-100 text-violet-700' },
-  on_hold: { label: 'On Hold', color: 'bg-gray-100 text-gray-700' },
-  cheque_ready: { label: 'Cheque Ready', color: 'bg-green-100 text-green-700' },
-  claimed: { label: 'Claimed', color: 'bg-gray-100 text-gray-700' },
+  submitted: { label: () => t('status.submitted'), color: 'bg-blue-100 text-blue-700' },
+  returned_to_applicant: { label: () => t('status.returned_revision'), color: 'bg-amber-100 text-amber-700' },
+  mswdo_review: { label: () => t('status.mswdo_review'), color: 'bg-cyan-100 text-cyan-700' },
+  social_case_study_uploaded: { label: () => t('status.case_study'), color: 'bg-indigo-100 text-indigo-700' },
+  assistance_coding: { label: () => t('status.assistance_coding'), color: 'bg-purple-100 text-purple-700' },
+  internal_audit_review: { label: () => t('status.internal_audit_review'), color: 'bg-fuchsia-100 text-fuchsia-700' },
+  returned_assistance_coding: { label: () => t('status.returned_assistance_coding'), color: 'bg-orange-100 text-orange-700' },
+  voucher_creation: { label: () => t('status.voucher_creation'), color: 'bg-teal-100 text-teal-700' },
+  budget_checking: { label: () => t('status.budget_checking'), color: 'bg-violet-100 text-violet-700' },
+  voucher_on_hold: { label: () => t('status.voucher_on_hold'), color: 'bg-gray-100 text-gray-700' },
+  voucher_recording: { label: () => t('status.voucher_recording'), color: 'bg-emerald-100 text-emerald-700' },
+  with_treasurer: { label: () => t('status.with_treasurer'), color: 'bg-blue-100 text-blue-700' },
+  cheque_ready: { label: () => t('status.cheque_ready'), color: 'bg-green-100 text-green-700' },
+  claimed: { label: () => t('status.claimed'), color: 'bg-gray-100 text-gray-700' },
 }
 
-const statusInfo = computed(() =>
-  statusConfig[props.application?.status] ?? { label: props.application?.status, color: 'bg-gray-100 text-gray-700' }
-)
+const statusInfo = computed(() => {
+  const config = statusConfig[props.application?.status]
+  return config ? { label: config.label(), color: config.color } : { label: props.application?.status, color: 'bg-gray-100 text-gray-700' }
+})
 
 const timelineSteps = computed(() => {
   if (!props.application) return []
@@ -155,13 +232,14 @@ const timelineSteps = computed(() => {
   const currentStatus = props.application.status
 
   const latestReview = props.reviews?.[0]
-  const isSubmitting = currentStatus === 'submitted' && latestReview?.to_status === 'returned_to_applicant'
+  const isSubmitted = currentStatus === 'submitted' && latestReview?.to_status === 'returned_to_applicant'
 
-  if (currentStatus !== 'submitted' || isSubmitting) {
+  if (currentStatus !== 'submitted' || isSubmitted) {
     const isClaimed = currentStatus === 'claimed'
+    const config = statusConfig[currentStatus]
     steps.push({
       key: currentStatus,
-      label: statusConfig[currentStatus]?.label ?? currentStatus,
+      label: config ? config.label() : currentStatus,
       isCompleted: isClaimed,
       isCurrent: !isClaimed,
       timestamp: isClaimed ? props.application.claimed_at : null,
@@ -171,7 +249,7 @@ const timelineSteps = computed(() => {
   ;(props.reviews ?? []).forEach((r) => {
     steps.push({
       key: r.id ?? r.stage + r.created_at,
-      label: stageLabels[r.stage] ?? r.stage,
+      label: stageLabels[r.stage]?.() ?? r.stage,
       isCompleted: true,
       isCurrent: false,
       decision: r.decision,
@@ -181,9 +259,9 @@ const timelineSteps = computed(() => {
 
   steps.push({
     key: 'submitted',
-    label: 'Submitted',
+    label: t('status.submitted'),
     isCompleted: true,
-    isCurrent: currentStatus === 'submitted' && !isSubmitting,
+    isCurrent: currentStatus === 'submitted' && !isSubmitted,
     timestamp: props.application.created_at,
   })
 
@@ -192,39 +270,124 @@ const timelineSteps = computed(() => {
 </script>
 
 <template>
-  <Head title="Track Application" />
+  <Head :title="$t('track.title')" />
 
-  <div class="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50">
-    <Teleport to="body">
-      <div v-if="toast"
-        class="fixed top-4 right-4 z-[9999] px-5 py-3 rounded-xl shadow-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 max-w-sm"
-        :class="toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'"
-      >
-        <i :class="toast.type === 'success' ? 'pi pi-check-circle' : 'pi pi-exclamation-circle'"></i>
-        {{ toast.message }}
-      </div>
-    </Teleport>
-    <nav class="border-b border-emerald-100 bg-white/80 backdrop-blur-sm">
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <Link :href="homeUrl" class="flex items-center gap-2">
-          <div class="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
-            <span class="text-white font-bold text-sm">A</span>
+  <div class="min-h-screen bg-white">
+    <div class="sticky top-0 z-50 border-b border-emerald-100 bg-white/95 backdrop-blur-md">
+      <div class="max-w-5xl px-4 mx-auto sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <div class="flex items-center gap-3">
+            <img src="/images/logo/alalay-logo.png" alt="ALALAY" class="h-8 w-auto">
+            <div class="flex items-center gap-2 pl-3 border-l border-emerald-200">
+              <img src="/images/logo/gmn.png" alt="GMN" class="h-6 opacity-60">
+              <img src="/images/logo/dswd.png" alt="DSWD" class="h-6 opacity-60">
+              <img src="/images/logo/AICS.png" alt="AICS" class="h-6 opacity-60">
+            </div>
           </div>
-          <span class="font-semibold text-emerald-900 text-lg">ALALAY</span>
-        </Link>
-        <Link :href="homeUrl" class="text-sm text-emerald-700 hover:text-emerald-900 font-medium">
-          Back to Home
-        </Link>
+          <Link :href="homeUrl" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+            {{ $t('track.back') }}
+          </Link>
+        </div>
       </div>
-    </nav>
-
+    </div>
     <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+
+      <div v-if="otp_required && !hasApplication" class="bg-white rounded-2xl shadow-lg border border-emerald-100 p-8 sm:p-12">
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+            </svg>
+          </div>
+          <h1 class="text-2xl font-bold text-emerald-900 mb-2">{{ $t('track.otp_title') }}</h1>
+          <p class="text-emerald-600 text-sm">{{ $t('track.otp_description') }}</p>
+        </div>
+
+        <div v-if="!otp_sent" class="text-center">
+          <p class="text-sm text-gray-600 mb-6">{{ $t('track.otp_will_send') }}</p>
+          <button
+            @click="sendOtp"
+            :disabled="otpForm.processing"
+            class="px-8 py-3 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {{ otpForm.processing ? $t('track.otp_sending') : $t('track.otp_send') }}
+          </button>
+        </div>
+
+        <div v-else>
+          <div v-if="otp_expired" class="text-center">
+            <p class="text-sm text-amber-600 mb-4">{{ $t('track.otp_expired') }}</p>
+            <button
+              @click="sendOtp"
+              :disabled="otpForm.processing"
+              class="px-8 py-3 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {{ $t('track.otp_resend') }}
+            </button>
+          </div>
+
+          <div v-else>
+            <p class="text-sm text-gray-600 text-center mb-6">{{ $t('track.otp_enter') }}</p>
+
+            <div class="flex justify-center gap-2 sm:gap-3 mb-6">
+              <input
+                v-for="(digit, i) in digits"
+                :key="i"
+                :ref="(el) => setRef(el, i)"
+                :value="digit"
+                type="text"
+                inputmode="numeric"
+                maxlength="1"
+                autocomplete="one-time-code"
+                class="w-11 h-12 sm:w-12 sm:h-14 text-center text-lg font-bold rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                :class="otpForm.errors.otp_code ? 'border-red-300 bg-red-50' : 'border-emerald-200 bg-emerald-50/50'"
+                :disabled="otpForm.processing"
+                @input="handleInput(i, $event)"
+                @keydown="handleKeydown(i, $event)"
+                @paste="handlePaste"
+              />
+            </div>
+
+            <div v-if="otpForm.errors.otp_code" class="text-center mb-4">
+              <p class="text-sm text-red-600">{{ otpForm.errors.otp_code }}</p>
+            </div>
+
+            <div class="flex flex-col gap-3">
+              <button
+                @click="submitOtp"
+                :disabled="otpForm.processing || otpString.length !== 6"
+                class="w-full px-8 py-3 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer"
+                :class="otpForm.processing || otpString.length !== 6 ? 'bg-gray-300 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'"
+              >
+                {{ otpForm.processing ? $t('track.otp_verifying') : $t('track.otp_verify') }}
+              </button>
+
+              <div class="text-center">
+                <button
+                  @click="sendOtp"
+                  :disabled="otpForm.processing"
+                  class="text-sm text-emerald-600 hover:text-emerald-800 font-medium transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {{ $t('track.otp_resend') }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-center mt-6">
+          <Link :href="trackUrl" class="text-sm text-emerald-600 hover:text-emerald-800 font-medium">
+            {{ $t('track.otp_different_code') }}
+          </Link>
+        </div>
+      </div>
 
       <div v-if="hasApplication" class="space-y-6">
         <div class="bg-white rounded-2xl shadow-lg border border-emerald-100 p-6 sm:p-8">
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div>
-              <h1 class="text-xl font-bold text-emerald-900">Application Status</h1>
+              <h1 class="text-xl font-bold text-emerald-900">{{ $t('track.status_title') }}</h1>
               <p class="text-sm text-gray-500 mt-1">{{ props.application.category_name }}</p>
             </div>
             <span :class="['px-3 py-1.5 rounded-lg text-sm font-semibold', statusInfo.color]">
@@ -234,26 +397,26 @@ const timelineSteps = computed(() => {
 
           <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
-              <dt class="text-gray-500">Reference Code</dt>
+              <dt class="text-gray-500">{{ $t('track.status_ref_code') }}</dt>
               <dd class="font-mono font-bold text-emerald-900">{{ props.application.reference_code }}</dd>
             </div>
             <div>
-              <dt class="text-gray-500">Beneficiary</dt>
+              <dt class="text-gray-500">{{ $t('track.status_beneficiary') }}</dt>
               <dd class="font-medium">{{ props.application.beneficiary_name }}</dd>
             </div>
             <div>
-              <dt class="text-gray-500">Date Submitted</dt>
+              <dt class="text-gray-500">{{ $t('track.status_date') }}</dt>
               <dd class="font-medium">{{ props.application.created_at }}</dd>
             </div>
             <div>
-              <dt class="text-gray-500">Status</dt>
+              <dt class="text-gray-500">{{ $t('track.status_label') }}</dt>
               <dd class="font-semibold">{{ statusInfo.label }}</dd>
             </div>
           </dl>
         </div>
 
         <div v-if="timelineSteps.length" class="bg-white rounded-2xl shadow-lg border border-emerald-100 p-6 sm:p-8">
-          <h2 class="text-lg font-bold text-emerald-900 mb-6">Application Timeline</h2>
+          <h2 class="text-lg font-bold text-emerald-900 mb-6">{{ $t('track.timeline') }}</h2>
           <div class="relative">
             <div class="absolute left-4 top-2 bottom-2 w-0.5 bg-gray-200" />
             <div class="space-y-0">
@@ -277,9 +440,9 @@ const timelineSteps = computed(() => {
                       {{ step.label }}
                     </span>
                     <span v-if="step.decision" class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold uppercase tracking-wider" :class="decisionBadgeClass(step.decision)">
-                      {{ decisionLabels[step.decision] ?? step.decision }}
+                      {{ decisionLabels[step.decision]?.() ?? step.decision }}
                     </span>
-                    <span v-if="step.isCurrent" class="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold uppercase tracking-wider">Current</span>
+                    <span v-if="step.isCurrent" class="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold uppercase tracking-wider">{{ $t('track.timeline_current') }}</span>
                   </div>
                   <div v-if="!step.isCurrent" class="text-xs text-gray-400 mt-1">{{ step.timestamp ?? props.application.created_at }}</div>
                 </div>
@@ -293,10 +456,10 @@ const timelineSteps = computed(() => {
             <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <h2 class="text-lg font-bold text-amber-900">Resubmission Required</h2>
+            <h2 class="text-lg font-bold text-amber-900">{{ $t('track.resubmission_title') }}</h2>
           </div>
           <div v-if="props.application.resubmission_remarks" class="text-sm bg-amber-50 rounded-lg p-3 mb-4 space-y-1">
-            <p class="font-semibold text-amber-800">Remark <span v-if="props.application.reviewer_role" class="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full ml-1">{{ props.application.reviewer_role }}</span></p>
+            <p class="font-semibold text-amber-800">{{ $t('track.resubmission_remark') }} <span v-if="props.application.reviewer_role" class="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full ml-1">{{ props.application.reviewer_role }}</span></p>
             <p class="text-amber-700">{{ props.application.resubmission_remarks }}</p>
           </div>
 
@@ -306,7 +469,6 @@ const timelineSteps = computed(() => {
                 :docName="doc.doc_name"
                 :required="true"
                 :captureType="doc.capture_type || 'single'"
-                :scannerSize="doc.scanner_size || 'a4'"
                 @captured="(payload) => onDocCapture(doc.id, payload)"
                 @cleared="() => onDocClear(doc.id)"
               />
@@ -320,24 +482,21 @@ const timelineSteps = computed(() => {
               class="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               :class="isSubmitting ? 'bg-emerald-500' : 'bg-emerald-600 hover:bg-emerald-700'"
             >
-              {{ isSubmitting ? 'Submitting...' : 'Submit Resubmission' }}
+              {{ isSubmitting ? $t('apply.submitting') : $t('track.resubmission_submit') }}
             </button>
           </div>
 
-          <!-- Resubmission Progress Modal -->
           <Teleport to="body">
             <div
               v-if="isSubmitting"
               class="fixed inset-0 z-[99999] bg-black/60 flex items-center justify-center p-6"
             >
               <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8">
-                <h3 class="text-lg font-bold text-gray-900 mb-1 text-center">Submitting Resubmission</h3>
-                <p class="text-sm text-gray-500 mb-6 text-center">Uploading corrected documents...</p>
-
+                <h3 class="text-lg font-bold text-gray-900 mb-1 text-center">{{ $t('track.resubmission_modal_title') }}</h3>
+                <p class="text-sm text-gray-500 mb-6 text-center">{{ $t('track.resubmission_uploading') }}</p>
                 <div class="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden">
                   <div class="h-full bg-emerald-600 rounded-full animate-pulse" style="width: 60%" />
                 </div>
-
                 <div class="space-y-1.5 mb-4">
                   <div
                     v-for="(doc, i) in resubmission_docs_required"
@@ -355,8 +514,7 @@ const timelineSteps = computed(() => {
                     </span>
                   </div>
                 </div>
-
-                <p class="text-xs text-gray-400 text-center">Please wait while your documents are being submitted.</p>
+                <p class="text-xs text-gray-400 text-center">{{ $t('track.resubmission_wait') }}</p>
               </div>
             </div>
           </Teleport>
@@ -367,20 +525,20 @@ const timelineSteps = computed(() => {
             :href="trackUrl"
             class="text-sm text-emerald-600 hover:text-emerald-800 font-medium"
           >
-            ← Track Another Application
+            {{ $t('track.track_another') }}
           </Link>
         </div>
       </div>
 
-      <div v-else class="bg-white rounded-2xl shadow-lg border border-emerald-100 p-8 sm:p-12">
+      <div v-if="!hasApplication && !otp_required" class="bg-white rounded-2xl shadow-lg border border-emerald-100 p-8 sm:p-12">
         <div class="text-center mb-8">
           <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
-          <h1 class="text-2xl sm:text-3xl font-bold text-emerald-900 mb-2">Track Your Application</h1>
-          <p class="text-emerald-600">Enter your reference code to check your application status.</p>
+          <h1 class="text-2xl sm:text-3xl font-bold text-emerald-900 mb-2">{{ $t('track.title') }}</h1>
+          <p class="text-emerald-600">{{ $t('track.subtitle') }}</p>
         </div>
 
         <form @submit.prevent="lookupApplication" class="max-w-md mx-auto">
@@ -388,7 +546,7 @@ const timelineSteps = computed(() => {
             <input
               v-model="lookupForm.reference_code"
               type="text"
-              placeholder="e.g. GMN-2026-A1B2C3"
+              :placeholder="$t('track.placeholder')"
               class="flex-1 px-4 py-3 rounded-xl border border-gray-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none uppercase"
               @keyup.enter="lookupApplication"
             />
@@ -398,15 +556,30 @@ const timelineSteps = computed(() => {
               class="px-6 py-3 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer disabled:opacity-50"
               :class="lookupForm.reference_code.trim() ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-300 cursor-not-allowed'"
             >
-              Track
+              {{ $t('track.button') }}
             </button>
           </div>
           <p v-if="lookupForm.errors.reference_code" class="text-xs text-red-500 mt-2">{{ lookupForm.errors.reference_code }}</p>
-          <p v-else-if="refCodeValid.isChecking.value && lookupForm.reference_code" class="text-xs text-gray-400 mt-2">Checking...</p>
+          <p v-else-if="refCodeValid.isChecking.value && lookupForm.reference_code" class="text-xs text-gray-400 mt-2">{{ $t('common.checking') }}</p>
           <p v-else-if="refCodeValid.isValid.value === false" class="text-xs text-amber-600 mt-2">{{ refCodeValid.message.value }}</p>
         </form>
       </div>
 
     </main>
+
+    <Teleport to="body">
+      <div v-if="toast"
+        class="fixed top-4 right-4 z-[9999] px-5 py-3 rounded-xl shadow-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 max-w-sm"
+        :class="toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'"
+      >
+        <svg v-if="toast.type === 'success'" class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+        <svg v-else class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        {{ toast.message }}
+      </div>
+    </Teleport>
   </div>
 </template>

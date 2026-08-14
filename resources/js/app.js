@@ -8,6 +8,8 @@ import ToastService from 'primevue/toastservice'
 import ConfirmationService from 'primevue/confirmationservice'
 import StyleClass from 'primevue/styleclass'
 import Tooltip from 'primevue/tooltip'
+import Chart from 'primevue/chart'
+import { i18n } from './i18n'
 import 'primeicons/primeicons.css'
 import '../css/app.css'
 import './layout/scss/styles.scss'
@@ -22,6 +24,7 @@ createInertiaApp({
     createApp({ render: () => h(App, props) })
       .use(plugin)
       .use(pinia)
+      .use(i18n)
       .use(PrimeVue, {
         theme: {
           preset: Aura,
@@ -34,6 +37,7 @@ createInertiaApp({
       .use(ConfirmationService)
       .directive('styleclass', StyleClass)
       .directive('tooltip', Tooltip)
+      .component('Chart', Chart)
       .component('Link', Link)
       .component('Head', Head)
       .mount(el)

@@ -11,6 +11,7 @@ use App\Models\AssistanceCodeReference;
 use App\Models\Review;
 use App\Jobs\SendSmsJob;
 use App\Services\SignedUrlService;
+use App\Http\Requests\Aics\CreateAssistanceCodeRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
@@ -41,8 +42,8 @@ class AssistanceCodeController extends Controller
         }
 
         $applications = match ($tab) {
-            'coded' => (clone $query)->where('status', 'voucher_creation'),
-            default => (clone $query)->where('status', 'assistance_coding'),
+            'coded' => (clone $query)->where('status', 'internal_audit_review'),
+            default => (clone $query)->whereIn('status', ['assistance_coding', 'returned_assistance_coding']),
         };
 
         return $applications->latest()->get()->map(fn ($app) => [
@@ -63,6 +64,8 @@ class AssistanceCodeController extends Controller
         $tab = request('tab', 'pending');
         $search = request('search');
         $category = request('category');
+        $from = request('from');
+        $to = request('to');
 
         $query = Application::with('category', 'assistanceCode.reference');
 
@@ -79,35 +82,108 @@ class AssistanceCodeController extends Controller
             $query->whereHas('category', fn($q) => $q->where('category_name', $category));
         }
 
-        $applications = match ($tab) {
-            'coded' => (clone $query)->where('status', 'voucher_creation'),
-            default => (clone $query)->where('status', 'assistance_coding'),
-        };
+        if ($from) {
+            $query->whereDate('created_at', '>=', $from);
+        }
 
-        $apps = $applications->latest()
-            ->paginate(10)
-            ->through(fn ($app) => [
-                'id' => $app->id,
-                'reference_code' => $app->reference_code,
-                'status' => $app->status,
-                'category_name' => $app->category?->category_name,
-                'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
-                'code_type' => $app->assistanceCode?->reference?->code_type,
-                'amount' => $app->assistanceCode?->amount,
-                'created_at' => $app->created_at,
-            ]);
+        if ($to) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
+        $applications = match ($tab) {
+            'coded' => (clone $query)->where('status', 'internal_audit_review'),
+            default => (clone $query)->whereIn('status', ['assistance_coding', 'returned_assistance_coding']),
+        };
 
         $categories = Cache::remember('categories.active_names', 3600, fn () =>
             AssistanceCategory::where('is_active', true)->pluck('category_name')
         );
 
         return Inertia::render('Aics/AssistanceCodes/Index', [
-            'applications' => $apps,
+            'applications' => Inertia::defer(fn () =>
+                $applications->latest()
+                    ->paginate(10)
+                    ->through(fn ($app) => [
+                        'id' => $app->id,
+                        'reference_code' => $app->reference_code,
+                        'status' => $app->status,
+                        'category_name' => $app->category?->category_name,
+                        'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
+                        'code_type' => $app->assistanceCode?->reference?->code_type,
+                        'amount' => $app->assistanceCode?->amount,
+                        'created_at' => $app->created_at,
+                    ])
+            ),
+            'filters' => request()->only(['search', 'category', 'from', 'to']),
             'tab' => $tab,
-            'search' => $search,
-            'category' => $category,
             'categories' => $categories,
         ]);
+    }
+
+    public function export()
+    {
+        $this->authorize('viewAny', AssistanceCode::class);
+        $tab = request('tab', 'pending');
+        $search = request('search');
+        $category = request('category');
+        $from = request('from');
+        $to = request('to');
+
+        $query = Application::with('category', 'assistanceCode.reference');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_code', 'like', "%{$search}%")
+                  ->orWhere('claimant_first_name', 'like', "%{$search}%")
+                  ->orWhere('claimant_last_name', 'like', "%{$search}%")
+                  ->orWhereHas('category', fn($q) => $q->where('category_name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($category) {
+            $query->whereHas('category', fn($q) => $q->where('category_name', $category));
+        }
+
+        if ($from) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+
+        if ($to) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
+        $applications = (match ($tab) {
+            'coded' => (clone $query)->where('status', 'internal_audit_review'),
+            default => (clone $query)->whereIn('status', ['assistance_coding', 'returned_assistance_coding']),
+        })->latest()->get();
+
+        $filename = 'alalay-assistance-codes-' . $tab . '-' . now()->format('Y-m-d') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function () use ($applications) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Reference Code', 'Beneficiary Name', 'Category', 'Code Type', 'Amount', 'Status', 'Date Submitted']);
+
+            foreach ($applications as $app) {
+                fputcsv($handle, [
+                    $app->reference_code,
+                    $app->claimant_first_name . ' ' . $app->claimant_last_name,
+                    $app->category?->category_name,
+                    $app->assistanceCode?->reference?->code_type,
+                    $app->assistanceCode?->amount,
+                    $app->status,
+                    $app->created_at?->toDateTimeString(),
+                ]);
+            }
+
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     public function show($id, SignedUrlService $signedUrl)
@@ -141,6 +217,7 @@ class AssistanceCodeController extends Controller
             'doc_name' => $d->requiredDocument?->doc_name ?? 'Document',
             'file_name' => $d->file_name,
             'file_path' => $d->file_path,
+            'signed_url' => $signedUrl->generate($d->file_path),
             'mime_type' => $d->mime_type,
             'is_resubmission' => $d->is_resubmission,
         ]);
@@ -207,31 +284,40 @@ class AssistanceCodeController extends Controller
         ]);
     }
 
-    public function store(Request $request, $id)
+    public function store(CreateAssistanceCodeRequest $request, $id)
     {
         $application = Application::findOrFail($id);
         $this->authorize('create', AssistanceCode::class);
 
-        if ($application->status !== 'assistance_coding') {
+        if (! in_array($application->status, ['assistance_coding', 'returned_assistance_coding'])) {
             return redirect()->back()->with('error', 'Application is not ready for assistance coding.');
         }
 
-        $validated = $request->validate([
-            'assistance_code_reference_id' => ['required', 'exists:assistance_code_references,id'],
-            'amount' => ['required', 'numeric', 'min:0'],
-        ]);
+        $validated = $request->validated();
 
         $reference = AssistanceCodeReference::findOrFail($validated['assistance_code_reference_id']);
 
-        AssistanceCode::create([
-            'application_id' => $application->id,
-            'assistance_code_reference_id' => $reference->id,
-            'amount' => $validated['amount'],
-            'assigned_by' => $request->user()->id,
-        ]);
+        $assistanceCode = AssistanceCode::where('application_id', $application->id)->first();
+
+        if ($assistanceCode) {
+            $assistanceCode->update([
+                'assistance_code_reference_id' => $reference->id,
+                'amount' => $validated['amount'],
+                'assigned_by' => $request->user()->id,
+            ]);
+        } else {
+            AssistanceCode::create([
+                'application_id' => $application->id,
+                'assistance_code_reference_id' => $reference->id,
+                'amount' => $validated['amount'],
+                'assigned_by' => $request->user()->id,
+            ]);
+        }
+
+        $fromStatus = $application->status;
 
         $application->update([
-            'status' => 'voucher_creation',
+            'status' => 'internal_audit_review',
             'reviewed_by' => $request->user()->id,
             'reviewed_at' => now(),
         ]);
@@ -241,8 +327,8 @@ class AssistanceCodeController extends Controller
             'reviewed_by' => $request->user()->id,
             'stage' => 'assistance_coding',
             'decision' => 'coded',
-            'from_status' => 'assistance_coding',
-            'to_status' => 'voucher_creation',
+            'from_status' => $fromStatus,
+            'to_status' => 'internal_audit_review',
             'created_at' => now(),
         ]);
 

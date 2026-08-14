@@ -4,17 +4,22 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Public\StoreApplicationRequest;
+use App\Http\Requests\Public\ResubmitDocumentsRequest;
 use App\Jobs\SendSmsJob;
 use App\Models\Application;
 use App\Models\ApplicationDocument;
 use App\Models\Review;
+use App\Mail\SendApplicationOtpMail;
 use App\Services\FileUploadService;
 use App\Services\ReferenceCodeService;
 use App\Services\SignedUrlService;
+use App\Services\SmsService;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -46,6 +51,7 @@ class ApplicationController extends Controller
             'beneficiary_sex' => $request->beneficiary_sex,
             'beneficiary_dob' => $request->beneficiary_dob,
             'beneficiary_address' => $request->beneficiary_address,
+            'beneficiary_barangay' => Application::parseBarangayFromAddress($request->beneficiary_address),
         ]);
 
         try {
@@ -84,13 +90,6 @@ class ApplicationController extends Controller
 
         SendSmsJob::dispatch($application, 'submission_complete');
 
-        $now = now()->format('YmdHi');
-        $prev = now()->subMinute()->format('YmdHi');
-        foreach (['admin', 'aics', 'mswdo', 'accountant', 'treasurer', 'mayors-office'] as $role) {
-            Cache::forget("dashboard.{$role}.{$now}");
-            Cache::forget("dashboard.{$role}.{$prev}");
-        }
-
         return redirect()->route('apply')
             ->with('success', 'Your application has been submitted successfully.')
             ->with('reference_code', $application->reference_code);
@@ -101,7 +100,7 @@ class ApplicationController extends Controller
         return Inertia::render('Public/Track');
     }
 
-    public function show(string $referenceCode)
+    public function show(string $referenceCode, Request $request)
     {
         $application = Application::where('reference_code', $referenceCode)
             ->with([
@@ -110,6 +109,28 @@ class ApplicationController extends Controller
                 'reviews' => fn($q) => $q->with('reviewer')->latest(),
             ])
             ->firstOrFail();
+
+        $otpVerified = $request->session()->get('track_verified_' . $referenceCode, false);
+
+        if (!$otpVerified) {
+            $otpSent = $request->session()->has('track_otp_' . $referenceCode);
+            $otpExpired = false;
+            if ($otpSent) {
+                $stored = $request->session()->get('track_otp_' . $referenceCode);
+                $otpExpired = now() > $stored['expires_at'];
+            }
+            return Inertia::render('Public/Track', [
+                'application' => null,
+                'documents' => [],
+                'reviews' => [],
+                'resubmission_docs_required' => [],
+                'otp_required' => true,
+                'otp_sent' => $otpSent,
+                'otp_expired' => $otpExpired,
+                'otp_attempts' => $otpSent ? ($request->session()->get('track_otp_' . $referenceCode)['attempts'] ?? 0) : 0,
+                'reference_code' => $referenceCode,
+            ]);
+        }
 
         $documents = $application->documents->map(function ($doc) {
             return [
@@ -157,7 +178,8 @@ class ApplicationController extends Controller
             'mswdo' => 'MSWDO',
             'accountant' => 'Accountant',
             'treasurer' => 'Treasurer',
-            'mayors_office' => "Mayor's Office",
+            'internal_audit' => 'Internal Audit',
+            'budget_officer' => 'Budget Office',
         ];
 
         return Inertia::render('Public/Track', [
@@ -177,7 +199,77 @@ class ApplicationController extends Controller
             'documents' => $documents,
             'reviews' => $reviews,
             'resubmission_docs_required' => $resubmissionDocsRequired,
+            'otp_required' => false,
+            'reference_code' => $referenceCode,
         ]);
+    }
+
+    public function sendTrackOtp(string $referenceCode, Request $request)
+    {
+        $application = Application::where('reference_code', $referenceCode)->firstOrFail();
+
+        $code = str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+
+        $request->session()->put('track_otp_' . $referenceCode, [
+            'code' => Hash::make($code),
+            'expires_at' => now()->addMinutes(5),
+            'attempts' => 0,
+        ]);
+
+        $phone = $application->claimant_phone;
+        $email = $application->claimant_email;
+
+        if ($phone) {
+            try {
+                app(SmsService::class)->send(
+                    $phone,
+                    "ALALAY OTP: $code. Use this to track your application. Valid for 5 minutes.",
+                    $application->id,
+                    'track_otp',
+                );
+            } catch (\Exception $e) {
+                if ($email) {
+                    Mail::to($email)->send(new SendApplicationOtpMail($code, $application));
+                }
+            }
+        } elseif ($email) {
+            Mail::to($email)->send(new SendApplicationOtpMail($code, $application));
+        }
+
+        return redirect()->route('track.show', $referenceCode)
+            ->with('success', 'OTP sent to your registered contact.');
+    }
+
+    public function verifyTrackOtp(string $referenceCode, Request $request)
+    {
+        $request->validate([
+            'otp_code' => 'required|string|size:6',
+        ]);
+
+        $stored = $request->session()->get('track_otp_' . $referenceCode);
+
+        if (!$stored || now() > $stored['expires_at']) {
+            return redirect()->route('track.show', $referenceCode)
+                ->with('error', 'OTP has expired. Request a new one.');
+        }
+
+        if ($stored['attempts'] >= 5) {
+            return redirect()->route('track.show', $referenceCode)
+                ->with('error', 'Too many incorrect attempts. Request a new OTP.');
+        }
+
+        if (!Hash::check($request->otp_code, $stored['code'])) {
+            $stored['attempts']++;
+            $request->session()->put('track_otp_' . $referenceCode, $stored);
+            return redirect()->route('track.show', $referenceCode)
+                ->with('error', 'Invalid OTP code. Please try again.');
+        }
+
+        $request->session()->put('track_verified_' . $referenceCode, true);
+        $request->session()->forget('track_otp_' . $referenceCode);
+
+        return redirect()->route('track.show', $referenceCode)
+            ->with('success', 'Verification successful.');
     }
 
     public function trackPoll(Request $request): JsonResponse
@@ -207,14 +299,9 @@ class ApplicationController extends Controller
         ]);
     }
 
-    public function resubmit(string $referenceCode, Request $request)
+    public function resubmit(string $referenceCode, ResubmitDocumentsRequest $request)
     {
-        $validated = $request->validate([
-            'documents' => ['required', 'array', 'min:1'],
-            'documents.*' => ['required', 'file', 'mimes:pdf', 'max:10240'],
-            'document_ids' => ['required', 'array'],
-            'document_ids.*' => ['required', 'exists:application_documents,id'],
-        ]);
+        $validated = $request->validated();
 
         $application = Application::where('reference_code', $referenceCode)
             ->where('status', 'returned_to_applicant')
@@ -261,15 +348,6 @@ class ApplicationController extends Controller
             'status' => $nextStatus,
             'resubmission_remarks' => null,
         ]);
-
-        SendSmsJob::dispatch($application, 'application_under_review');
-
-        $now = now()->format('YmdHi');
-        $prev = now()->subMinute()->format('YmdHi');
-        foreach (['admin', 'aics', 'mswdo', 'accountant', 'treasurer', 'mayors-office'] as $role) {
-            Cache::forget("dashboard.{$role}.{$now}");
-            Cache::forget("dashboard.{$role}.{$prev}");
-        }
 
         return redirect()->route('track.show', $referenceCode)->with('success', 'Your documents have been resubmitted successfully.');
     }

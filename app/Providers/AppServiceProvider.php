@@ -22,7 +22,10 @@ use App\Policies\SocialCaseStudyPolicy;
 use App\Policies\SystemSettingPolicy;
 use App\Policies\UserPolicy;
 use App\Policies\VoucherPolicy;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -46,6 +49,16 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        //
+        if (app()->environment('local')) {
+            DB::listen(function (QueryExecuted $query) {
+                if ($query->time > 200) {
+                    Log::warning('Slow query detected', [
+                        'sql'      => $query->sql,
+                        'bindings' => $query->bindings,
+                        'time'     => $query->time . 'ms',
+                    ]);
+                }
+            });
+        }
     }
 }

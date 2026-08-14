@@ -4,39 +4,44 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Application;
+use App\Models\AssistanceCode;
 use App\Models\AuditLog;
-use Illuminate\Support\Facades\Cache;
+use App\Models\User;
+use App\Models\Voucher;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        $cacheKey = 'dashboard.admin.' . now()->format('YmdHi');
-        $data = Cache::remember($cacheKey, 300, function () {
-            $totalApplications = Application::count();
-            $pendingApplications = Application::whereIn('status', ['submitted', 'screening'])->count();
-            $approvedThisMonth = Application::whereIn('status', [
-                'claimed', 'cheque_ready', 'budget_checking', 'with_treasurer',
-                'voucher_checking', 'voucher_creation', 'assistance_coding',
-                'social_case_study_uploaded', 'mswdo_review',
-            ])->whereMonth('created_at', now()->month)->count();
-
-            $recentActivity = AuditLog::with('user')
-                ->latest()
-                ->take(5)
-                ->get()
-                ->map(fn ($log) => [
-                    'id' => $log->id,
-                    'action' => $log->action,
-                    'module' => $log->module,
-                    'user_name' => $log->user?->full_name ?? 'System',
-                    'created_at' => $log->created_at,
-                ]);
-
-            return compact('totalApplications', 'pendingApplications', 'approvedThisMonth', 'recentActivity');
-        });
-
-        return Inertia::render('Dashboard', $data);
+        return Inertia::render('Admin/Dashboard', [
+            'dashboardData' => Inertia::defer(fn () => [
+                'total_users' => User::count(),
+                'active_users' => User::active()->count(),
+                'inactive_users' => User::where('status', '!=', 'active')->count(),
+                'users_by_role' => User::selectRaw('role, count(*) as count')
+                    ->groupBy('role')->get(),
+                'recent_activity' => AuditLog::with('user')
+                    ->latest()->take(5)->get()
+                    ->map(fn ($log) => [
+                        'id' => $log->id,
+                        'module' => $log->module,
+                        'action' => $log->action,
+                        'user_name' => $log->user?->full_name ?? 'System',
+                        'created_at' => $log->created_at,
+                    ]),
+                'unusual_activity' => AuditLog::whereIn('action', ['login_lockout', 'login_failed'])
+                    ->orWhere('module', 'system')
+                    ->latest()->take(5)->get()
+                    ->map(fn ($log) => [
+                        'id' => $log->id,
+                        'module' => $log->module,
+                        'action' => $log->action,
+                        'description' => $log->description,
+                        'user_name' => $log->user?->full_name ?? 'System',
+                        'created_at' => $log->created_at,
+                    ]),
+            ]),
+        ]);
     }
 }

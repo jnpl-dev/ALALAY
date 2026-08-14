@@ -197,12 +197,11 @@ function onPresetChange() {
 
 <template>
     <div
-        class="config-panel hidden absolute top-[3.25rem] right-0 w-64 p-4 rounded-border origin-top shadow-[0px_3px_5px_rgba(0,0,0,0.02),0px_0px_2px_rgba(0,0,0,0.05),0px_1px_4px_rgba(0,0,0,0.08)]"
-        style="background-color: var(--surface-overlay); border: 1px solid var(--surface-border);"
+        class="config-panel hidden absolute top-[3.25rem] right-0 w-64 p-4 rounded-border origin-top shadow-sm bg-surface-overlay border border-surface"
     >
         <div class="flex flex-col gap-4">
             <div>
-                <span class="text-sm font-semibold" style="color: var(--text-color-secondary);">Primary</span>
+                <span class="text-sm font-semibold text-muted-color">Primary</span>
                 <div class="pt-2 flex gap-2 flex-wrap justify-between">
                     <button
                         v-for="primaryColor of primaryColors"
@@ -216,7 +215,7 @@ function onPresetChange() {
                 </div>
             </div>
             <div>
-                <span class="text-sm font-semibold" style="color: var(--text-color-secondary);">Surface</span>
+                <span class="text-sm font-semibold text-muted-color">Surface</span>
                 <div class="pt-2 flex gap-2 flex-wrap justify-between">
                     <button
                         v-for="surface of surfaces"
@@ -233,7 +232,7 @@ function onPresetChange() {
                 </div>
             </div>
             <div class="flex flex-col gap-2">
-                <span class="text-sm font-semibold" style="color: var(--text-color-secondary);">Presets</span>
+                <span class="text-sm font-semibold text-muted-color">Presets</span>
                 <SelectButton v-model="preset" @change="onPresetChange" :options="presetOptions" :allowEmpty="false" />
             </div>
             <div class="flex flex-col gap-2">

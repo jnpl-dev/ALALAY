@@ -78,9 +78,7 @@ const setRef = (el, index) => {
 
       <div class="text-center mb-8">
         <Link :href="homeUrl" class="inline-flex items-center gap-2 mb-4">
-          <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center">
-            <span class="text-white font-bold text-lg">A</span>
-          </div>
+          <img src="/images/logo/alalay-logo.png" alt="ALALAY" class="h-10 w-auto">
         </Link>
         <h1 class="text-2xl font-bold text-emerald-900">Check Your Email</h1>
         <p class="text-emerald-600 text-sm mt-1">

@@ -16,7 +16,6 @@ class CreateVoucherRequest extends FormRequest
         return [
             'voucher_file' => 'required|file|mimes:pdf|max:20480',
             'page_count' => 'required|integer|min:1|max:10',
-            'adjustment_remarks' => 'nullable|string|max:1000',
         ];
     }
 

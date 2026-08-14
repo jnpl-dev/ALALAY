@@ -234,7 +234,25 @@ tell me you are ready for my first task.
 
 ---
 
-## CURRENT SESSION STATE (July 11, 2026)
+## CURRENT SESSION STATE (July 20, 2026)
+
+### Phase 2b — System Design Improvements (Query Optimization COMPLETE)
+
+#### Deferred/Skeleton Pattern Migration
+- Migrated ALL analytics controllers (6), admin sidebar controllers (5), and dashboard pages (shared + Aics) from `Inertia::lazy()` + `router.reload()` to `Inertia::defer()` + `<Deferred #fallback>` skeleton pattern
+- Consolidated multiple individual lazy props into single deferred object per page (`analyticsData`, `dashboardData`, `groups`, `users`, `documents`, `categories`, `references`, `logs`, `userData`)
+- `<Deferred>` placed inside each `<TabPanel>` (not wrapping entire `<TabView>`) so tab headers stay visible during loading
+- All index page list props changed from `required: true` to `default: []` + optional chaining (`data?.total`)
+- Added full KPI skeleton cards in `#fallback` on all 6 analytics pages
+- Added skeleton row fallback on all 5 admin sidebar index pages
+- Fixed SystemSettings empty form bug: replaced compile-time `initialValues` loop with `watch(() => props.groups)` (ran before deferred data loaded)
+
+#### Query Performance Fixes
+- Replaced `whereMonth()` (non-sargable, wraps column in `MONTH()`) with `whereBetween(column, [startOfMonth, endOfMonth])` — 9 occurrences across 6 dashboard + analytics controllers so `(status, created_at)` composite index is usable
+- Created migration `add_assistance_codes_covering_index` — `(application_id, amount)` composite index for index-only SUM queries
+- Fixed cache key precision: `YmdHi` → `YmdH` so full 300s TTL is honored (was regenerating every minute)
+- Fixed MayorsOffice Dashboard: `sum('amount_granted')` threw SQL error (column doesn't exist on `applications`); replaced with `count()` + proper `whereBetween` + join to `assistance_codes.amount`
+- Added Admin Dashboard 4th KPI (`totalUsers`) for 4-card KPI row
 
 ### Phase 4.6 — Real-Time Table Polling (COMPLETE)
 - Created `HasPollCache` trait with `poll()` + `bustPollCache()` — shared by 6 role controllers
@@ -313,6 +331,122 @@ Every controller now calls `$this->authorize()`:
 ### Docs Created
 - `COLLABORATION_GUIDE.md` — git workflow, local setup, conflict avoidance, coding standards.
 
+### Backup (AUTOMATIC)
+- `config/backup.php` — centralized config for path, encryption, retention, Supabase bucket
+- `scripts/backup.sh` — bash script (mysqldump → gzip → AES-256-CBC encrypt → local → Supabase upload → prune)
+- `app/Console/Commands/BackupDatabase.php` — Laravel command wrapping the full pipeline
+- `app/Console/Commands/VerifyBackup.php` — decrypts latest backup, restores to test DB, logs result
+- `routes/console.php`: `backup:run` daily 02:00, `backup:verify` Sundays 03:00
+
+### Emergency Maintenance (COMPLETE — TESTED ✅)
+- Maintenance toggle in Admin System Settings — red/green button, calls `php artisan up`/`down`, logs to audit_logs
+- Branded `resources/views/errors/503.blade.php`
+- Tested: toggle on → 503 page → `/test123` bypass → toggle off
+
+### Zero-Day (COMPLETE)
+- `scripts/deploy.sh` — `composer audit --no-dev` fails build on PHP vulns, `npm audit` warns
+- PII redaction on `AuditLog` model `creating` event — strips `09xxxxxxxxx`/`+639xxxxxxxxx` from description (tested ✅)
+- `.ai/context/INCIDENT_RESPONSE.md` — emergency commands, breach/corruption/SMS procedures, contacts template
+
+## Phase 2b — ALL COMPLETE ✅
+
 ### Missing
 - Walk-in submission (AICS Staff encode) — not yet built.
 - SMS configuration — driver is `log`, not wired to PhilSMS API token.
+- [x] Manual: Create `alalay-backups` private bucket in Supabase Storage
+### Backup (AUTOMATIC)
+- `backup:run` scheduled daily at 02:00 — mysqldump → gzip → AES-256-CBC encrypt → local save → Supabase upload → prune old
+- `backup:verify` scheduled weekly Sundays at 03:00 — restore latest backup to test database
+- Manual step: set `BACKUP_ENCRYPT_PASS` in production `.env`
+
+### Emergency Maintenance (COMPLETE — TESTED ✅)
+- Maintenance toggle in Admin System Settings — red/green button, calls `php artisan up`/`down`, logs to audit_logs
+- Branded 503 maintenance page
+- Tested: toggle on → 503 page shown → `/test123` bypass → toggle off works
+
+### Zero-Day (COMPLETE)
+- `scripts/deploy.sh` — composer audit fails build on PHP vulns, npm audit warns
+- PII redaction in `AuditLogger::log()` — phone numbers stripped from descriptions
+- `INCIDENT_RESPONSE.md` — emergency commands, breach/corruption/SMS procedures, contacts template
+
+## Phase 2b — ALL COMPLETE ✅
+
+---
+
+## CURRENT SESSION STATE (July 26, 2026)
+
+### Phase 3.10 — Validation & Security (Form Request Classes) — COMPLETE ✅
+
+All 20 Form Request classes now have `rules()`, `prepareForValidation()` (sanitization), and `messages()`:
+
+#### Public Forms
+- `StoreApplicationRequest` — exists, `prepareForValidation()` added
+- `ResubmitDocumentsRequest` — created
+
+#### Auth Forms
+- `LoginRequest` — created, wired to `LoginController@store`; email lowercased/trimmed
+- `OtpChallengeRequest` — created, wired to `OtpChallengeController@verify`; strips non-digits
+- `ForgotPasswordRequest` — created (Fortify handles POST)
+- `ResetPasswordRequest` — created (Fortify handles POST); `Password::min(12)->mixedCase()->numbers()->symbols()->uncompromised()`
+
+#### AICS Staff Forms
+- `ApproveApplicationRequest` (AICS) — created
+- `ReturnApplicationRequest` (AICS) — created
+- `CreateAssistanceCodeRequest` — created
+
+#### MSWDO Forms
+- `ApproveApplicationRequest` (MSWDO) — exists, `prepareForValidation()` added
+- `ReturnApplicationRequest` (MSWDO) — exists, `prepareForValidation()` added
+- `CreateVoucherRequest` (MSWDO) — exists, `prepareForValidation()` added
+
+#### Accountant Forms
+- `ApproveVoucherRequest` — created
+- `ReturnVoucherRequest` — created
+
+#### Treasurer Forms
+- `AcknowledgeVoucherRequest` — created
+- `HoldChequeRequest` — created
+
+#### Admin Forms
+- `StoreUserRequest` — exists, `messages()` + name `regex` added
+- `UpdateUserRequest` — exists, `messages()` + name `regex` added
+- `UpdateSystemSettingRequest` — created; whitelist of 14 allowed keys; unknown keys silently dropped in `prepareForValidation()`
+
+#### Shared Forms
+- `UpdateAccountRequest` — exists, `prepareForValidation()` added
+
+#### Controller-Level State Validation (7 methods)
+- AICS approve/return: `! in_array($status, ['submitted', 'screening'])`
+- MSWDO approve/return: `$status !== 'mswdo_review'`
+- Voucher store: `! in_array($status, ['voucher_creation', 'voucher_returned'])`
+- Accountant approve/return: `$status !== 'voucher_checking'`
+- Treasurer acknowledge/hold: `$status !== 'with_treasurer'`
+
+#### Sort/Filter Parameter Whitelisting
+- Verified: No index controller accepts `sort_by`/`sort_dir` from user input. All `orderBy()` calls use hardcoded column names. Search/filter params (`search`, `tab`, `category`, `from`, `to`) use Eloquent `where()` with parameter binding.
+
+### Phase 4.4 — Breadcrumb Navigation — COMPLETE ✅
+- `useBreadcrumb.js` composable with provide/inject pattern (module-level Symbol key)
+- Breadcrumbs added to all 36 pages across 6 panels (Admin, AICS, MSWDO, Accountant, Treasurer, Mayor's Office)
+- Hierarchy matches sidebar menu exactly
+- `AppLayout.vue`: `v-if="hasBreadcrumb"` ensures Breadcrumb mounts only when items exist (fixes PrimeVue styling loss on empty→populated transition)
+- Items cleared on component change via `watch(() => usePage().component, () => items.value = [])`
+- Aics/Dashboard.vue: `useBreadcrumb(['Home', 'Dashboard'])`
+
+### Phase 5.7 — Test Infrastructure Issues (Documented)
+- AuthTest.php fails on SQLite due to migration using MySQL `MODIFY COLUMN ENUM` syntax. Pre-existing issue — not introduced by our changes.
+- Fix options: (a) platform-agnostic migration with `DB::statement()` conditional, or (b) install `doctrine/dbal`.
+
+### Phase 5.8 — Performance Observations (Documented)
+| Cause | Impact | Details |
+|---|---|---|
+| SignedUrlService → Supabase S3 calls | Major | Every `show()` page calls `temporaryUrl()` once per document = N serial HTTP requests (~200-500ms each). Review with 5 docs = ~1-2.5s Supabase API latency. |
+| Encrypted field casting | Moderate | PII fields decrypted on every read via Laravel's `encrypted` cast. |
+| File cache driver | Low | `Cache::store('file')` + `Cache::forget()` on every mutation adds filesystem I/O. |
+| SMS dispatch | None | `QUEUE_CONNECTION=database` + `ShouldQueue` = async INSERT. |
+
+### Other Session 5 Work
+- Favicon: `alalay-logo.png` set in `app.blade.php`
+- Topbar: SVG replaced with `<img src="/images/logo/alalay-logo.png">` + `font-bold text-emerald-900` brand text
+- `PROCESS.md` updated throughout with all completed items
+- All syntax checks pass; `npm run build` passes

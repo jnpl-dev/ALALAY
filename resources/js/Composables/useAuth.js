@@ -13,7 +13,8 @@ export function useAuth() {
   const isMswdo = computed(() => role.value === 'mswdo')
   const isAccountant = computed(() => role.value === 'accountant')
   const isTreasurer = computed(() => role.value === 'treasurer')
-  const isMayorsOffice = computed(() => role.value === 'mayors_office')
+  const isInternalAudit = computed(() => role.value === 'internal_audit')
+  const isBudgetOfficer = computed(() => role.value === 'budget_officer')
 
   const fullName = computed(() => {
     if (!user.value) return ''
@@ -30,7 +31,8 @@ export function useAuth() {
     isMswdo,
     isAccountant,
     isTreasurer,
-    isMayorsOffice,
+    isInternalAudit,
+    isBudgetOfficer,
     fullName,
   }
 }

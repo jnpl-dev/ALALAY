@@ -4,56 +4,63 @@ namespace App\Http\Controllers\Treasurer;
 
 use App\Http\Controllers\Controller;
 use App\Models\Application;
-use Illuminate\Support\Facades\Cache;
+use App\Models\AssistanceCode;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class AnalyticsController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $from = request('from', now()->startOfMonth()->toDateString());
-        $to = request('to', now()->toDateString());
-        $cacheKey = 'analytics.treasurer.' . md5("{$from}-{$to}");
+        $dateFrom = $request->date_from
+            ? Carbon::parse($request->date_from)->startOfDay()
+            : now()->startOfMonth();
 
-        $data = Cache::remember($cacheKey, 900, function () use ($from, $to) {
-            $chequesForProcessing = Application::where('status', 'with_treasurer')->count();
-            $acknowledgedThisMonth = Application::whereIn('status', ['cheque_ready', 'claimed'])
-                ->whereMonth('created_at', now()->month)
-                ->count();
-            $totalAmount = Application::whereIn('applications.status', ['with_treasurer', 'cheque_ready', 'claimed'])
-                ->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')
-                ->sum('assistance_codes.amount');
-            $pendingCheques = Application::where('status', 'with_treasurer')->count();
+        $dateTo = $request->date_to
+            ? Carbon::parse($request->date_to)->endOfDay()
+            : now()->endOfDay();
 
-            $monthlyTrends = Application::selectRaw("DATE_FORMAT(applications.created_at, '%Y-%m') as month, count(*) as count, sum(assistance_codes.amount) as total")
-                ->whereBetween('applications.created_at', [$from, $to . ' 23:59:59'])
-                ->whereIn('applications.status', ['with_treasurer', 'cheque_ready', 'claimed'])
-                ->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')
-                ->groupBy('month')
-                ->orderBy('month')
-                ->get();
+        $treasurerStatuses = ['with_treasurer', 'cheque_ready', 'claimed'];
 
-            $recentCheques = Application::with('category', 'encoder', 'assistanceCode')
-                ->whereIn('status', ['with_treasurer', 'cheque_ready', 'claimed'])
-                ->latest()
-                ->take(10)
-                ->get()
-                ->map(fn ($app) => [
-                    'id' => $app->id,
-                    'reference_code' => $app->reference_code,
-                    'status' => $app->status,
-                    'category_name' => $app->category?->category_name,
-                    'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
-                    'amount' => $app->assistanceCode?->amount,
-                    'created_at' => $app->created_at,
-                ]);
+        return Inertia::render('Treasurer/Analytics', [
+            'analyticsData' => Inertia::defer(function () use ($dateFrom, $dateTo, $treasurerStatuses) {
+                $base = Application::whereIn('status', $treasurerStatuses)
+                    ->whereBetween('applications.created_at', [$dateFrom, $dateTo]);
 
-            return compact('chequesForProcessing', 'acknowledgedThisMonth', 'totalAmount', 'pendingCheques', 'monthlyTrends', 'recentCheques');
-        });
+                return [
+                    'total_processed' => (clone $base)->count(),
+                    'total_cheque_ready' => (clone $base)->where('status', 'cheque_ready')->count(),
+                    'total_claimed' => (clone $base)->where('status', 'claimed')->count(),
+                    'total_amount_disbursed' => (clone $base)->where('status', 'claimed')
+                        ->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')
+                        ->sum('assistance_codes.amount'),
 
-        return Inertia::render('Treasurer/Analytics', array_merge($data, [
-            'dateFrom' => $from,
-            'dateTo' => $to,
-        ]));
+                    'status_trend' => Application::whereIn('status', $treasurerStatuses)
+                        ->whereBetween('applications.updated_at', [$dateFrom, $dateTo])
+                        ->selectRaw('DATE(applications.updated_at) as date, status, COUNT(*) as count')
+                        ->groupBy('date', 'status')->orderBy('date')->get(),
+
+                    'status_distribution' => (clone $base)
+                        ->selectRaw('status, COUNT(*) as count')
+                        ->groupBy('status')->get(),
+
+                    'amount_by_category' => Application::whereIn('applications.status', $treasurerStatuses)
+                        ->whereBetween('applications.created_at', [$dateFrom, $dateTo])
+                        ->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')
+                        ->join('assistance_categories', 'applications.category_id', '=', 'assistance_categories.id')
+                        ->selectRaw('assistance_categories.category_name, SUM(assistance_codes.amount) as total')
+                        ->groupBy('assistance_categories.category_name')
+                        ->orderByDesc('total')->get(),
+
+                    'amount_over_time' => Application::whereIn('applications.status', $treasurerStatuses)
+                        ->whereBetween('applications.created_at', [$dateFrom, $dateTo])
+                        ->join('assistance_codes', 'applications.id', '=', 'assistance_codes.application_id')
+                        ->selectRaw('DATE(applications.created_at) as date, SUM(assistance_codes.amount) as total')
+                        ->groupBy('date')->orderBy('date')->get(),
+                ];
+            }),
+            'filters' => ['date_from' => $dateFrom->toDateString(), 'date_to' => $dateTo->toDateString()],
+        ]);
     }
 }

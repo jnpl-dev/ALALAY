@@ -1,6 +1,7 @@
 <script setup>
 import { useLayout } from './composables/layout'
 import { computed, watch } from 'vue'
+
 import { usePage } from '@inertiajs/vue3'
 import AppFooter from './AppFooter.vue'
 import AppSidebar from './AppSidebar.vue'
@@ -8,10 +9,22 @@ import AppTopbar from './AppTopbar.vue'
 import Toast from 'primevue/toast'
 import ConfirmDialog from 'primevue/confirmdialog'
 import { useToast } from '@/Composables/useToast'
+import Breadcrumb from 'primevue/breadcrumb'
+import { useBreadcrumbProvider } from '@/Composables/useBreadcrumb'
 
-const { layoutConfig, layoutState, hideMobileMenu } = useLayout()
+const { layoutConfig, layoutState, hideMobileMenu, applyPanelDarkMode } = useLayout()
+
+applyPanelDarkMode()
 const toast = useToast()
 const page = usePage()
+
+const breadcrumbItems = useBreadcrumbProvider()
+
+const hasBreadcrumb = computed(() => breadcrumbItems.value.length > 0)
+
+watch(() => usePage().component, () => {
+  breadcrumbItems.value = []
+})
 
 watch(() => page.props.flash, (flash) => {
   if (flash?.success) toast.success('Success', flash.success)
@@ -34,6 +47,7 @@ const containerClass = computed(() => {
     <AppTopbar />
     <AppSidebar />
     <div class="layout-main-container">
+      <Breadcrumb v-if="hasBreadcrumb" :model="breadcrumbItems" class="px-6 pt-4 mb-2" />
       <div class="layout-main">
         <slot />
       </div>

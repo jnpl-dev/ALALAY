@@ -11,6 +11,13 @@ class ReturnApplicationRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('remarks') && $this->remarks) {
+            $this->merge(['remarks' => trim(strip_tags($this->remarks))]);
+        }
+    }
+
     public function rules(): array
     {
         return [

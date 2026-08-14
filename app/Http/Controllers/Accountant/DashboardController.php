@@ -4,40 +4,57 @@ namespace App\Http\Controllers\Accountant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Application;
-use App\Models\AuditLog;
-use Illuminate\Support\Facades\Cache;
+use App\Models\Voucher;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        $cacheKey = 'dashboard.accountant.' . now()->format('YmdHi');
-        $data = Cache::remember($cacheKey, 300, function () {
-            $totalVouchers = Application::whereIn('status', ['voucher_creation', 'voucher_checking'])->count();
-            $pendingApproval = Application::where('status', 'voucher_checking')->count();
-            $approvedThisMonth = Application::whereIn('status', ['budget_checking', 'with_treasurer', 'cheque_ready', 'claimed'])->whereMonth('created_at', now()->month)->count();
+        $today = today();
+        $weekStart = now()->subDays(6)->startOfDay();
 
-            $recentActivity = AuditLog::with('user')
-                ->latest()
-                ->take(5)
-                ->get()
-                ->map(fn ($log) => [
-                    'id' => $log->id,
-                    'action' => $log->action,
-                    'module' => $log->module,
-                    'user_name' => $log->user?->full_name ?? 'System',
-                    'created_at' => $log->created_at,
-                ]);
+        return Inertia::render('Accountant/Dashboard', [
+            'dashboardData' => Inertia::defer(function () use ($today, $weekStart) {
+                $accountantStatuses = ['voucher_recording', 'budget_checking', 'with_treasurer'];
 
-            return compact('totalVouchers', 'pendingApproval', 'approvedThisMonth', 'recentActivity');
-        });
+                return [
+                    'pending_vouchers' => Application::where('status', 'voucher_recording')->count(),
+                    'approved_today' => Application::where('status', 'with_treasurer')
+                        ->whereDate('updated_at', $today)->count(),
 
-        return Inertia::render('Dashboard', [
-            'totalApplications' => $data['totalVouchers'],
-            'pendingApplications' => $data['pendingApproval'],
-            'approvedThisMonth' => $data['approvedThisMonth'],
-            'recentActivity' => $data['recentActivity'],
+                    'weekly_voucher_trend' => Voucher::where('created_at', '>=', $weekStart)
+                        ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+                        ->groupBy('date')->orderBy('date')->get(),
+
+                    'voucher_statuses' => [
+                        ['status' => 'voucher_recording', 'count' => Application::where('status', 'voucher_recording')->count()],
+                        ['status' => 'with_treasurer', 'count' => Application::where('status', 'with_treasurer')->count()],
+                    ],
+
+                    'category_amount' => Voucher::where('vouchers.created_at', '>=', $weekStart)
+                        ->join('assistance_codes', 'vouchers.assistance_code_id', '=', 'assistance_codes.id')
+                        ->join('applications', 'assistance_codes.application_id', '=', 'applications.id')
+                        ->join('assistance_categories', 'applications.category_id', '=', 'assistance_categories.id')
+                        ->selectRaw('assistance_categories.category_name, SUM(assistance_codes.amount) as total')
+                        ->groupBy('assistance_categories.category_name')
+                        ->orderByDesc('total')->get(),
+
+                    'recent_vouchers' => Voucher::with(['application.category', 'assistanceCode'])
+                        ->latest()->limit(5)->get()
+                        ->map(fn ($v) => [
+                            'id' => $v->id,
+                            'reference_code' => $v->application?->reference_code,
+                            'beneficiary_name' => $v->application
+                                ? trim(($v->application->beneficiary_first_name ?? '') . ' ' . ($v->application->beneficiary_last_name ?? ''))
+                                : '—',
+                            'category_name' => $v->application?->category?->category_name ?? '—',
+                            'amount' => $v->assistanceCode?->amount,
+                            'status' => $v->application?->status ?? '—',
+                            'prepared_at' => $v->prepared_at,
+                        ]),
+                ];
+            }),
         ]);
     }
 }

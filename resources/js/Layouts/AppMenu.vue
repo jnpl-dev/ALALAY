@@ -2,10 +2,20 @@
 import { computed } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import AppMenuItem from './AppMenuItem.vue'
+import { usePendingCounts } from '@/Composables/usePendingCounts'
 
 const page = usePage()
 const user = page.props.auth?.user
 const role = user?.role
+
+const { counts } = usePendingCounts()
+
+const badgeLabelMap = {
+  Applications: 'applications',
+  Vouchers: 'vouchers',
+  Cheques: 'cheques',
+  Analytics: 'analytics',
+}
 
 const model = computed(() => {
   const roleRoutes = {
@@ -22,6 +32,15 @@ const model = computed(() => {
           { label: 'Assistance Categories', icon: 'pi pi-fw pi-tags', to: route('admin.assistance-categories.index') },
           { label: 'Required Documents', icon: 'pi pi-fw pi-file', to: route('admin.required-documents.index') },
           { label: 'Code References', icon: 'pi pi-fw pi-qrcode', to: route('admin.assistance-code-references.index') },
+        ],
+      },
+      {
+        label: 'SMS Notification',
+        icon: 'pi pi-fw pi-envelope',
+        path: '/sms',
+        items: [
+          { label: 'Updates', icon: 'pi pi-fw pi-sync', to: route('admin.sms.updates') },
+          { label: 'Claiming', icon: 'pi pi-fw pi-calendar', to: route('admin.sms.claiming') },
         ],
       },
     ],
@@ -43,8 +62,13 @@ const model = computed(() => {
       { label: 'Analytics', icon: 'pi pi-fw pi-chart-bar', to: route('treasurer.analytics') },
       { label: 'Cheques', icon: 'pi pi-fw pi-money-bill', to: route('treasurer.cheques.index') },
     ],
-    mayors_office: [
-      { label: 'Analytics', icon: 'pi pi-fw pi-chart-bar', to: route('mayors-office.analytics') },
+    internal_audit: [
+      { label: 'Analytics', icon: 'pi pi-fw pi-chart-bar', to: route('internal-audit.analytics') },
+      { label: 'Coding Review', icon: 'pi pi-fw pi-check-circle', to: route('internal-audit.applications.index') },
+    ],
+    budget_officer: [
+      { label: 'Analytics', icon: 'pi pi-fw pi-chart-bar', to: route('budget-office.analytics') },
+      { label: 'Vouchers', icon: 'pi pi-fw pi-receipt', to: route('budget-office.vouchers.index') },
     ],
   }
 
@@ -53,7 +77,8 @@ const model = computed(() => {
     : role === 'mswdo' ? 'MSWDO'
     : role === 'accountant' ? 'Accountant'
     : role === 'treasurer' ? 'Treasurer'
-    : role === 'mayors_office' ? "Mayor's Office"
+    : role === 'internal_audit' ? 'Internal Audit'
+    : role === 'budget_officer' ? 'Budget Office'
     : 'Panel'
 
   const items = [
@@ -67,9 +92,17 @@ const model = computed(() => {
   ]
 
   if (role && roleRoutes[role]) {
+    const roleItems = roleRoutes[role].map(item => {
+      const key = badgeLabelMap[item.label]
+      if (key && counts.value[key]) {
+        return { ...item, badge: counts.value[key] }
+      }
+      return item
+    })
+
     items.push({
       label: roleLabel,
-      items: roleRoutes[role],
+      items: roleItems,
     })
   }
 

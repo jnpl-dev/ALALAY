@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
 use App\Services\EmailOtpService;
 use Illuminate\Http\Request;
@@ -19,34 +20,28 @@ class LoginController extends Controller
         return Inertia::render('Auth/Login');
     }
 
-    public function store(Request $request, EmailOtpService $otpService)
+    public function store(LoginRequest $request, EmailOtpService $otpService)
     {
-        $request->validate([
-            'email' => ['required', 'string', 'email'],
-            'password' => ['required', 'string'],
-        ]);
+        $validated = $request->validated();
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', $validated['email'])->first();
 
-        if (! $user || ! Hash::check($request->password, $user->password)) {
-            return Inertia::render('Auth/Login', [
-                'email' => $request->email,
-                'password' => $request->password,
-                'errors' => (object) ['email' => 'The provided credentials are incorrect.'],
-            ]);
+        if (! $user || ! Hash::check($validated['password'], $user->password)) {
+            return back()->withErrors([
+                'email' => 'The provided credentials are incorrect.',
+            ])->withInput($request->only('email'));
         }
 
         if ($user->status !== 'active') {
-            return Inertia::render('Auth/Login', [
-                'email' => $request->email,
-                'errors' => (object) ['email' => 'This account has been deactivated.'],
-            ]);
+            return back()->withErrors([
+                'email' => 'This account has been deactivated.',
+            ])->withInput($request->only('email'));
         }
 
         $otpService->generate($user);
 
         $request->session()->put('otp_user_id', $user->id);
-        $request->session()->put('otp_remember', $request->boolean('remember'));
+        $request->session()->put('otp_remember', $validated['remember'] ?? false);
 
         return redirect()->route('otp.challenge');
     }

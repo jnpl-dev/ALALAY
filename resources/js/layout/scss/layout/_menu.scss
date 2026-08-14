@@ -15,6 +15,8 @@
     background-color: var(--surface-overlay);
     border-radius: var(--content-border-radius);
     padding: 0.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
 }
 
 .layout-menu {
@@ -157,4 +159,55 @@
 .layout-submenu-enter-active {
     overflow: hidden;
     transition: max-height 1s ease-in-out;
+}
+
+.layout-menuitem-badge {
+    margin-left: auto;
+    margin-right: 0.5rem;
+    background: var(--primary-color);
+    color: var(--primary-color-text);
+    font-size: 0.75rem;
+    font-weight: 700;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    line-height: 1.25rem;
+    text-align: center;
+    border-radius: 999px;
+    padding: 0 0.375rem;
+    flex-shrink: 0;
+}
+
+.layout-sidebar-footer {
+    border-top: 1px solid var(--surface-border);
+    padding: 0.75rem 1.5rem;
+    margin-top: auto;
+}
+
+.layout-sidebar-logout {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: var(--content-border-radius);
+    color: var(--text-color);
+    cursor: pointer;
+    transition: background-color var(--element-transition-duration);
+    background: none;
+    border: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    outline: none;
+
+    i {
+        font-size: 1.25rem;
+    }
+
+    &:hover {
+        background-color: var(--surface-hover);
+    }
+
+    &:focus-visible {
+        @include focused-inset();
+    }
 }

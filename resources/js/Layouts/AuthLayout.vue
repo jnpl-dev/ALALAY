@@ -1,5 +1,9 @@
 <script setup>
 import { Head } from '@inertiajs/vue3'
+import { useLayout } from './composables/layout'
+
+const { removePanelDarkMode } = useLayout()
+removePanelDarkMode()
 </script>
 
 <template>
@@ -10,7 +14,7 @@ import { Head } from '@inertiajs/vue3'
         <div class="text-3xl font-bold text-primary">ALALAY</div>
         <div class="text-sm text-surface-500 mt-1">Municipality of General Mamerto Natividad, Nueva Ecija</div>
       </div>
-      <div class="bg-white p-8 rounded-xl shadow-lg border border-surface-200">
+      <div class="bg-surface-0 p-8 rounded-xl shadow-lg border border-surface-200">
         <slot />
       </div>
     </div>

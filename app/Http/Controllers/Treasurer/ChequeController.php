@@ -8,6 +8,7 @@ use App\Models\Application;
 use App\Models\Review;
 use App\Services\SignedUrlService;
 use App\Jobs\SendSmsJob;
+use App\Http\Requests\Treasurer\AcknowledgeVoucherRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -44,7 +45,6 @@ class ChequeController extends Controller
 
         $applications = match ($tab) {
             'ready' => (clone $query)->where('status', 'cheque_ready'),
-            'hold' => (clone $query)->where('status', 'on_hold'),
             default => (clone $query)->where('status', 'with_treasurer'),
         };
 
@@ -65,6 +65,70 @@ class ChequeController extends Controller
         $tab = request('tab', 'pending');
         $search = request('search');
         $category = request('category');
+        $from = request('from');
+        $to = request('to');
+
+        $categories = \App\Models\AssistanceCategory::where('is_active', true)->pluck('category_name');
+
+        return Inertia::render('Treasurer/Cheques/Index', [
+            'filters' => request()->only(['search', 'category', 'from', 'to']),
+            'tab' => $tab,
+            'categories' => $categories,
+            'applications' => Inertia::defer(fn () => $this->loadApplications($tab, $search, $category, $from, $to)),
+        ]);
+    }
+
+    protected function loadApplications(string $tab, ?string $search, ?string $category, ?string $from = null, ?string $to = null)
+    {
+        $query = Application::with('category', 'assistanceCode.reference', 'vouchers');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_code', 'like', "%{$search}%")
+                  ->orWhere('claimant_first_name', 'like', "%{$search}%")
+                  ->orWhere('claimant_last_name', 'like', "%{$search}%")
+                  ->orWhereHas('category', fn($q) => $q->where('category_name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($category) {
+            $query->whereHas('category', fn($q) => $q->where('category_name', $category));
+        }
+
+        if ($from) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+
+        if ($to) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
+        $applications = match ($tab) {
+            'ready' => (clone $query)->where('status', 'cheque_ready'),
+            default => (clone $query)->where('status', 'with_treasurer'),
+        };
+
+        return $applications->latest()
+            ->paginate(10)
+            ->through(fn ($app) => [
+                'id' => $app->id,
+                'reference_code' => $app->reference_code,
+                'status' => $app->status,
+                'category_name' => $app->category?->category_name,
+                'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
+                'code_type' => $app->assistanceCode?->reference?->code_type,
+                'amount' => $app->assistanceCode?->amount,
+                'created_at' => $app->created_at,
+            ]);
+    }
+
+    public function export()
+    {
+        $tab = request('tab', 'pending');
+        $search = request('search');
+        $category = request('category');
+        $from = request('from');
+        $to = request('to');
 
         $query = Application::with('category', 'assistanceCode.reference', 'vouchers');
 
@@ -81,34 +145,46 @@ class ChequeController extends Controller
             $query->whereHas('category', fn($q) => $q->where('category_name', $category));
         }
 
-        $applications = match ($tab) {
+        if ($from) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+
+        if ($to) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
+        $applications = (match ($tab) {
             'ready' => (clone $query)->where('status', 'cheque_ready'),
-            'hold' => (clone $query)->where('status', 'on_hold'),
             default => (clone $query)->where('status', 'with_treasurer'),
+        })->latest()->get();
+
+        $filename = 'alalay-treasurer-cheques-' . $tab . '-' . now()->format('Y-m-d') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function () use ($applications) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Reference Code', 'Beneficiary Name', 'Category', 'Code Type', 'Amount', 'Status', 'Date Submitted']);
+
+            foreach ($applications as $app) {
+                fputcsv($handle, [
+                    $app->reference_code,
+                    $app->claimant_first_name . ' ' . $app->claimant_last_name,
+                    $app->category?->category_name,
+                    $app->assistanceCode?->reference?->code_type,
+                    $app->assistanceCode?->amount,
+                    $app->status,
+                    $app->created_at?->toDateTimeString(),
+                ]);
+            }
+
+            fclose($handle);
         };
 
-        $apps = $applications->latest()
-            ->paginate(10)
-            ->through(fn ($app) => [
-                'id' => $app->id,
-                'reference_code' => $app->reference_code,
-                'status' => $app->status,
-                'category_name' => $app->category?->category_name,
-                'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
-                'code_type' => $app->assistanceCode?->reference?->code_type,
-                'amount' => $app->assistanceCode?->amount,
-                'created_at' => $app->created_at,
-            ]);
-
-        $categories = \App\Models\AssistanceCategory::where('is_active', true)->pluck('category_name');
-
-        return Inertia::render('Treasurer/Cheques/Index', [
-            'applications' => $apps,
-            'tab' => $tab,
-            'search' => $search,
-            'category' => $category,
-            'categories' => $categories,
-        ]);
+        return response()->stream($callback, 200, $headers);
     }
 
     public function show($id): Response
@@ -186,11 +262,15 @@ class ChequeController extends Controller
         ]);
     }
 
-    public function acknowledge(Request $request, $id): RedirectResponse
+    public function acknowledge(AcknowledgeVoucherRequest $request, $id): RedirectResponse
     {
         $application = Application::findOrFail($id);
         $voucher = $application->vouchers()->latest()->first();
-        $this->authorize('acknowledge', $voucher);
+        $this->authorize('acknowledge', $voucher ?? new \App\Models\Voucher);
+
+        if ($application->status !== 'with_treasurer') {
+            return redirect()->back()->with('error', 'This application is not currently with the Treasurer.');
+        }
 
         $application->update([
             'status' => 'cheque_ready',
@@ -209,7 +289,7 @@ class ChequeController extends Controller
             'created_at' => now(),
         ]);
 
-        SendSmsJob::dispatch($application, 'cheque_claiming');
+        SendSmsJob::dispatch($application, 'cheque_ready');
 
         $this->bustPollCache();
 
@@ -218,71 +298,13 @@ class ChequeController extends Controller
             ->with('success', 'Voucher acknowledged. Cheque marked as ready for claiming.');
     }
 
-    public function hold(Request $request, $id): RedirectResponse
-    {
-        $application = Application::findOrFail($id);
-        $voucher = $application->vouchers()->latest()->first();
-        $this->authorize('hold', $voucher);
-
-        $application->update([
-            'status' => 'on_hold',
-            'reviewed_by' => $request->user()->id,
-            'reviewed_at' => now(),
-        ]);
-
-        Review::create([
-            'application_id' => $application->id,
-            'reviewed_by' => $request->user()->id,
-            'stage' => 'treasurer_review',
-            'decision' => 'on_hold',
-            'from_status' => 'with_treasurer',
-            'to_status' => 'on_hold',
-            'remarks' => $request->input('remarks'),
-            'created_at' => now(),
-        ]);
-
-        $this->bustPollCache();
-
-        return redirect()
-            ->route('treasurer.cheques.index')
-            ->with('success', 'Application placed on hold.');
-    }
-
-    public function reEvaluate(Request $request, $id): RedirectResponse
-    {
-        $application = Application::findOrFail($id);
-        $voucher = $application->vouchers()->latest()->first();
-        $this->authorize('reEvaluate', $voucher);
-
-        $application->update([
-            'status' => 'cheque_ready',
-            'reviewed_by' => $request->user()->id,
-            'reviewed_at' => now(),
-        ]);
-
-        Review::create([
-            'application_id' => $application->id,
-            'reviewed_by' => $request->user()->id,
-            'stage' => 'treasurer_review',
-            'decision' => 'approved',
-            'from_status' => 'on_hold',
-            'to_status' => 'cheque_ready',
-            'remarks' => $request->input('remarks'),
-            'created_at' => now(),
-        ]);
-
-        SendSmsJob::dispatch($application, 'cheque_claiming');
-
-        $this->bustPollCache();
-
-        return redirect()
-            ->route('treasurer.cheques.index')
-            ->with('success', 'Application re-evaluated and marked as cheque ready.');
-    }
-
     public function claim(Request $request, $id): RedirectResponse
     {
         $application = Application::findOrFail($id);
+
+        if ($application->status !== 'cheque_ready') {
+            return redirect()->back()->with('error', 'This cheque is not ready for claiming.');
+        }
 
         $application->update([
             'status' => 'claimed',

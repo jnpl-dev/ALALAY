@@ -80,8 +80,63 @@ class SystemSettingsSeeder extends Seeder
                 'created_at'    => now(),
                 'updated_at'    => now(),
             ],
+
+            // SMS Templates — Updates
+            [
+                'id'            => Str::uuid()->toString(),
+                'setting_key'   => 'sms_template_submission_complete',
+                'setting_value' => 'Your AICS application {reference_code} has been received. We will notify you once it is reviewed. Track: {track_url}',
+                'setting_group' => 'sms_templates',
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ],
+            [
+                'id'            => Str::uuid()->toString(),
+                'setting_key'   => 'sms_template_under_review',
+                'setting_value' => 'Good day! Your AICS application {reference_code} is now under review by our office. We will update you on the next steps.',
+                'setting_group' => 'sms_templates',
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ],
+            [
+                'id'            => Str::uuid()->toString(),
+                'setting_key'   => 'sms_template_resubmission_needed',
+                'setting_value' => 'Your application {reference_code} needs resubmission. Reason: {remarks}. Please resubmit via {track_url}.',
+                'setting_group' => 'sms_templates',
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ],
+            [
+                'id'            => Str::uuid()->toString(),
+                'setting_key'   => 'sms_template_cheque_ready',
+                'setting_value' => 'Your AICS cheque is ready for claiming at the MSWDO office. Ref: {reference_code}. Please bring a valid ID.',
+                'setting_group' => 'sms_templates',
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ],
+
+            // SMS Template — Claiming
+            [
+                'id'            => Str::uuid()->toString(),
+                'setting_key'   => 'sms_template_cheque_claiming',
+                'setting_value' => 'Your AICS cheque is scheduled for claiming on {claiming_date}. Please visit the MSWDO office on the said date. Ref: {reference_code}.',
+                'setting_group' => 'sms_templates',
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ],
         ];
 
-        DB::table('system_settings')->insert($settings);
+        foreach ($settings as $setting) {
+            DB::table('system_settings')->updateOrInsert(
+                ['setting_key' => $setting['setting_key']],
+                [
+                    'setting_value' => $setting['setting_value'],
+                    'setting_group' => $setting['setting_group'],
+                    'updated_at'    => now(),
+                ]
+            );
+        }
+
+        $this->command->info('System settings seeded successfully.');
     }
 }

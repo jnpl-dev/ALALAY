@@ -8,12 +8,17 @@ import DocumentScanner from '@/Components/Application/DocumentScanner.vue'
 import ReviewTrail from '@/Components/Application/ReviewTrail.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
 import Button from 'primevue/button'
+import Divider from 'primevue/divider'
+import Fieldset from 'primevue/fieldset'
 import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
 import { ref, computed } from 'vue'
 import { formatCurrency } from '@/Utils/formatCurrency'
+import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
+
+useBreadcrumb([{ label: 'MSWDO' }, { label: 'Vouchers' }, { label: 'Create' }])
 
 const props = defineProps({
   application: { type: Object, required: true },
@@ -36,7 +41,6 @@ const showExistingVoucher = ref(false)
 const form = useForm({
   voucher_file: null,
   page_count: 1,
-  adjustment_remarks: '',
 })
 
 const isRecreation = computed(() => !!props.existingVoucher)
@@ -52,7 +56,7 @@ function confirmSubmit() {
   confirm.require({
     message: isRecreation.value
       ? `Re-create Voucher v${props.existingVoucher.version}? Previous version will be replaced.`
-      : 'Submit this voucher for Accountant review?',
+      : 'Submit this voucher for Budget Office review?',
     header: 'Confirm Voucher',
     icon: 'pi pi-receipt',
     rejectProps: { label: 'Cancel', outlined: true },
@@ -86,101 +90,88 @@ function confirmSubmit() {
 
         <ApplicationInfo :application="application" />
 
-        <hr class="border-surface my-6" />
+        <Divider />
 
-        <div v-if="assistanceCode">
-          <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Assistance Code</h3>
-          <div class="bg-surface-50 rounded-lg border border-surface p-4">
+        <Transition name="slide-fade">
+          <Fieldset v-if="assistanceCode" legend="Assistance Code">
             <dl class="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <dt class="text-muted-color">Code Type</dt>
-                <dd class="font-medium text-surface-900">{{ assistanceCode.code_type }}</dd>
+                <dd class="font-medium">{{ assistanceCode.code_type }}</dd>
               </div>
               <div>
                 <dt class="text-muted-color">Amount</dt>
-                <dd class="font-medium text-surface-900">{{ formatCurrency(assistanceCode.amount) }}</dd>
+                <dd class="font-medium">{{ formatCurrency(assistanceCode.amount) }}</dd>
               </div>
               <div>
                 <dt class="text-muted-color">Assigned by</dt>
-                <dd class="font-medium text-surface-900">{{ assistanceCode.assigned_by }}</dd>
+                <dd class="font-medium">{{ assistanceCode.assigned_by }}</dd>
               </div>
             </dl>
-          </div>
-        </div>
+          </Fieldset>
+        </Transition>
 
-        <hr class="border-surface my-6" />
-
-        <div v-if="socialCaseStudy">
-          <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Social Case Study</h3>
-          <DocumentMeta
-            :uploaded-by="socialCaseStudy.uploaded_by"
-            :uploaded-at="socialCaseStudy.conducted_at"
-            :page-count="socialCaseStudy.page_count"
-            :file-size="socialCaseStudy.file_size_label"
-          />
-          <div class="mt-3">
-            <Button icon="pi pi-eye" label="View Case Study" severity="secondary" outlined @click="viewerUrl = socialCaseStudy.signed_url; viewerTitle = 'Social Case Study'" />
-          </div>
-        </div>
-
-        <hr class="border-surface my-6" />
-
-        <div v-if="isRecreation && canEdit">
-          <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Previous Voucher</h3>
-          <DocumentMeta
-            :uploaded-by="existingVoucher.prepared_by"
-            :uploaded-at="existingVoucher.prepared_at"
-            :page-count="existingVoucher.page_count"
-            :file-size="existingVoucher.file_size_label"
-            :version="existingVoucher.version"
-            :returned-by="existingVoucher.returned_by"
-            :returned-at="existingVoucher.returned_at"
-            :return-remarks="existingVoucher.adjustment_remarks"
-          />
-          <div class="mt-3 mb-6">
-            <Button icon="pi pi-eye" label="View Previous Voucher" severity="secondary" outlined @click="viewerUrl = existingVoucher.signed_url; viewerTitle = 'Voucher v' + existingVoucher.version" />
-          </div>
-
-          <hr class="border-surface my-6" />
-        </div>
-
-        <template v-if="canEdit">
-          <hr class="border-surface my-6" />
-
-          <div>
-            <h3 class="font-semibold text-surface-900 mb-4 text-sm uppercase tracking-wide text-muted-color">
-              {{ isRecreation ? 'Upload New Voucher' : 'Capture Voucher Document' }}
-            </h3>
-            <DocumentScanner
-              :doc-name="voucherDocName"
-              :required="true"
-              capture-type="single"
-              scanner-size="a4"
-              @captured="onDocCapture"
+        <Transition name="slide-fade">
+          <Fieldset v-if="socialCaseStudy" legend="Social Case Study">
+            <DocumentMeta
+              :uploaded-by="socialCaseStudy.uploaded_by"
+              :uploaded-at="socialCaseStudy.conducted_at"
+              :page-count="socialCaseStudy.page_count"
+              :file-size="socialCaseStudy.file_size_label"
             />
-          </div>
+            <div class="mt-3">
+              <Button icon="pi pi-eye" label="View Case Study" severity="secondary" outlined @click="viewerUrl = socialCaseStudy.signed_url; viewerTitle = 'Social Case Study'" />
+            </div>
+          </Fieldset>
+        </Transition>
 
-          <hr class="border-surface my-6" />
-
-          <div class="flex gap-3">
-            <Button
-              label="Submit Voucher"
-              icon="pi pi-send"
-              severity="success"
-              @click="confirmSubmit"
-              :loading="form.processing"
-              :disabled="!form.voucher_file"
+        <Transition name="slide-fade">
+          <Fieldset v-if="isRecreation && canEdit" legend="Previous Voucher">
+            <DocumentMeta
+              :uploaded-by="existingVoucher.prepared_by"
+              :uploaded-at="existingVoucher.prepared_at"
+              :page-count="existingVoucher.page_count"
+              :file-size="existingVoucher.file_size_label"
+              :version="existingVoucher.version"
             />
-            <Button label="Cancel" severity="secondary" outlined
-              @click="router.get(route('mswdo.vouchers.index'))" />
+            <div class="mt-3">
+              <Button icon="pi pi-eye" label="View Previous Voucher" severity="secondary" outlined @click="viewerUrl = existingVoucher.signed_url; viewerTitle = 'Voucher v' + existingVoucher.version" />
+            </div>
+          </Fieldset>
+        </Transition>
+
+        <Transition name="slide-fade">
+          <div v-if="canEdit">
+            <Fieldset legend="Voucher Document">
+              <DocumentScanner
+                :doc-name="voucherDocName"
+                :required="true"
+                capture-type="single"
+                scanner-size="a4"
+                @captured="onDocCapture"
+              />
+            </Fieldset>
+
+            <div class="flex gap-3 mt-6">
+              <Button
+                label="Submit Voucher"
+                icon="pi pi-send"
+                severity="success"
+                @click="confirmSubmit"
+                :loading="form.processing"
+                :disabled="!form.voucher_file"
+              />
+              <Button label="Cancel" severity="secondary" outlined
+                @click="router.get(route('mswdo.vouchers.index'))" />
+            </div>
+            <p v-if="!form.voucher_file" class="text-xs text-muted-color mt-2">Capture or upload the voucher document before submitting.</p>
           </div>
-          <p v-if="!form.voucher_file" class="text-xs text-muted-color mt-2">Capture or upload the voucher document before submitting.</p>
-        </template>
+        </Transition>
       </div>
     </div>
 
     <div class="col-span-12 lg:col-span-4">
-      <div class="card" style="position: sticky; top: 6rem; min-width: 300px;">
+      <div class="card sticky top-24" style="min-width: 300px;">
         <h3 class="font-semibold text-surface-900 mb-3 text-sm uppercase tracking-wide text-muted-color">Review Trail</h3>
         <ReviewTrail :reviews="reviews" />
       </div>
@@ -189,3 +180,13 @@ function confirmSubmit() {
     <DocumentViewer :url="viewerUrl" :title="viewerTitle" @close="viewerUrl = null" />
   </div>
 </template>
+
+<style scoped>
+.slide-fade-enter-active {
+  transition: all 0.3s ease-out;
+}
+.slide-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+</style>

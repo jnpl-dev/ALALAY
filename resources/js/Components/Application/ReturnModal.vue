@@ -1,8 +1,9 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
 import InputTextarea from 'primevue/textarea'
+import Checkbox from 'primevue/checkbox'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -14,11 +15,8 @@ const emit = defineEmits(['update:visible', 'confirmed'])
 const remarks = ref('')
 const selectedDocs = ref([])
 
-function toggleDoc(docId) {
-  const idx = selectedDocs.value.indexOf(docId)
-  if (idx >= 0) selectedDocs.value.splice(idx, 1)
-  else selectedDocs.value.push(docId)
-}
+const charCount = computed(() => remarks.value.trim().length)
+const canSubmit = computed(() => charCount.value >= 10)
 
 function confirm() {
   emit('confirmed', {
@@ -43,23 +41,23 @@ function close() {
     :style="{ maxWidth: '600px', width: '90vw' }"
     class="p-fluid"
   >
-    <div class="space-y-4">
+    <div class="flex flex-col gap-4">
       <div>
         <label class="block text-sm font-medium text-surface-700 mb-2">Reason for return <span class="text-red-500">*</span></label>
         <InputTextarea v-model="remarks" rows="3" placeholder="Explain what needs to be revised..." class="w-full" />
+        <p v-if="charCount > 0 && !canSubmit" class="text-xs text-amber-500 mt-1">At least 10 characters required ({{ charCount }}/10).</p>
       </div>
 
       <div v-if="submittedDocuments.length">
         <label class="block text-sm font-medium text-surface-700 mb-2">Select documents that need resubmission</label>
-        <div class="space-y-2 max-h-60 overflow-y-auto border border-surface rounded-lg p-3">
+        <div class="flex flex-col gap-2 max-h-60 overflow-y-auto border border-surface rounded-lg p-3">
           <div v-for="doc in submittedDocuments" :key="doc.id" class="flex items-center gap-3 py-1">
-            <input
-              type="checkbox"
-              :checked="selectedDocs.includes(doc.id)"
-              @change="toggleDoc(doc.id)"
-              class="w-4 h-4 rounded border-surface-300 text-primary focus:ring-primary cursor-pointer flex-shrink-0"
+            <Checkbox
+              v-model="selectedDocs"
+              :inputId="'doc_' + doc.id"
+              :value="doc.id"
             />
-            <label class="text-sm text-surface-700 cursor-pointer flex items-center gap-2">
+            <label :for="'doc_' + doc.id" class="text-sm text-surface-700 cursor-pointer flex items-center gap-2">
               <i class="pi pi-file text-muted-color text-xs"></i>
               {{ doc.doc_name ?? doc.name ?? 'Document' }}
             </label>
@@ -70,7 +68,7 @@ function close() {
 
     <template #footer>
       <Button label="Cancel" severity="secondary" outlined @click="close" />
-      <Button label="Return Application" severity="warn" @click="confirm" :disabled="!remarks.trim()" />
+      <Button label="Return Application" severity="warn" @click="confirm" :disabled="!canSubmit" />
     </template>
   </Dialog>
 </template>
