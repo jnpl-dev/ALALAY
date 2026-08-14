@@ -19,8 +19,8 @@ class DashboardController extends Controller
                     'pending_applications' => Application::where('status', 'submitted')->count(),
                     'screened_today' => Application::where('status', 'mswdo_review')
                         ->whereDate('updated_at', $today)->count(),
-                    'pending_coding' => Application::where('status', 'assistance_coding')->count(),
-                    'coded_today' => Application::where('status', 'voucher_creation')
+                    'pending_coding' => Application::whereIn('status', ['assistance_coding', 'returned_assistance_coding'])->count(),
+                    'coded_today' => Application::where('status', 'internal_audit_review')
                         ->whereDate('updated_at', $today)->count(),
 
                     'weekly_trend' => Application::selectRaw('DATE(created_at) as date, COUNT(*) as count')

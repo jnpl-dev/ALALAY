@@ -9,7 +9,6 @@ use App\Models\Review;
 use App\Services\SignedUrlService;
 use App\Jobs\SendSmsJob;
 use App\Http\Requests\Treasurer\AcknowledgeVoucherRequest;
-use App\Http\Requests\Treasurer\HoldChequeRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -46,7 +45,6 @@ class ChequeController extends Controller
 
         $applications = match ($tab) {
             'ready' => (clone $query)->where('status', 'cheque_ready'),
-            'hold' => (clone $query)->where('status', 'on_hold'),
             default => (clone $query)->where('status', 'with_treasurer'),
         };
 
@@ -107,7 +105,6 @@ class ChequeController extends Controller
 
         $applications = match ($tab) {
             'ready' => (clone $query)->where('status', 'cheque_ready'),
-            'hold' => (clone $query)->where('status', 'on_hold'),
             default => (clone $query)->where('status', 'with_treasurer'),
         };
 
@@ -158,7 +155,6 @@ class ChequeController extends Controller
 
         $applications = (match ($tab) {
             'ready' => (clone $query)->where('status', 'cheque_ready'),
-            'hold' => (clone $query)->where('status', 'on_hold'),
             default => (clone $query)->where('status', 'with_treasurer'),
         })->latest()->get();
 
@@ -270,7 +266,7 @@ class ChequeController extends Controller
     {
         $application = Application::findOrFail($id);
         $voucher = $application->vouchers()->latest()->first();
-        $this->authorize('acknowledge', $voucher);
+        $this->authorize('acknowledge', $voucher ?? new \App\Models\Voucher);
 
         if ($application->status !== 'with_treasurer') {
             return redirect()->back()->with('error', 'This application is not currently with the Treasurer.');
@@ -302,75 +298,13 @@ class ChequeController extends Controller
             ->with('success', 'Voucher acknowledged. Cheque marked as ready for claiming.');
     }
 
-    public function hold(HoldChequeRequest $request, $id): RedirectResponse
-    {
-        $application = Application::findOrFail($id);
-        $voucher = $application->vouchers()->latest()->first();
-        $this->authorize('hold', $voucher);
-
-        if ($application->status !== 'with_treasurer') {
-            return redirect()->back()->with('error', 'This application is not currently with the Treasurer.');
-        }
-
-        $application->update([
-            'status' => 'on_hold',
-            'reviewed_by' => $request->user()->id,
-            'reviewed_at' => now(),
-        ]);
-
-        Review::create([
-            'application_id' => $application->id,
-            'reviewed_by' => $request->user()->id,
-            'stage' => 'treasurer_review',
-            'decision' => 'on_hold',
-            'from_status' => 'with_treasurer',
-            'to_status' => 'on_hold',
-            'remarks' => $request->input('remarks'),
-            'created_at' => now(),
-        ]);
-
-        $this->bustPollCache();
-
-        return redirect()
-            ->route('treasurer.cheques.index')
-            ->with('success', 'Application placed on hold.');
-    }
-
-    public function reEvaluate(Request $request, $id): RedirectResponse
-    {
-        $application = Application::findOrFail($id);
-        $voucher = $application->vouchers()->latest()->first();
-        $this->authorize('reEvaluate', $voucher);
-
-        $application->update([
-            'status' => 'cheque_ready',
-            'reviewed_by' => $request->user()->id,
-            'reviewed_at' => now(),
-        ]);
-
-        Review::create([
-            'application_id' => $application->id,
-            'reviewed_by' => $request->user()->id,
-            'stage' => 'treasurer_review',
-            'decision' => 'approved',
-            'from_status' => 'on_hold',
-            'to_status' => 'cheque_ready',
-            'remarks' => $request->input('remarks'),
-            'created_at' => now(),
-        ]);
-
-        SendSmsJob::dispatch($application, 'cheque_ready');
-
-        $this->bustPollCache();
-
-        return redirect()
-            ->route('treasurer.cheques.index')
-            ->with('success', 'Application re-evaluated and marked as cheque ready.');
-    }
-
     public function claim(Request $request, $id): RedirectResponse
     {
         $application = Application::findOrFail($id);
+
+        if ($application->status !== 'cheque_ready') {
+            return redirect()->back()->with('error', 'This cheque is not ready for claiming.');
+        }
 
         $application->update([
             'status' => 'claimed',

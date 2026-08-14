@@ -41,9 +41,9 @@ class ApplicationController extends Controller
         }
 
         $applications = match ($tab) {
-            'screening' => (clone $query)->where('status', 'mswdo_review'),
+            'forwarded' => (clone $query)->where('status', 'mswdo_review'),
             'returned' => (clone $query)->where('status', 'returned_to_applicant'),
-            default => (clone $query)->whereIn('status', ['submitted', 'screening']),
+            default => (clone $query)->where('status', 'submitted'),
         };
 
         return $applications->latest()->get()->map(fn ($app) => [
@@ -90,9 +90,9 @@ class ApplicationController extends Controller
         }
 
         $applications = match ($tab) {
-            'screening' => (clone $query)->where('status', 'mswdo_review'),
+            'forwarded' => (clone $query)->where('status', 'mswdo_review'),
             'returned' => (clone $query)->where('status', 'returned_to_applicant'),
-            default => (clone $query)->whereIn('status', ['submitted', 'screening']),
+            default => (clone $query)->where('status', 'submitted'),
         };
 
         $categories = AssistanceCategory::where('is_active', true)->pluck('category_name');
@@ -150,9 +150,9 @@ class ApplicationController extends Controller
         }
 
         $applications = (match ($tab) {
-            'screening' => (clone $query)->where('status', 'mswdo_review'),
+            'forwarded' => (clone $query)->where('status', 'mswdo_review'),
             'returned' => (clone $query)->where('status', 'returned_to_applicant'),
-            default => (clone $query)->whereIn('status', ['submitted', 'screening']),
+            default => (clone $query)->where('status', 'submitted'),
         })->latest()->get();
 
         $filename = 'alalay-applications-' . $tab . '-' . now()->format('Y-m-d') . '.csv';
@@ -265,7 +265,7 @@ class ApplicationController extends Controller
         $application = Application::findOrFail($id);
         $this->authorize('approve', $application);
 
-        if (! in_array($application->status, ['submitted', 'screening'])) {
+        if ($application->status !== 'submitted') {
             return redirect()->back()->with('error', 'Application cannot be approved at this stage.');
         }
 
@@ -300,7 +300,7 @@ class ApplicationController extends Controller
         $application = Application::findOrFail($id);
         $this->authorize('returnApp', $application);
 
-        if (! in_array($application->status, ['submitted', 'screening'])) {
+        if ($application->status !== 'submitted') {
             return redirect()->back()->with('error', 'Application cannot be returned at this stage.');
         }
 

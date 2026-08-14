@@ -181,10 +181,12 @@ const stageLabels = {
   aics_screening: () => t('stage.aics_screening'),
   mswdo_review: () => t('stage.mswdo_review'),
   assistance_coding: () => t('stage.assistance_coding'),
+  internal_audit_review: () => t('stage.internal_audit_review'),
   voucher_creation: () => t('stage.voucher_creation'),
-  accountant_review: () => t('stage.accountant_review'),
+  budget_checking: () => t('stage.budget_checking'),
+  voucher_recording: () => t('stage.voucher_recording'),
+  treasurer_acknowledgment: () => t('stage.treasurer_acknowledgment'),
   treasurer_review: () => t('stage.treasurer_review'),
-  mayors_approval: () => t('stage.mayors_approval'),
 }
 
 const decisionLabels = {
@@ -192,28 +194,29 @@ const decisionLabels = {
   coded: () => t('decision.coded'),
   voucher_created: () => t('decision.created'),
   returned: () => t('decision.returned'),
+  hold: () => t('decision.hold'),
   pending: () => t('decision.pending'),
 }
 
 const decisionBadgeClass = (decision) => {
   if (decision === 'approved' || decision === 'coded' || decision === 'voucher_created') return 'bg-emerald-100 text-emerald-700'
-  if (decision === 'returned') return 'bg-amber-100 text-amber-700'
+  if (decision === 'returned' || decision === 'hold') return 'bg-amber-100 text-amber-700'
   return 'bg-gray-100 text-gray-600'
 }
 
 const statusConfig = {
   submitted: { label: () => t('status.submitted'), color: 'bg-blue-100 text-blue-700' },
-  screening: { label: () => t('status.aics_screening'), color: 'bg-cyan-100 text-cyan-700' },
   returned_to_applicant: { label: () => t('status.returned_revision'), color: 'bg-amber-100 text-amber-700' },
   mswdo_review: { label: () => t('status.mswdo_review'), color: 'bg-cyan-100 text-cyan-700' },
   social_case_study_uploaded: { label: () => t('status.case_study'), color: 'bg-indigo-100 text-indigo-700' },
   assistance_coding: { label: () => t('status.assistance_coding'), color: 'bg-purple-100 text-purple-700' },
+  internal_audit_review: { label: () => t('status.internal_audit_review'), color: 'bg-fuchsia-100 text-fuchsia-700' },
+  returned_assistance_coding: { label: () => t('status.returned_assistance_coding'), color: 'bg-orange-100 text-orange-700' },
   voucher_creation: { label: () => t('status.voucher_creation'), color: 'bg-teal-100 text-teal-700' },
-  voucher_checking: { label: () => t('status.voucher_checking'), color: 'bg-emerald-100 text-emerald-700' },
-  voucher_returned: { label: () => t('status.voucher_returned'), color: 'bg-orange-100 text-orange-700' },
-  with_treasurer: { label: () => t('status.with_treasurer'), color: 'bg-blue-100 text-blue-700' },
   budget_checking: { label: () => t('status.budget_checking'), color: 'bg-violet-100 text-violet-700' },
-  on_hold: { label: () => t('status.on_hold'), color: 'bg-gray-100 text-gray-700' },
+  voucher_on_hold: { label: () => t('status.voucher_on_hold'), color: 'bg-gray-100 text-gray-700' },
+  voucher_recording: { label: () => t('status.voucher_recording'), color: 'bg-emerald-100 text-emerald-700' },
+  with_treasurer: { label: () => t('status.with_treasurer'), color: 'bg-blue-100 text-blue-700' },
   cheque_ready: { label: () => t('status.cheque_ready'), color: 'bg-green-100 text-green-700' },
   claimed: { label: () => t('status.claimed'), color: 'bg-gray-100 text-gray-700' },
 }

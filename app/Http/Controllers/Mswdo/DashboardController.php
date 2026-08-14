@@ -23,8 +23,8 @@ class DashboardController extends Controller
                     'pending_applications' => Application::where('status', 'mswdo_review')->count(),
                     'approved_today' => Application::where('status', 'social_case_study_uploaded')
                         ->whereDate('updated_at', $today)->count(),
-                    'pending_voucher_creation' => Application::whereIn('status', ['voucher_creation', 'voucher_returned'])->count(),
-                    'vouchers_created_today' => Application::where('status', 'voucher_checking')
+                    'pending_voucher_creation' => Application::where('status', 'voucher_creation')->count(),
+                    'vouchers_created_today' => Application::where('status', 'budget_checking')
                         ->whereDate('updated_at', $today)->count(),
 
                     'weekly_trend' => (clone $mswdoFlow)

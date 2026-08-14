@@ -13,7 +13,7 @@ class DashboardController extends Controller
     {
         $today = today();
         $weekStart = now()->subDays(6)->startOfDay();
-        $treasurerStatuses = ['with_treasurer', 'cheque_ready', 'on_hold', 'claimed'];
+        $treasurerStatuses = ['with_treasurer', 'cheque_ready', 'claimed'];
 
         return Inertia::render('Treasurer/Dashboard', [
             'dashboardData' => Inertia::defer(function () use ($today, $weekStart, $treasurerStatuses) {
@@ -21,10 +21,8 @@ class DashboardController extends Controller
                     'pending_cheques' => Application::where('status', 'with_treasurer')->count(),
                     'ready_today' => Application::where('status', 'cheque_ready')
                         ->whereDate('updated_at', $today)->count(),
-                    'on_hold_today' => Application::where('status', 'on_hold')
-                        ->whereDate('updated_at', $today)->count(),
 
-                    'weekly_status_trend' => Application::whereIn('status', ['with_treasurer', 'cheque_ready', 'on_hold'])
+                    'weekly_status_trend' => Application::whereIn('status', ['with_treasurer', 'cheque_ready'])
                         ->where('applications.updated_at', '>=', $weekStart)
                         ->selectRaw('DATE(applications.updated_at) as date, status, COUNT(*) as count')
                         ->groupBy('date', 'status')->orderBy('date')->get(),

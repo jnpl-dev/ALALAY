@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\NewLoginDetected;
 use App\Services\EmailOtpService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;

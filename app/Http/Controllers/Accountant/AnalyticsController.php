@@ -24,23 +24,20 @@ class AnalyticsController extends Controller
         return Inertia::render('Accountant/Analytics', [
             'analyticsData' => Inertia::defer(function () use ($dateFrom, $dateTo) {
                 $vouchers = Voucher::whereBetween('vouchers.created_at', [$dateFrom, $dateTo]);
-                $approvedVouchers = (clone $vouchers)->whereNull('returned_at');
-                $returnedVouchers = (clone $vouchers)->whereNotNull('returned_at');
+                $approvedVouchers = (clone $vouchers)
+                    ->join('applications', 'vouchers.application_id', '=', 'applications.id')
+                    ->whereIn('applications.status', ['with_treasurer', 'cheque_ready', 'claimed']);
 
-                $totalApproved = (clone $approvedVouchers)->count();
+                $totalApproved = $approvedVouchers->count();
+                $totalApprovedAmount = (clone $approvedVouchers)
+                    ->join('assistance_codes', 'vouchers.assistance_code_id', '=', 'assistance_codes.id')
+                    ->sum('assistance_codes.amount');
 
                 return [
                     'total_vouchers' => (clone $vouchers)->count(),
                     'total_approved' => $totalApproved,
-                    'total_returned' => (clone $returnedVouchers)->count(),
-                    'total_amount_approved' => (clone $approvedVouchers)
-                        ->join('assistance_codes', 'vouchers.assistance_code_id', '=', 'assistance_codes.id')
-                        ->sum('assistance_codes.amount'),
-                    'average_amount' => $totalApproved > 0
-                        ? round((clone $approvedVouchers)
-                            ->join('assistance_codes', 'vouchers.assistance_code_id', '=', 'assistance_codes.id')
-                            ->sum('assistance_codes.amount') / $totalApproved, 2)
-                        : 0,
+                    'total_amount_approved' => $totalApprovedAmount,
+                    'average_amount' => $totalApproved > 0 ? round($totalApprovedAmount / $totalApproved, 2) : 0,
 
                     'voucher_trend' => (clone $vouchers)
                         ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
@@ -51,10 +48,10 @@ class AnalyticsController extends Controller
                         ->selectRaw('DATE(vouchers.created_at) as date, SUM(assistance_codes.amount) as total')
                         ->groupBy('date')->orderBy('date')->get(),
 
-                    'category_amount' => Voucher::whereNull('returned_at')
+                    'category_amount' => Voucher::join('applications', 'vouchers.application_id', '=', 'applications.id')
+                        ->whereIn('applications.status', ['with_treasurer', 'cheque_ready', 'claimed'])
                         ->whereBetween('vouchers.created_at', [$dateFrom, $dateTo])
                         ->join('assistance_codes', 'vouchers.assistance_code_id', '=', 'assistance_codes.id')
-                        ->join('applications', 'assistance_codes.application_id', '=', 'applications.id')
                         ->join('assistance_categories', 'applications.category_id', '=', 'assistance_categories.id')
                         ->selectRaw('assistance_categories.category_name, SUM(assistance_codes.amount) as total')
                         ->groupBy('assistance_categories.category_name')

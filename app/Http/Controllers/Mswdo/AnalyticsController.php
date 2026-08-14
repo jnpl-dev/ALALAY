@@ -27,9 +27,9 @@ class AnalyticsController extends Controller
 
                 $pendingStatuses = ['submitted', 'mswdo_review'];
                 $approvedStatuses = [
-                    'social_case_study_uploaded', 'assistance_coding', 'voucher_creation',
-                    'voucher_returned', 'voucher_checking', 'budget_checking',
-                    'with_treasurer', 'cheque_ready', 'on_hold', 'claimed',
+                    'social_case_study_uploaded', 'assistance_coding', 'internal_audit_review',
+                    'returned_assistance_coding', 'voucher_creation', 'budget_checking',
+                    'voucher_on_hold', 'voucher_recording', 'with_treasurer', 'cheque_ready', 'claimed',
                 ];
 
                 return [

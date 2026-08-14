@@ -33,8 +33,12 @@ use App\Http\Controllers\Accountant\AnalyticsController as AccountantAnalyticsCo
 use App\Http\Controllers\Treasurer\ChequeController as TreasurerChequeController;
 use App\Http\Controllers\Treasurer\DashboardController as TreasurerDashboardController;
 use App\Http\Controllers\Treasurer\AnalyticsController as TreasurerAnalyticsController;
-use App\Http\Controllers\MayorsOffice\DashboardController as MayorsOfficeDashboardController;
-use App\Http\Controllers\MayorsOffice\AnalyticsController as MayorsOfficeAnalyticsController;
+use App\Http\Controllers\InternalAudit\AnalyticsController as InternalAuditAnalyticsController;
+use App\Http\Controllers\InternalAudit\CodingReviewController;
+use App\Http\Controllers\InternalAudit\DashboardController as InternalAuditDashboardController;
+use App\Http\Controllers\BudgetOffice\AnalyticsController as BudgetOfficeAnalyticsController;
+use App\Http\Controllers\BudgetOffice\DashboardController as BudgetOfficeDashboardController;
+use App\Http\Controllers\BudgetOffice\VoucherController as BudgetOfficeVoucherController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -168,7 +172,6 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/vouchers/poll', [AccountantVoucherController::class, 'poll'])->name('vouchers.poll');
         Route::get('/vouchers/{voucher}', [AccountantVoucherController::class, 'show'])->name('vouchers.show');
         Route::post('/vouchers/{voucher}/approve', [AccountantVoucherController::class, 'approve'])->name('vouchers.approve');
-        Route::post('/vouchers/{voucher}/return', [AccountantVoucherController::class, 'return'])->name('vouchers.return');
     });
 
     // Treasurer panel
@@ -180,14 +183,31 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/cheques/poll', [TreasurerChequeController::class, 'poll'])->name('cheques.poll');
         Route::get('/cheques/{voucher}', [TreasurerChequeController::class, 'show'])->name('cheques.show');
         Route::post('/cheques/{voucher}/acknowledge', [TreasurerChequeController::class, 'acknowledge'])->name('cheques.acknowledge');
-        Route::post('/cheques/{voucher}/hold', [TreasurerChequeController::class, 'hold'])->name('cheques.hold');
-        Route::post('/cheques/{voucher}/re-evaluate', [TreasurerChequeController::class, 'reEvaluate'])->name('cheques.re-evaluate');
         Route::post('/cheques/{voucher}/claim', [TreasurerChequeController::class, 'claim'])->name('cheques.claim');
     });
 
-    // Mayor's Office panel
-    Route::middleware('role:mayors_office')->prefix('mayors-office')->name('mayors-office.')->group(function () {
-        Route::get('/dashboard', [MayorsOfficeDashboardController::class, 'index'])->name('dashboard');
-        Route::get('/analytics', [MayorsOfficeAnalyticsController::class, 'index'])->name('analytics');
+    // Internal Audit panel
+    Route::middleware('role:internal_audit')->prefix('internal-audit')->name('internal-audit.')->group(function () {
+        Route::get('/dashboard', [InternalAuditDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/analytics', [InternalAuditAnalyticsController::class, 'index'])->name('analytics');
+        Route::get('/applications', [CodingReviewController::class, 'index'])->name('applications.index');
+        Route::get('/applications/export', [CodingReviewController::class, 'export'])->name('applications.export');
+        Route::get('/applications/poll', [CodingReviewController::class, 'poll'])->name('applications.poll');
+        Route::get('/applications/{application}', [CodingReviewController::class, 'show'])->name('applications.show');
+        Route::post('/applications/{application}/approve', [CodingReviewController::class, 'approve'])->name('applications.approve');
+        Route::post('/applications/{application}/return', [CodingReviewController::class, 'return'])->name('applications.return');
+    });
+
+    // Budget Office panel
+    Route::middleware('role:budget_officer')->prefix('budget-office')->name('budget-office.')->group(function () {
+        Route::get('/dashboard', [BudgetOfficeDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/analytics', [BudgetOfficeAnalyticsController::class, 'index'])->name('analytics');
+        Route::get('/vouchers', [BudgetOfficeVoucherController::class, 'index'])->name('vouchers.index');
+        Route::get('/vouchers/export', [BudgetOfficeVoucherController::class, 'export'])->name('vouchers.export');
+        Route::get('/vouchers/poll', [BudgetOfficeVoucherController::class, 'poll'])->name('vouchers.poll');
+        Route::get('/vouchers/{application}', [BudgetOfficeVoucherController::class, 'show'])->name('vouchers.show');
+        Route::post('/vouchers/{application}/approve', [BudgetOfficeVoucherController::class, 'approve'])->name('vouchers.approve');
+        Route::post('/vouchers/{application}/hold', [BudgetOfficeVoucherController::class, 'hold'])->name('vouchers.hold');
+        Route::post('/vouchers/{application}/release-hold', [BudgetOfficeVoucherController::class, 'releaseHold'])->name('vouchers.release-hold');
     });
 });

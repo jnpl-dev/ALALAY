@@ -26,10 +26,12 @@ const stageLabels = {
   aics_screening: 'AICS Screening',
   mswdo_review: 'MSWDO Review',
   assistance_coding: 'Assistance Coding',
+  internal_audit_review: 'Internal Audit Review',
   voucher_creation: 'Voucher Creation',
-  accountant_review: 'Accountant Review',
+  budget_checking: 'Budget Checking',
+  voucher_recording: 'Voucher Recording',
+  treasurer_acknowledgment: 'Treasurer Acknowledgment',
   treasurer_review: 'Treasurer Review',
-  mayors_approval: "Mayor's Approval",
 }
 
 const decisionLabels = {
@@ -37,21 +39,19 @@ const decisionLabels = {
   coded: 'Coded',
   voucher_created: 'Created',
   returned: 'Returned',
-  on_hold: 'On Hold',
+  hold: 'Hold',
   pending: 'Pending',
 }
 
 const decisionSeverity = (decision) => {
   if (decision === 'approved' || decision === 'coded' || decision === 'voucher_created') return 'bg-emerald-100 text-emerald-700'
-  if (decision === 'returned') return 'bg-red-100 text-red-700'
-  if (decision === 'on_hold') return 'bg-amber-100 text-amber-700'
+  if (decision === 'returned' || decision === 'hold') return 'bg-amber-100 text-amber-700'
   return 'bg-blue-100 text-blue-700'
 }
 
 const dotColor = (decision) => {
   if (decision === 'approved' || decision === 'coded' || decision === 'voucher_created') return 'border-emerald-500 bg-emerald-400'
-  if (decision === 'returned') return 'border-red-500 bg-red-400'
-  if (decision === 'on_hold') return 'border-amber-500 bg-amber-400'
+  if (decision === 'returned' || decision === 'hold') return 'border-amber-500 bg-amber-400'
   return 'border-primary bg-primary'
 }
 </script>
