@@ -175,6 +175,75 @@ Verification checklist:
 
 ---
 
+## 8. Trial hosting — online testing only (SMS on, scale-to-0)
+
+Use this when the goal is **letting testers use the app online** on Railway's **Free Trial**
+($5 credit, 30 days — whichever ends first; no credit card).
+
+### Trial prerequisites
+
+- ⚠️ **Start the trial with your GitHub account connected.** This unlocks the **Full Trial**.
+  A *Limited Trial* blocks outbound network access — which breaks Supabase storage, PhilSMS,
+  mail, and backups. The app is on GitHub, so this is just connecting it at sign-up.
+- Confirm in the dashboard that the trial shows **Full Trial** / unrestricted network access.
+- Set a **hard usage limit** (`Workspace → Usage`) so the $5 credit is never exceeded.
+
+### Services to deploy
+
+All 4 from this guide: **web, worker, cron, MySQL**.
+
+- **web** + **worker** + **MySQL** are required for any online test with live SMS.
+- **cron** runs only `backup:run` (daily) + `backup:verify` (weekly) — optional, but cheap
+  and it validates the scheduler. **Keep it if you want real backups of the test data.**
+
+### Why SMS needs the worker (important)
+
+SMS is sent via a **queued job** (`SendSmsJob`, database queue). The **worker service must be
+running** for messages to actually go out — otherwise submissions just accumulate in the `jobs`
+table. Scale order when turning testing on:
+
+```
+MySQL → worker → web
+```
+
+MySQL first (it already has data), then the worker (starts draining queued SMS jobs), then web.
+
+### On/off routine (scale-to-0)
+
+**Testing OFF (default):** scale replicas to **0** on **all services** (`Service → Settings → Scale`,
+set replicas to 0). Compute billing stops instantly; env vars, service config, and the MySQL
+volume all persist. The URL stops responding until you turn services back on.
+
+**Testing ON:** scale the services you need back to **1**:
+- web, worker, MySQL (+ cron if you kept it). No redeploy, no rebuild, data intact — just share
+  the URL with testers.
+
+> There is no "pause" button on Railway. Scaling replicas to 0 is the recommended way to stop a
+> service without losing its configuration. `Remove Deployment` (Deployments tab → ⋮) also works
+> but requires a manual redeploy to come back.
+>
+> Do **not** use **Serverless mode** here — the cron service pings outbound every 60 s and the
+> worker holds sockets, so services would never sleep, and the first request after a wake
+> returns a cold-boot 502.
+
+### Cost while testing
+
+| Set | Approx. cost/hr | $5 trial budget |
+|---|---|---|
+| web + worker + MySQL | **$0.06/hr** | ~80 hours of live testing |
+| + cron | $0.07–0.08/hr | ~65 hours |
+
+MySQL volume storage keeps billing while "off" but negligibly (~$0.15/GB-month). Disciplined
+scale-to-0 is what makes the trial last the full 30 days.
+
+### Trial → production
+
+When the trial ends you drop to the **Free** plan ($1 credit/month, 3 services, auto-stop on
+budget) or **Hobby** ($5/month) — or migrate to a VPS. No code changes are required either way;
+the deploy config is identical.
+
+---
+
 ## Troubleshooting quick reference
 
 | Symptom | Likely cause | Fix |
