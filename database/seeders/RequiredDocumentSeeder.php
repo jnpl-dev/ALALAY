@@ -281,22 +281,11 @@ class RequiredDocumentSeeder extends Seeder
             ],
         ];
 
-        foreach ($documents as $document) {
-            DB::table('required_documents')->updateOrInsert(
-                [
-                    'category_id' => $document['category_id'],
-                    'doc_name'    => $document['doc_name'],
-                ],
-                [
-                    'doc_description' => $document['doc_description'],
-                    'is_mandatory'    => $document['is_mandatory'],
-                    'is_active'       => $document['is_active'],
-                    'capture_type'    => $document['capture_type'],
-                    'scanner_size'    => $document['scanner_size'],
-                    'updated_at'      => now(),
-                ]
-            );
-        }
+        DB::table('required_documents')->upsert(
+            $documents,
+            ['category_id', 'doc_name'],
+            ['doc_description', 'is_mandatory', 'is_active', 'capture_type', 'scanner_size', 'updated_at']
+        );
 
         $this->command->info('Required documents seeded successfully.');
     }
