@@ -1,12 +1,18 @@
 # ALALAY: Production Deployment Guide
 **Municipality of General Mamerto Natividad, Nueva Ecija**
-**VPS — Ubuntu 22.04 LTS — Nginx + PHP-FPM + MySQL 8.x**
+**Railway (PaaS) — FrankenPHP + MySQL 8 — single-domain monolithic Laravel + Inertia + Vue 3**
 
 ---
 
 ## Overview
 
-This document covers the full production deployment architecture for ALALAY. The system is deployed on a **single VPS (Virtual Private Server)** running Ubuntu 22.04 LTS, serving both the Vue 3 frontend and the Laravel API backend under a `.gov.ph` domain with HTTPS enforced.
+ALALAY is a **monolithic Laravel 12 application** that serves the Vue 3 + Inertia frontend from
+Laravel itself. There is **no separate frontend/API split** — one domain serves both, so CORS,
+two-subdomain cookie sharing, and a separate Nginx/static-file host are all unnecessary.
+
+Production is deployed on **Railway**, a PaaS, because the application hard-requires **MySQL**
+(five migrations use `ALTER TABLE ... MODIFY COLUMN ... ENUM(...)` behind a
+`DB::getDriverName() !== 'mysql'` guard — Render has no managed MySQL, Railway does).
 
 XAMPP is used **for local development only** and is never used in production.
 
@@ -15,624 +21,218 @@ XAMPP is used **for local development only** and is never used in production.
 ## Production Architecture
 
 ```
-VPS (Ubuntu 22.04 LTS)
-├── Nginx                          # Web server + reverse proxy
-├── PHP 8.2-FPM                    # PHP process manager for Laravel
-├── MySQL 8.x                      # Production database
-├── Supervisor                     # Persistent queue:work daemon
-├── Certbot (Let's Encrypt)        # Free SSL/TLS certificates
-├── UFW Firewall                   # Open ports: 22 (SSH), 80 (HTTP), 443 (HTTPS) only
-└── Cron                           # Laravel scheduler (runs every minute)
+Railway project "alalay"
+├── Service: web (Railpack)        # FrankenPHP: HTTP server + PHP-FPM
+│     buildCommand: sh ./railway/init.sh
+│     preDeployCommand: config/event/route/view caches + migrate --force + db:seed --force
+│     healthcheck: /up
+│     variables: RAILPACK_SKIP_MIGRATIONS=true   # stop Railpack auto migrate+seed on start
+├── Service: worker (Railpack)     # php artisan queue:work database
+│     startCommand: sh ./railway/worker.sh
+│     variables: RAILPACK_SKIP_MIGRATIONS=true
+├── Service: cron (Railpack)       # php artisan schedule:run every 60s
+│     startCommand: sh ./railway/cron.sh
+│     variables: RAILPACK_SKIP_MIGRATIONS=true
+├── Plugin: MySQL                   # managed MySQL 8, referenced via ${{MySQL.*}} env refs
+└── Config: railway.json           # service definitions, replicated per service
 ```
 
----
+Key files in the repo:
 
-## Domain Setup
-
-### Recommended Domain Structure
-
-```
-alalay.gmn.gov.ph          →  Vue 3 frontend (Nginx static file serving)
-api.alalay.gmn.gov.ph      →  Laravel REST API (Nginx + PHP-FPM)
-```
-
-Both subdomains served from the same VPS via Nginx virtual hosts. SSL via a wildcard certificate (`*.gmn.gov.ph`) or two separate Let's Encrypt certificates.
-
-### On the `.gov.ph` Domain
-
-ALALAY is a government web application for the Municipality of General Mamerto Natividad. The municipality is entitled to a `.gov.ph` domain under DICT policy.
-
-- **Requesting authority:** DICT (Department of Information and Communications Technology)
-- **Who requests:** The municipality's IT officer or the Office of the Mayor
-- **Reference:** DICT MC 005 s. 2020 — requires all government web systems to use official government domains
-- **Action required:** Submit domain request to DICT before production go-live *(organizational action — outside code scope)*
-
----
-
-## Recommended VPS Providers
-
-| Provider | Notes |
+| File | Purpose |
 |---|---|
-| **Vultr** | Has a Manila/Singapore region — lowest latency for PH users; $6–12/month |
-| **DigitalOcean** | Very Laravel-friendly documentation; $6–12/month Droplet |
-| **Contabo** | Cheapest specs-per-dollar; European-based but reliable |
-| **AWS Lightsail** | Government-credible; pay-as-you-go; easy SSL setup |
+| `railway.json` | Railpack service config (build/predeploy/start, healthcheck `/up`) |
+| `railway/init.sh` | Build step: `composer install --no-dev --optimize-autoloader`, `npm ci`, `npm run build` |
+| `railway/worker.sh` | DB queue worker (tries=3, max-time=3600) |
+| `railway/cron.sh` | 60-second `php artisan schedule:run` loop |
+| `php.ini` | FrankenPHP runtime overrides (opcache, memory, upload limits, timezone) |
 
-**Minimum recommended VPS specs:**
+---
 
-| Resource | Minimum | Recommended |
+## Why Railway (and not Render / VPS)
+
+- **MySQL is mandatory.** Five migrations (e.g. `2026_08_01_000001_workflow_policy_changes.php`)
+  run `ALTER TABLE ... MODIFY COLUMN ... ENUM(...)` only when `DB::getDriverName() === 'mysql'`.
+  Render provides PostgreSQL/Redis only → the app cannot run there without a rewrite.
+- **Railway** ships a managed MySQL plugin and Railpack auto-detects Laravel (FrankenPHP,
+  document root `public/`). A custom `buildCommand` in `railway.json` replaces Railpack's
+  auto-build, so artisan caches run in **preDeploy (runtime)** where the real environment exists.
+- A self-managed VPS is still viable (the older Nginx/Supervisor/Certbot approach), but adds
+  server maintenance for no benefit on a municipal workload.
+
+### Railpack facts that shaped this setup
+
+- Builder `RAILPACK`; `RAILPACK_PHP_ROOT_DIR` can relocate the docroot; `RAILPACK_PHP_EXTENSIONS`
+  can add PHP extensions.
+- A custom `buildCommand` skips Railpack's automatic Laravel install step → **run artisan caches
+  at runtime (preDeploy), never in build**.
+- Railpack merges a repo-root `php.ini` over its default (the default has no `[opcache]` section
+  and sets `expose_php=On`).
+- Service `startCommand: null` (web) lets Railpack use its detected FrankenPHP entrypoint.
+- **`RAILPACK_SKIP_MIGRATIONS=true` is REQUIRED on every service.** Railpack's default Laravel
+  start script runs `migrate --isolated --seed --force` at container boot — with `startCommand:
+  null` that would re-run migrations AND seeders on every start/restart. Migrations + seeds are
+  done once in the web service's `preDeployCommand`; the flag makes the start script skip them.
+- **Seeding is idempotent by design.** All seeders use `updateOrInsert`/`firstOrCreate` keyed on
+  unique columns (`category_name`, `code_type`, `setting_key`, `doc_name`, `email`), and
+  `DatabaseSeeder` deliberately **excludes** `ApplicationDemoSeeder` — production never gets demo
+  applications. `db:seed --force` runs on every deploy as a safe no-op after the first. Reference
+  data (categories, required documents, assistance codes, settings, SMS templates, admin accounts)
+  is therefore guaranteed present on a fresh DB.
+
+---
+
+## Environment (production `.env`)
+
+All secrets live in Railway's service **Variables**, not in the repo. `.env.example` documents the
+keys; the table below lists the production values.
+
+| Key | Production value | Notes |
 |---|---|---|
-| CPU | 1 vCPU | 2 vCPU |
-| RAM | 1 GB | 2 GB |
-| Storage | 25 GB SSD | 50 GB SSD |
-| OS | Ubuntu 22.04 LTS | Ubuntu 22.04 LTS |
+| `APP_NAME` | `ALALAY` | |
+| `APP_ENV` | `production` | |
+| `APP_DEBUG` | `false` | PBD-2 (NPC) |
+| `APP_URL` | `https://<your-railway-domain>` | HTTPS enforced by Railway edge |
+| `APP_KEY` | fresh, generated | `php artisan key:generate` |
+| `APP_LOCALE` | `en` | |
+| `APP_MAINTENANCE_SECRET` | set | bypass maintenance via `/up?secret=` |
+| `DB_CONNECTION` | `mysql` | |
+| `DB_HOST` / `DB_PORT` | `${{MySQL.HOST}}` / `${{MySQL.PORT}}` | Railway env refs |
+| `DB_DATABASE` / `DB_USERNAME` | `${{MySQL.DATABASE}}` / `${{MySQL.USERNAME}}` | |
+| `DB_PASSWORD` | `${{MySQL.PASSWORD}}` | never write a literal |
+| `SESSION_DRIVER` | `database` | |
+| `SESSION_SECURE_COOKIE` | `true` | cookie over HTTPS only |
+| `SESSION_DOMAIN` | (empty) | single domain — no cross-subdomain cookie needed |
+| `QUEUE_CONNECTION` | `database` | |
+| `CACHE_STORE` | `database` | |
+| `FILESYSTEM_DISK` | `supabase` | all file storage is signed-URL backed |
+| `MAIL_MAILER` | `smtp` | OTP + password reset |
+| `MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` / `MAIL_ENCRYPTION` | provider values | TLS |
+| `MAIL_FROM_ADDRESS` | `noreply@gmn.gov.ph` | |
+| `SUPABASE_URL` | project URL | |
+| `SUPABASE_KEY` | service-role key | |
+| `SUPABASE_SECRET` | service-role secret | S3 credentials |
+| `SUPABASE_STORAGE_REGION` | `ap-southeast-1` | |
+| `SUPABASE_STORAGE_BUCKET` | `alalay-docs` | private bucket; app issues signed URLs |
+| `SUPABASE_STORAGE_ENDPOINT` | `https://<ref>.supabase.co/storage/v1/s3` | |
+| `SMS_DRIVER` | `philsms` | switch from `log` |
+| `PHILSMS_API_TOKEN` | provider token | |
+| `SMS_SENDER_NAME` | `PhilSMS` | account is not authorized for `ALALAY` |
+| `SMS_API_ENDPOINT` | `https://dashboard.philsms.com/api/v3/sms/send` | |
+| `BACKUP_ENCRYPT_PASS` | strong passphrase | AES-256 backup encryption |
+| `BACKUP_RETENTION_DAYS` | `30` | |
+| `SUPABASE_BACKUP_BUCKET` | `alalay-backups` | separate bucket, private |
+
+> No volume is required. Nothing in the application writes to `public/` or `storage/app/` at
+> runtime — documents and backups live in Supabase (signed URLs / S3 uploads). Build-time writes
+> (compiled assets) ship in the image.
 
 ---
 
-## Why Sanctum Still Works in Production
+## Deploy flow (what actually happens)
 
-Sanctum SPA cookie mode requires the frontend and backend to share a **root domain**. Since both are under `.gmn.gov.ph`:
+1. Push to the branch wired to Railway; Railpack builds the image.
+2. **Build** runs `railway/init.sh`:
+   - `composer install --no-dev --optimize-autoloader`
+   - `npm ci && npm run build` (Vite output into `public/build`, committed into the image)
+   - Migrations are **not** run here (no prod env/db during build).
+3. **PreDeploy** (per `railway.json`, runtime env present):
+   `config:cache`, `event:cache`, `route:cache`, `view:cache`, then `migrate --force`,
+   then `db:seed --force` (idempotent; no demo applications — `ApplicationDemoSeeder` is excluded).
+4. **Start**:
+   - web: Railpack's FrankenPHP entrypoint (docroot `public/`, healthcheck hits `/up`).
+     `RAILPACK_SKIP_MIGRATIONS=true` prevents Railpack from re-running migrate/seed at boot.
+   - worker: `railway/worker.sh` → `queue:work database`.
+   - cron: `railway/cron.sh` → loops `php artisan schedule:run` every 60 s.
 
-- `alalay.gmn.gov.ph` (frontend)
-- `api.alalay.gmn.gov.ph` (backend)
+### Scheduler jobs (defined in `routes/console.php`)
 
-Setting `SESSION_DOMAIN=.gmn.gov.ph` (leading dot) makes the session cookie valid across all subdomains. This is a one-line `.env` change — fully supported by Laravel Sanctum.
-
-**JWT would only be necessary if:**
-- Frontend and backend were on completely different domains (different providers, no shared root), or
-- A mobile app (React Native / Flutter) needed to authenticate — mobile apps cannot use cookies.
-
-Neither applies to ALALAY. **Sanctum + Fortify remains the correct and more secure choice for production.**
-
----
-
-## Server Software Installation
-
-### 1. System Update
-
-```bash
-sudo apt update && sudo apt upgrade -y
-```
-
-### 2. Nginx
-
-```bash
-sudo apt install nginx -y
-sudo systemctl enable nginx
-sudo systemctl start nginx
-```
-
-### 3. PHP 8.2 + Required Extensions
-
-```bash
-sudo apt install software-properties-common -y
-sudo add-apt-repository ppa:ondrej/php -y
-sudo apt update
-sudo apt install php8.2-fpm php8.2-mysql php8.2-mbstring php8.2-xml \
-  php8.2-bcmath php8.2-curl php8.2-zip php8.2-gd php8.2-intl \
-  php8.2-tokenizer php8.2-ctype php8.2-json php8.2-fileinfo -y
-```
-
-### 4. MySQL 8.x
-
-```bash
-sudo apt install mysql-server -y
-sudo systemctl enable mysql
-sudo mysql_secure_installation
-```
-
-Create ALALAY database and user:
-
-```sql
-CREATE DATABASE alalay CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'alalay_user'@'localhost' IDENTIFIED BY 'strong_password_here';
-GRANT ALL PRIVILEGES ON alalay.* TO 'alalay_user'@'localhost';
-
--- Restrict audit_logs and reviews from UPDATE/DELETE (NPC MSC-3)
-REVOKE UPDATE, DELETE ON alalay.audit_logs FROM 'alalay_user'@'localhost';
-REVOKE UPDATE, DELETE ON alalay.reviews FROM 'alalay_user'@'localhost';
-
-FLUSH PRIVILEGES;
-```
-
-> **NPC Compliance Note (MSC-3):** Revoking UPDATE and DELETE on `audit_logs` and `reviews` at the database user level enforces append-only behavior regardless of application-layer bugs or misuse.
-
-### 5. Composer
-
-```bash
-curl -sS https://getcomposer.org/installer | php
-sudo mv composer.phar /usr/local/bin/composer
-```
-
-### 6. Node.js 20 LTS
-
-```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install nodejs -y
-```
-
-### 7. Supervisor (Queue Worker Daemon)
-
-```bash
-sudo apt install supervisor -y
-sudo systemctl enable supervisor
-sudo systemctl start supervisor
-```
-
-### 8. Certbot (Let's Encrypt SSL)
-
-```bash
-sudo apt install certbot python3-certbot-nginx -y
-```
-
-### 9. UFW Firewall
-
-```bash
-sudo ufw allow OpenSSH
-sudo ufw allow 'Nginx Full'
-sudo ufw enable
-```
+- `backup:run` — daily 02:00 (encrypted MySQL dump → `alalay-backups` bucket, 30-day retention).
+- `backup:verify` — weekly Sunday 03:00 (restores into `alalay_backup_test` to prove recoverability).
 
 ---
 
-## Laravel Backend Deployment
+## Security hardening checklist (production)
 
-### 1. Clone Repository
-
-```bash
-cd /var/www
-sudo git clone https://github.com/your-org/alalay.git alalay
-sudo chown -R www-data:www-data /var/www/alalay
-sudo chmod -R 755 /var/www/alalay
-```
-
-### 2. Install PHP Dependencies
-
-```bash
-cd /var/www/alalay
-composer install --optimize-autoloader --no-dev
-```
-
-### 3. Environment Configuration
-
-```bash
-cp .env.example .env
-php artisan key:generate
-nano .env
-```
-
-Production `.env` values:
-
-```env
-# Application
-APP_NAME="ALALAY"
-APP_ENV=production
-APP_KEY=                          # generated above
-APP_DEBUG=false
-APP_URL=https://api.alalay.gmn.gov.ph
-
-# Database
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=alalay
-DB_USERNAME=alalay_user
-DB_PASSWORD=strong_password_here
-
-# Session
-SESSION_DRIVER=database
-SESSION_LIFETIME=120
-SESSION_DOMAIN=.gmn.gov.ph
-SESSION_SECURE_COOKIE=true
-SESSION_SAME_SITE=lax
-
-# Sanctum
-SANCTUM_STATEFUL_DOMAINS=alalay.gmn.gov.ph
-
-# Queue
-QUEUE_CONNECTION=database
-
-# Cache
-CACHE_DRIVER=file
-
-# Mail (OTP, Password Reset)
-MAIL_MAILER=smtp
-MAIL_HOST=
-MAIL_PORT=587
-MAIL_USERNAME=
-MAIL_PASSWORD=
-MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS=noreply@gmn.gov.ph
-MAIL_FROM_NAME="ALALAY System"
-
-# Supabase Storage (S3-compatible)
-SUPABASE_URL=
-SUPABASE_KEY=
-SUPABASE_STORAGE_BUCKET=alalay-docs
-SUPABASE_STORAGE_ENDPOINT=https://<project-ref>.supabase.co/storage/v1/s3
-SUPABASE_STORAGE_REGION=ap-southeast-1
-
-# SMS API
-SMS_API_KEY=
-SMS_API_ENDPOINT=
-SMS_SENDER_NAME=ALALAY
-
-# CORS
-FRONTEND_URL=https://alalay.gmn.gov.ph
-```
-
-### 4. Run Migrations and Seeders
-
-```bash
-php artisan migrate --force
-php artisan db:seed --force
-```
-
-### 5. Storage Link
-
-```bash
-php artisan storage:link
-```
-
-### 6. Optimize for Production
-
-```bash
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-php artisan event:cache
-```
-
-### 7. Storage and Cache Permissions
-
-```bash
-sudo chown -R www-data:www-data /var/www/alalay/storage
-sudo chown -R www-data:www-data /var/www/alalay/bootstrap/cache
-sudo chmod -R 775 /var/www/alalay/storage
-sudo chmod -R 775 /var/www/alalay/bootstrap/cache
-```
-
----
-
-## Vue 3 Frontend Deployment
-
-### 1. Install JS Dependencies and Build
-
-```bash
-cd /var/www/alalay/frontend
-npm install
-npm run build
-```
-
-This outputs static files to `/var/www/alalay/frontend/dist`.
-
-### 2. Nginx will serve the `dist` folder as static files (configured below).
-
----
-
-## Nginx Configuration
-
-### Laravel API Virtual Host
-
-Create `/etc/nginx/sites-available/alalay-api`:
-
-```nginx
-server {
-    listen 80;
-    server_name api.alalay.gmn.gov.ph;
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name api.alalay.gmn.gov.ph;
-
-    root /var/www/alalay/public;
-    index index.php;
-
-    ssl_certificate /etc/letsencrypt/live/api.alalay.gmn.gov.ph/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.alalay.gmn.gov.ph/privkey.pem;
-
-    # Security headers (NPC PBD-2, ACC-1)
-    add_header X-Frame-Options "SAMEORIGIN";
-    add_header X-Content-Type-Options "nosniff";
-    add_header X-XSS-Protection "1; mode=block";
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin";
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; object-src 'none';";
-
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
-
-    location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-
-    location ~ /\.(?!well-known).* {
-        deny all;
-    }
-
-    # Block direct access to storage (files served via signed URLs only)
-    location /storage {
-        deny all;
-    }
-}
-```
-
-### Vue 3 Frontend Virtual Host
-
-Create `/etc/nginx/sites-available/alalay-frontend`:
-
-```nginx
-server {
-    listen 80;
-    server_name alalay.gmn.gov.ph;
-    return 301 https://$host$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name alalay.gmn.gov.ph;
-
-    root /var/www/alalay/frontend/dist;
-    index index.html;
-
-    ssl_certificate /etc/letsencrypt/live/alalay.gmn.gov.ph/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/alalay.gmn.gov.ph/privkey.pem;
-
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN";
-    add_header X-Content-Type-Options "nosniff";
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin";
-
-    # Vue Router — all routes fall back to index.html
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # Cache static assets
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-}
-```
-
-Enable both sites:
-
-```bash
-sudo ln -s /etc/nginx/sites-available/alalay-api /etc/nginx/sites-enabled/
-sudo ln -s /etc/nginx/sites-available/alalay-frontend /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
----
-
-## SSL Certificates (Let's Encrypt)
-
-```bash
-sudo certbot --nginx -d alalay.gmn.gov.ph -d api.alalay.gmn.gov.ph
-```
-
-Certbot auto-renews certificates. Verify auto-renewal:
-
-```bash
-sudo certbot renew --dry-run
-```
-
----
-
-## Supervisor — Queue Worker Configuration
-
-Create `/etc/supervisor/conf.d/alalay-worker.conf`:
-
-```ini
-[program:alalay-worker]
-process_name=%(program_name)s_%(process_num)02d
-command=php /var/www/alalay/artisan queue:work database --sleep=3 --tries=3 --max-time=3600
-autostart=true
-autorestart=true
-stopasgroup=true
-killasgroup=true
-user=www-data
-numprocs=2
-redirect_stderr=true
-stdout_logfile=/var/www/alalay/storage/logs/worker.log
-stopwaitsecs=3600
-```
-
-Reload Supervisor:
-
-```bash
-sudo supervisorctl reread
-sudo supervisorctl update
-sudo supervisorctl start alalay-worker:*
-```
-
----
-
-## Laravel Scheduler — Cron Job
-
-```bash
-sudo crontab -e -u www-data
-```
-
-Add:
-
-```cron
-* * * * * cd /var/www/alalay && php artisan schedule:run >> /dev/null 2>&1
-```
-
-This runs the Laravel scheduler every minute, which handles:
-- Daily automated MySQL backups (`BackupDatabaseJob`)
-- Retention flagging for records past their defined retention period
-- `is_online` reset for users with no recent session activity
-
----
-
-## Automated Database Backup
-
-### Backup Script
-
-Create `/var/www/alalay/scripts/backup.sh`:
-
-```bash
-#!/bin/bash
-
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-BACKUP_DIR="/var/backups/alalay"
-DB_NAME="alalay"
-DB_USER="alalay_user"
-DB_PASS="strong_password_here"
-ENCRYPT_PASS="strong_encryption_passphrase_here"
-
-mkdir -p $BACKUP_DIR
-
-# Dump and encrypt
-mysqldump -u $DB_USER -p$DB_PASS $DB_NAME | \
-  gzip | \
-  openssl enc -aes-256-cbc -salt -pbkdf2 -pass pass:$ENCRYPT_PASS \
-  > $BACKUP_DIR/alalay_$TIMESTAMP.sql.gz.enc
-
-# Retain only last 30 days of backups
-find $BACKUP_DIR -name "*.sql.gz.enc" -mtime +30 -delete
-
-echo "Backup completed: alalay_$TIMESTAMP.sql.gz.enc"
-```
-
-```bash
-chmod +x /var/www/alalay/scripts/backup.sh
-```
-
-Register in Laravel Scheduler (`app/Console/Kernel.php`):
-
-```php
-$schedule->exec('/var/www/alalay/scripts/backup.sh')->dailyAt('02:00');
-```
-
-> **NPC Compliance Note (BCP-1):** Backups run daily at 2:00 AM, AES-256 encrypted, retained for 30 days. Store copies offsite (e.g., upload to a separate Supabase Storage bucket or external drive) for full BCP compliance.
-
----
-
-## CORS Configuration (Production)
-
-In `config/cors.php`:
-
-```php
-return [
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
-    'allowed_methods' => ['*'],
-    'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:5173')],
-    'allowed_origins_patterns' => [],
-    'allowed_headers' => ['*'],
-    'exposed_headers' => [],
-    'max_age' => 0,
-    'supports_credentials' => true,
-];
-```
-
----
-
-## Security Hardening Checklist (Production)
-
-| Item | Action | NPC Ref |
+| Item | Where | NPC ref |
 |---|---|---|
-| `APP_DEBUG=false` | Set in `.env` | PBD-2 |
-| HTTPS enforced | Nginx redirects HTTP → HTTPS | ACC-1 |
-| HSTS header | `Strict-Transport-Security` in Nginx config | ACC-1 |
-| Security response headers | `X-Frame-Options`, `X-Content-Type-Options`, `CSP` in Nginx | PBD-2 |
-| MySQL remote root disabled | `sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH auth_socket;"` | ACC-1 |
-| MySQL app user has no UPDATE/DELETE on audit_logs/reviews | Granted during DB setup | MSC-3 |
-| Nginx blocks direct storage access | `location /storage { deny all; }` in Nginx config | TRF-2 |
-| UFW firewall — only ports 22, 80, 443 open | UFW configuration | ACC-1 |
-| SSH key-based auth only (disable password SSH) | Edit `/etc/ssh/sshd_config`: `PasswordAuthentication no` | ACC-8 |
-| Fail2ban for SSH brute force | `sudo apt install fail2ban -y` | ACC-6 |
-| Laravel rate limiting on login | `throttle:5,1` on `/api/login` route | ACC-6 |
-| File permissions — storage/bootstrap writable by www-data only | `chown -R www-data:www-data` | ACC-1 |
-| `.env` not accessible via web | Nginx `deny all` for dotfiles | ACC-1 |
-| `composer install --no-dev` | No dev packages in production | PBD-2 |
-| Queue worker managed by Supervisor | Never dies silently | BCP-1 |
-| Daily encrypted backup | Via cron + backup script | BCP-1 |
-| SSL auto-renewal | Certbot cron | ACC-1 |
+| `APP_ENV=production`, `APP_DEBUG=false` | Railway variables | PBD-2 |
+| HTTPS enforced | Railway edge (default) | ACC-1 |
+| Security response headers | Laravel `trustProxies(at: '*')` in `bootstrap/app.php` + app middleware; HSTS via Railpack | PBD-2 |
+| `.env` never served | FrankenPHP docroot is `public/` only | ACC-1 |
+| `composer install --no-dev` | build script | PBD-2 |
+| Queue worker auto-restart | Railway `restartPolicyType: ON_FAILURE` | BCP-1 |
+| Daily encrypted backup + weekly verify | scheduler (above) | BCP-1 |
+| Signed-URL-only document access | `SignedUrlService`; buckets are private | TRF-2 |
+| Append-only audit_logs / reviews | app-layer policy (DB-level REVOKE applies to self-managed MySQL) | MSC-3 |
+| Login rate limiting | `throttle` on login routes | ACC-6 |
+| Session cookie flags | `SESSION_SECURE_COOKIE=true`, same-site `lax` | ACC-1 |
+| MySQL creds via env refs only | never literals in repo/guide | ACC-1 |
 
 ---
 
-## Deployment Checklist (Go-Live)
+## Go-live checklist
 
 ```
 PRE-DEPLOYMENT
-  [ ] VPS provisioned (Ubuntu 22.04 LTS)
-  [ ] Domain .gov.ph requested from DICT
-  [ ] DNS A records pointed to VPS IP (alalay.gmn.gov.ph, api.alalay.gmn.gov.ph)
-  [ ] Supabase Storage project created, buckets configured as private
-  [ ] SMS API credentials obtained from provider
-  [ ] SMTP mail credentials configured
+  [ ] Railway project + GitHub repo connected
+  [ ] MySQL plugin added (Railway)
+  [ ] .gov.ph domain requested from DICT (MC 005 s. 2020)
+  [ ] Custom domain attached to the web service; DNS CNAME set
+  [ ] Supabase project created: alalay-docs (private) + alalay-backups (private) buckets
+  [ ] PhilSMS token + SMTP credentials obtained
 
-SERVER SETUP
-  [ ] Nginx installed and running
-  [ ] PHP 8.2-FPM installed with all extensions
-  [ ] MySQL 8.x installed, secured, database + restricted user created
-  [ ] Composer installed
-  [ ] Node.js 20 LTS installed
-  [ ] Supervisor installed and running
-  [ ] Certbot installed, SSL certificates issued
-  [ ] UFW firewall enabled (ports 22, 80, 443 only)
-  [ ] Fail2ban installed
+VARIABLES (per service)
+  [ ] All keys from the environment table set on the web/worker/cron services
+  [ ] APP_KEY generated once
+  [ ] RAILPACK_SKIP_MIGRATIONS=true on ALL services (web, worker, cron)
+  [ ] PHILSMS token, SUPABASE keys, SMTP, BACKUP_ENCRYPT_PASS
+  [ ] DB_* as ${{MySQL.*}} references
 
-APPLICATION DEPLOYMENT
-  [ ] Repository cloned to /var/www/alalay
-  [ ] composer install --optimize-autoloader --no-dev
-  [ ] .env configured with all production values
-  [ ] php artisan key:generate
-  [ ] php artisan migrate --force
-  [ ] php artisan db:seed --force
-  [ ] php artisan storage:link
-  [ ] php artisan config:cache
-  [ ] php artisan route:cache
-  [ ] php artisan view:cache
-  [ ] File permissions set (www-data)
-  [ ] Vue 3 frontend built (npm run build)
-  [ ] Nginx virtual hosts configured and enabled
-  [ ] Supervisor worker configured and running
-  [ ] Cron job for scheduler registered
+APPLICATION (all happens automatically in preDeploy)
+  [ ] Migrations run via preDeploy
+  [ ] Reference data + admin accounts seeded via `db:seed --force` (idempotent, demo excluded)
+  [ ] Vite assets built during deploy; first load shows styled login page
 
-POST-DEPLOYMENT VERIFICATION
-  [ ] HTTPS enforced on both subdomains
-  [ ] Login + MFA flow working
-  [ ] File upload to Supabase Storage working
-  [ ] SMS notification delivered successfully (test application)
-  [ ] Queue worker processing jobs (check storage/logs/worker.log)
-  [ ] Scheduler running (check php artisan schedule:list)
-  [ ] Audit log writing on user actions
-  [ ] Backup script running and producing encrypted output
-  [ ] Admin force-logout working (session revocation)
-  [ ] All role-based access restrictions verified per role-permission matrix
+VERIFICATION
+  [ ] GET /up returns 200 (healthcheck green)
+  [ ] Login + OTP flow works; SMS actually delivers
+  [ ] Document upload → signed URL → view/download works
+  [ ] Queue worker processing (SendSmsJob, BackupDatabaseJob)
+  [ ] Scheduler: backup:run writes to alalay-backups (check Supabase)
+  [ ] All role panels reachable per role matrix
+  [ ] Admin force-logout / session revocation works
 ```
 
 ---
 
-## Local vs Production Environment Comparison
+## Local vs production comparison
 
-| Concern | Local (XAMPP) | Production (VPS) |
+| Concern | Local (XAMPP / `php artisan serve`) | Production (Railway) |
 |---|---|---|
-| Web server | Apache (XAMPP) | Nginx + PHP-FPM |
-| PHP | XAMPP bundled PHP | PHP 8.2+ (`ppa:ondrej/php`) |
-| Database | XAMPP MySQL | MySQL 8.x (hardened) |
-| Queue worker | Manual `php artisan queue:work` | Supervisor daemon (auto-restart) |
-| Task scheduler | Manual | System cron |
-| HTTPS | None | Let's Encrypt (enforced) |
+| Web server | Laravel dev server / XAMPP Apache | FrankenPHP (HTTP + PHP-FPM) |
+| PHP | XAMPP bundled | Railway container (8.3) + repo `php.ini` |
+| Database | local MySQL (or sqlite in `.env.example`) | Railway MySQL 8 |
+| Frontend | Vite dev server (5173) | Built by `npm run build`, served by Laravel |
+| Queue worker | manual `php artisan queue:work` | Railway worker service (auto-restart) |
+| Scheduler | manual | Railway cron service |
+| HTTPS | none | Railway edge (auto) |
 | `APP_DEBUG` | `true` | `false` |
-| File storage | Local disk (for testing) | Supabase Storage (S3) |
-| Session domain | Not needed | `SESSION_DOMAIN=.gmn.gov.ph` |
-| CORS origin | `http://localhost:5173` | `https://alalay.gmn.gov.ph` |
-| Backups | Manual | Automated daily encrypted |
-| Firewall | None | UFW (ports 22, 80, 443) |
-| SSH | Password login | Key-based only |
+| File storage | local `storage/` | Supabase (private, signed URLs) |
+| Backups | manual | daily encrypted + weekly verify |
+| SMS | `SMS_DRIVER=log` | `SMS_DRIVER=philsms` |
+
+---
+
+## Notes / deferred items
+
+- **Dependency advisories** (not yet fixed): composer — guzzlehttp/guzzle 7.13.1 (high),
+  phpspreadsheet via maatwebsite/excel 3.1.69 (SSRF `WEBSERVICE()`); npm — pdfjs-dist 6.1.200,
+  nanoid 3.3.16, dompurify. Fix in a dedicated dependency pass before go-live.
+- **Frontend bundle**: no `manualChunks` — Vite already lazy-loads routes and the heavy libs
+  (chart.js via `primevue/chart` dynamic import, pdfjs/html2canvas via page-level dynamic imports).
+- **Redis** (cache/session/queue) was intentionally deferred; the `database` drivers are fine for
+  the expected municipal workload.
 
 ---
 

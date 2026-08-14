@@ -395,6 +395,34 @@ Fix items discovered while verifying the refactor live, plus the pending auth te
 - [x] `php artisan test` → **25 passed (108 assertions)**, zero failures.
 - [x] `npm run build` clean (only pre-existing chunk-size warning).
 
+**Deployment prep (hosting + perf), client-approved scope: Parts 1, 2, 3, 5 (Redis deferred)**
+
+- [x] **Hosting: Railway** (not Render). App hard-requires MySQL: 5 migrations guard on
+      `DB::getDriverName() !== 'mysql'` and use `ALTER TABLE ... MODIFY COLUMN ... ENUM(...)`
+      (e.g. `2026_08_01_000001_workflow_policy_changes.php:26`). Render has no managed MySQL;
+      Railway provides a MySQL plugin + Railpack auto-detects Laravel (FrankenPHP, docroot `public/`).
+- [x] **Railway deploy files**: `railway/init.sh` (build: `composer install --no-dev --optimize-autoloader`,
+      `npm ci`, `npm run build`), `railway/worker.sh` (`queue:work database --sleep=3 --tries=3
+      --max-time=3600`), `railway/cron.sh` (60s `schedule:run` loop), `railway.json` (builder RAILPACK;
+      buildCommand chmod+sh init.sh; preDeployCommand `config:cache`, `event:cache`, `route:cache`,
+      `view:cache`, `migrate --force`; healthcheck `/up`). Artisan caches run in **preDeploy (runtime)**
+      not build, because a custom buildCommand bypasses Railpack's auto-run and build-time env is not
+      the production env.
+- [x] **`php.ini`** (repo root, picked up by FrankenPHP): opcache enabled (validate_timestamps=0,
+      20000 files), display_errors=Off, expose_php=Off, memory_limit 256M, upload limits 20M/24M,
+      date.timezone Asia/Manila. No persistent volume needed — all file storage is on the `supabase`
+      disk (signed URLs), no app writes to `public`/`storage`.
+- [x] **Bundle splitting VERDICT: revert.** Verified `primevue/chart` already lazy-loads
+      `chart.js/auto` via dynamic `import()` (`node_modules/primevue/chart/Chart.vue:45`), and pdfjs
+      is already lazy via `usePdfThumbnail.js`'s `await import('pdfjs-dist')`. Vite already code-splits
+      per-route (AppLayout + every page chunk are lazy). Forcing `manualChunks` made it **worse**:
+      eager closure 542.7 kB (app+inertia+utils) vs 496.4 kB original single `app` chunk — it only
+      added chunk-boundary glue and lost shared-module dedup. Same lesson as the earlier primevue
+      group (915 kB forced eager). `vite.config.js` stays at HEAD; no manualChunks.
+- [x] Noted but deferred: composer advisories (guzzle 7.13.1 high; phpspreadsheet via
+      maatwebsite/excel 3.1.69) and npm advisories (pdfjs-dist, nanoid, dompurify) — fix in a
+      dedicated dependency pass.
+
 ### Phase 10 — Production / demo flip
 
 - [ ] `.env`: `APP_ENV=production`, `APP_DEBUG=false`, `SMS_DRIVER=philsms`.
