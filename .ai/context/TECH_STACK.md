@@ -338,7 +338,7 @@ SUPABASE_URL=
 SUPABASE_KEY=
 SUPABASE_STORAGE_BUCKET=alalay-docs
 SUPABASE_STORAGE_ENDPOINT=https://<project-ref>.supabase.co/storage/v1/s3
-SUPABASE_STORAGE_REGION=ap-southeast-1
+SUPABASE_STORAGE_REGION=ap-northeast-2
 
 # SMS API
 SMS_DRIVER=log

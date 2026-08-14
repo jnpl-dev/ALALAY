@@ -7,11 +7,13 @@ remaining **manual steps** in your local terminal + the Railway dashboard (~15�
 
 ## 0. Local cleanup + push (terminal)
 
-**0.1 Commit the last `.env.example` tweak**
+**0.1 Commit pending changes (slimmed `railway.json` + copy-paste docs)**
+
+`railway/.env.production` is gitignored — no secrets go in this commit:
 
 ```bash
-git add .env.example
-git commit -m "env: align .env.example with real env (mysql db block, drop MAIL_ENCRYPTION)"
+git add railway.json RAILWAY_SETUP.md .ai/context/ && git status
+git commit -m "deploy: slim railway.json to build-only; document dashboard copy-paste commands"
 ```
 
 **0.2 Remove the GitHub token from the remote URL** ⚠️
@@ -48,10 +50,15 @@ Confirm the token string no longer appears in your git config.
 
 1. Open https://railway.app → **New Project** → **Empty Project**.
 2. Click **+ New** → **Database** → **MySQL**. Wait for it to provision.
-3. Click **+ New** → **GitHub Repo** → select `jnpl-dev/ALALAY` → branch `dev`.
+3. Add the app service **three times** — Railway creates exactly **one** service per click,
+   and config-as-code covers a single service per repo. Each time:
+   **+ New → GitHub Repo** → select `jnpl-dev/ALALAY` → branch `dev`.
+   Repeat until you have 3 repo-based services. (All three use root directory `/` — the whole
+   app lives at the repo root, so no "Empty Service + Connect Repo + Root Directory" steps, which
+   you'd only need for a monorepo.)
 
 You now have 4 items: 1 MySQL database + 3 app services. Rename them:
-- the repo-based services → `web`, `worker`, `cron`
+- the three repo-based services → `web`, `worker`, `cron`
 - the database → `mysql`
 
 ---
@@ -60,51 +67,32 @@ You now have 4 items: 1 MySQL database + 3 app services. Rename them:
 
 **Settings → Source:** repo `ALALAY`, branch `dev` (auto-detected).
 
-**Deploy** — `railway.json` is read automatically:
-- Build Command: `chmod +x ./railway/init.sh && sh ./railway/init.sh`
-- PreDeploy Command: `config:cache`, `event:cache`, `route:cache`, `view:cache`,
-  `migrate --force`, `db:seed --force`
-- Start Command: **(leave null)** — Railpack boots FrankenPHP
-- Healthcheck Path: `/up`
+**Variables (Settings → Variables):** copy the block from
+[`railway/.env.production`](railway/.env.production) → click **RAW Editor** → paste → Save.
+Then set the two values that depend on your services:
 
-**Variables** (Settings → Variables):
+- `APP_URL` → your generated domain (set in step 5)
+- `${{mysql.*}}` references → Railway auto-fills them if the DB service is named `mysql`
 
-| Variable | Value |
-|---|---|
-| `APP_ENV` | `production` |
-| `APP_DEBUG` | `false` |
-| `APP_KEY` | generate once: `php artisan key:generate --show` |
-| `APP_URL` | `https://<your-domain>` (set after attaching custom domain) |
-| `RAILPACK_SKIP_MIGRATIONS` | `true` — **required**, prevents Railpack re-running migrate+seed at boot |
-| `DB_CONNECTION` | `mysql` |
-| `DB_HOST` | `${{mysql.HOST}}` |
-| `DB_PORT` | `${{mysql.PORT}}` |
-| `DB_DATABASE` | `${{mysql.DATABASE}}` |
-| `DB_USERNAME` | `${{mysql.USERNAME}}` |
-| `DB_PASSWORD` | `${{mysql.PASSWORD}}` |
-| `SESSION_DRIVER` | `database` |
-| `SESSION_SECURE_COOKIE` | `true` |
-| `QUEUE_CONNECTION` | `database` |
-| `CACHE_STORE` | `database` |
-| `FILESYSTEM_DISK` | `supabase` |
-| `MAIL_MAILER` | `smtp` |
-| `MAIL_HOST` | your SMTP host |
-| `MAIL_PORT` | `587` |
-| `MAIL_USERNAME` | your SMTP user |
-| `MAIL_PASSWORD` | your SMTP password |
-| `MAIL_FROM_ADDRESS` | `noreply@gmn.gov.ph` |
-| `SUPABASE_KEY` | service-role key |
-| `SUPABASE_SECRET` | service-role secret |
-| `SUPABASE_STORAGE_REGION` | `ap-southeast-1` |
-| `SUPABASE_STORAGE_BUCKET` | `alalay-docs` |
-| `SUPABASE_STORAGE_ENDPOINT` | `https://<ref>.supabase.co/storage/v1/s3` |
-| `SMS_DRIVER` | `philsms` |
-| `PHILSMS_API_TOKEN` | PhilSMS token |
-| `SMS_SENDER_NAME` | `PhilSMS` |
-| `BACKUP_ENCRYPT_PASS` | strong passphrase |
-| `BACKUP_RETENTION_DAYS` | `30` |
-| `SUPABASE_BACKUP_BUCKET` | `alalay-backups` |
-| `APP_MAINTENANCE_SECRET` | set a secret (for `/up?secret=` bypass) |
+> `railway/.env.production` is gitignored (contains real secrets, not committed). It carries the
+> production overrides (`APP_ENV=production`, `SMS_DRIVER=philsms`, `FILESYSTEM_DISK=supabase`,
+> `RAILPACK_SKIP_MIGRATIONS=true`, fresh `APP_KEY`/`BACKUP_ENCRYPT_PASS`/`APP_MAINTENANCE_SECRET`).
+
+**Settings → Deploy** — `railway.json` only pins the Build Command; everything below is
+editable in the dashboard. Copy-paste these exactly:
+
+**Build Command:**
+```bash
+chmod +x ./railway/init.sh && sh ./railway/init.sh
+```
+
+**PreDeploy Command** (runs on every deploy, in order: caches → migrate → seed):
+```bash
+php artisan config:cache && php artisan event:cache && php artisan route:cache && php artisan view:cache && php artisan migrate --force && php artisan db:seed --force
+```
+
+**Start Command:** *(leave empty)* — Railpack auto-detects Laravel and boots FrankenPHP.
+**Healthcheck Path:** `/up`
 
 > `${{mysql.VARIABLE}}` references use your database service name. If you renamed it,
 > use that name in the reference.
@@ -113,23 +101,43 @@ You now have 4 items: 1 MySQL database + 3 app services. Rename them:
 
 ## 3. Configure `worker` service
 
-Same **Source** + same **Variables** (copy the web set, incl. `RAILPACK_SKIP_MIGRATIONS=true`).
+Same **Source** + same **Variables** (paste the same
+[`railway/.env.production`](railway/.env.production) block into its RAW Editor).
 
-Deploy settings — **override**:
-- PreDeploy Command: `php artisan config:cache` (caches only — **no migrate/seed here**)
-- Start Command: `sh ./railway/worker.sh`
-- Healthcheck: leave off / not applicable
+Deploy settings — copy-paste (overrides web's; **no migrate/seed here**):
+
+**PreDeploy Command:**
+```bash
+php artisan config:cache
+```
+
+**Start Command:**
+```bash
+sh ./railway/worker.sh
+```
+
+**Healthcheck:** leave off / not applicable
 
 ---
 
 ## 4. Configure `cron` service
 
-Same **Source** + same **Variables** (incl. `RAILPACK_SKIP_MIGRATIONS=true`).
+Same **Source** + same **Variables** (paste the same
+[`railway/.env.production`](railway/.env.production) block into its RAW Editor).
 
-Deploy settings — **override**:
-- PreDeploy Command: `php artisan config:cache`
-- Start Command: `sh ./railway/cron.sh`
-- Healthcheck: leave off
+Deploy settings — copy-paste:
+
+**PreDeploy Command:**
+```bash
+php artisan config:cache
+```
+
+**Start Command:**
+```bash
+sh ./railway/cron.sh
+```
+
+**Healthcheck:** leave off
 
 ---
 
@@ -172,6 +180,75 @@ Verification checklist:
 - Replace the seeded demo accounts (`internalaudit@example.com`, `budgetofficer@example.com`)
   with real staff accounts; deactivate the placeholders.
 - Rotate `BACKUP_ENCRYPT_PASS` to a production-grade passphrase.
+
+---
+
+## 8. Trial hosting — online testing only (SMS on, scale-to-0)
+
+Use this when the goal is **letting testers use the app online** on Railway's **Free Trial**
+($5 credit, 30 days — whichever ends first; no credit card).
+
+### Trial prerequisites
+
+- ⚠️ **Start the trial with your GitHub account connected.** This unlocks the **Full Trial**.
+  A *Limited Trial* blocks outbound network access — which breaks Supabase storage, PhilSMS,
+  mail, and backups. The app is on GitHub, so this is just connecting it at sign-up.
+- Confirm in the dashboard that the trial shows **Full Trial** / unrestricted network access.
+- Set a **hard usage limit** (`Workspace → Usage`) so the $5 credit is never exceeded.
+
+### Services to deploy
+
+All 4 from this guide: **web, worker, cron, MySQL**.
+
+- **web** + **worker** + **MySQL** are required for any online test with live SMS.
+- **cron** runs only `backup:run` (daily) + `backup:verify` (weekly) — optional, but cheap
+  and it validates the scheduler. **Keep it if you want real backups of the test data.**
+
+### Why SMS needs the worker (important)
+
+SMS is sent via a **queued job** (`SendSmsJob`, database queue). The **worker service must be
+running** for messages to actually go out — otherwise submissions just accumulate in the `jobs`
+table. Scale order when turning testing on:
+
+```
+MySQL → worker → web
+```
+
+MySQL first (it already has data), then the worker (starts draining queued SMS jobs), then web.
+
+### On/off routine (scale-to-0)
+
+**Testing OFF (default):** scale replicas to **0** on **all services** (`Service → Settings → Scale`,
+set replicas to 0). Compute billing stops instantly; env vars, service config, and the MySQL
+volume all persist. The URL stops responding until you turn services back on.
+
+**Testing ON:** scale the services you need back to **1**:
+- web, worker, MySQL (+ cron if you kept it). No redeploy, no rebuild, data intact — just share
+  the URL with testers.
+
+> There is no "pause" button on Railway. Scaling replicas to 0 is the recommended way to stop a
+> service without losing its configuration. `Remove Deployment` (Deployments tab → ⋮) also works
+> but requires a manual redeploy to come back.
+>
+> Do **not** use **Serverless mode** here — the cron service pings outbound every 60 s and the
+> worker holds sockets, so services would never sleep, and the first request after a wake
+> returns a cold-boot 502.
+
+### Cost while testing
+
+| Set | Approx. cost/hr | $5 trial budget |
+|---|---|---|
+| web + worker + MySQL | **$0.06/hr** | ~80 hours of live testing |
+| + cron | $0.07–0.08/hr | ~65 hours |
+
+MySQL volume storage keeps billing while "off" but negligibly (~$0.15/GB-month). Disciplined
+scale-to-0 is what makes the trial last the full 30 days.
+
+### Trial → production
+
+When the trial ends you drop to the **Free** plan ($1 credit/month, 3 services, auto-stop on
+budget) or **Hobby** ($5/month) — or migrate to a VPS. No code changes are required either way;
+the deploy config is identical.
 
 ---
 
