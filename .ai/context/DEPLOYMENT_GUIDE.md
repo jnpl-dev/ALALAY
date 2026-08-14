@@ -24,24 +24,24 @@ XAMPP is used **for local development only** and is never used in production.
 Railway project "alalay"
 ├── Service: web (Railpack)        # FrankenPHP: HTTP server + PHP-FPM
 │     buildCommand: sh ./railway/init.sh
-│     preDeployCommand: config/event/route/view caches + migrate --force + db:seed --force
-│     healthcheck: /up
+│     preDeployCommand (dashboard): config/event/route/view caches + migrate --force + db:seed --force
+│     healthcheck (dashboard): /up
 │     variables: RAILPACK_SKIP_MIGRATIONS=true   # stop Railpack auto migrate+seed on start
 ├── Service: worker (Railpack)     # php artisan queue:work database
-│     startCommand: sh ./railway/worker.sh
+│     startCommand (dashboard): sh ./railway/worker.sh
 │     variables: RAILPACK_SKIP_MIGRATIONS=true
 ├── Service: cron (Railpack)       # php artisan schedule:run every 60s
-│     startCommand: sh ./railway/cron.sh
+│     startCommand (dashboard): sh ./railway/cron.sh
 │     variables: RAILPACK_SKIP_MIGRATIONS=true
 ├── Plugin: MySQL                   # managed MySQL 8, referenced via ${{MySQL.*}} env refs
-└── Config: railway.json           # service definitions, replicated per service
+└── Config: railway.json            # Railpack build only (builder + buildCommand); deploy settings are set per-service in the dashboard, and must be chained with `&&` (schema: single string)
 ```
 
 Key files in the repo:
 
 | File | Purpose |
 |---|---|
-| `railway.json` | Railpack service config (build/predeploy/start, healthcheck `/up`) |
+| `railway.json` | Railpack **build** config only (builder `RAILPACK` + `buildCommand`); deploy commands/healthcheck are set per-service in the dashboard |
 | `railway/init.sh` | Build step: `composer install --no-dev --optimize-autoloader`, `npm ci`, `npm run build` |
 | `railway/worker.sh` | DB queue worker (tries=3, max-time=3600) |
 | `railway/cron.sh` | 60-second `php artisan schedule:run` loop |
@@ -68,10 +68,10 @@ Key files in the repo:
   at runtime (preDeploy), never in build**.
 - Railpack merges a repo-root `php.ini` over its default (the default has no `[opcache]` section
   and sets `expose_php=On`).
-- Service `startCommand: null` (web) lets Railpack use its detected FrankenPHP entrypoint.
+- An empty web **Start Command** lets Railpack use its detected FrankenPHP entrypoint.
 - **`RAILPACK_SKIP_MIGRATIONS=true` is REQUIRED on every service.** Railpack's default Laravel
-  start script runs `migrate --isolated --seed --force` at container boot — with `startCommand:
-  null` that would re-run migrations AND seeders on every start/restart. Migrations + seeds are
+  start script runs `migrate --isolated --seed --force` at container boot — with no custom start
+  command that would re-run migrations AND seeders on every start/restart. Migrations + seeds are
   done once in the web service's `preDeployCommand`; the flag makes the start script skip them.
 - **Seeding is idempotent by design.** All seeders use `updateOrInsert`/`firstOrCreate` keyed on
   unique columns (`category_name`, `code_type`, `setting_key`, `doc_name`, `email`), and
@@ -84,8 +84,9 @@ Key files in the repo:
 
 ## Environment (production `.env`)
 
-All secrets live in Railway's service **Variables**, not in the repo. `.env.example` documents the
-keys; the table below lists the production values.
+All secrets live in Railway's service **Variables**, not in the repo. Paste the ready-made block in
+`railway/.env.production` (gitignored — real values) into each service's **RAW Editor**. The table
+below documents the production values.
 
 | Key | Production value | Notes |
 |---|---|---|
@@ -112,7 +113,7 @@ keys; the table below lists the production values.
 | `SUPABASE_URL` | project URL | |
 | `SUPABASE_KEY` | service-role key | |
 | `SUPABASE_SECRET` | service-role secret | S3 credentials |
-| `SUPABASE_STORAGE_REGION` | `ap-southeast-1` | |
+| `SUPABASE_STORAGE_REGION` | `ap-northeast-2` | match your Supabase project region |
 | `SUPABASE_STORAGE_BUCKET` | `alalay-docs` | private bucket; app issues signed URLs |
 | `SUPABASE_STORAGE_ENDPOINT` | `https://<ref>.supabase.co/storage/v1/s3` | |
 | `SMS_DRIVER` | `philsms` | switch from `log` |
@@ -136,8 +137,8 @@ keys; the table below lists the production values.
    - `composer install --no-dev --optimize-autoloader`
    - `npm ci && npm run build` (Vite output into `public/build`, committed into the image)
    - Migrations are **not** run here (no prod env/db during build).
-3. **PreDeploy** (per `railway.json`, runtime env present):
-   `config:cache`, `event:cache`, `route:cache`, `view:cache`, then `migrate --force`,
+3. **PreDeploy** (web service, dashboard command, runtime env present):
+   `config:cache && event:cache && route:cache && view:cache`, then `migrate --force`,
    then `db:seed --force` (idempotent; no demo applications — `ApplicationDemoSeeder` is excluded).
 4. **Start**:
    - web: Railpack's FrankenPHP entrypoint (docroot `public/`, healthcheck hits `/up`).
@@ -175,8 +176,9 @@ keys; the table below lists the production values.
 
 ```
 PRE-DEPLOYMENT
-  [ ] Railway project + GitHub repo connected
+  [ ] Railway project created (Empty Project)
   [ ] MySQL plugin added (Railway)
+  [ ] App service added 3× (each "+ New → GitHub Repo", same repo/branch — one service per click), renamed web/worker/cron
   [ ] .gov.ph domain requested from DICT (MC 005 s. 2020)
   [ ] Custom domain attached to the web service; DNS CNAME set
   [ ] Supabase project created: alalay-docs (private) + alalay-backups (private) buckets

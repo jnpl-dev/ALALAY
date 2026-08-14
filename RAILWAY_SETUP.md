@@ -7,11 +7,13 @@ remaining **manual steps** in your local terminal + the Railway dashboard (~15�
 
 ## 0. Local cleanup + push (terminal)
 
-**0.1 Commit the last `.env.example` tweak**
+**0.1 Commit pending changes (slimmed `railway.json` + copy-paste docs)**
+
+`railway/.env.production` is gitignored — no secrets go in this commit:
 
 ```bash
-git add .env.example
-git commit -m "env: align .env.example with real env (mysql db block, drop MAIL_ENCRYPTION)"
+git add railway.json RAILWAY_SETUP.md .ai/context/ && git status
+git commit -m "deploy: slim railway.json to build-only; document dashboard copy-paste commands"
 ```
 
 **0.2 Remove the GitHub token from the remote URL** ⚠️
@@ -48,10 +50,15 @@ Confirm the token string no longer appears in your git config.
 
 1. Open https://railway.app → **New Project** → **Empty Project**.
 2. Click **+ New** → **Database** → **MySQL**. Wait for it to provision.
-3. Click **+ New** → **GitHub Repo** → select `jnpl-dev/ALALAY` → branch `dev`.
+3. Add the app service **three times** — Railway creates exactly **one** service per click,
+   and config-as-code covers a single service per repo. Each time:
+   **+ New → GitHub Repo** → select `jnpl-dev/ALALAY` → branch `dev`.
+   Repeat until you have 3 repo-based services. (All three use root directory `/` — the whole
+   app lives at the repo root, so no "Empty Service + Connect Repo + Root Directory" steps, which
+   you'd only need for a monorepo.)
 
 You now have 4 items: 1 MySQL database + 3 app services. Rename them:
-- the repo-based services → `web`, `worker`, `cron`
+- the three repo-based services → `web`, `worker`, `cron`
 - the database → `mysql`
 
 ---
@@ -60,51 +67,32 @@ You now have 4 items: 1 MySQL database + 3 app services. Rename them:
 
 **Settings → Source:** repo `ALALAY`, branch `dev` (auto-detected).
 
-**Deploy** — `railway.json` is read automatically:
-- Build Command: `chmod +x ./railway/init.sh && sh ./railway/init.sh`
-- PreDeploy Command: `config:cache`, `event:cache`, `route:cache`, `view:cache`,
-  `migrate --force`, `db:seed --force`
-- Start Command: **(leave null)** — Railpack boots FrankenPHP
-- Healthcheck Path: `/up`
+**Variables (Settings → Variables):** copy the block from
+[`railway/.env.production`](railway/.env.production) → click **RAW Editor** → paste → Save.
+Then set the two values that depend on your services:
 
-**Variables** (Settings → Variables):
+- `APP_URL` → your generated domain (set in step 5)
+- `${{mysql.*}}` references → Railway auto-fills them if the DB service is named `mysql`
 
-| Variable | Value |
-|---|---|
-| `APP_ENV` | `production` |
-| `APP_DEBUG` | `false` |
-| `APP_KEY` | generate once: `php artisan key:generate --show` |
-| `APP_URL` | `https://<your-domain>` (set after attaching custom domain) |
-| `RAILPACK_SKIP_MIGRATIONS` | `true` — **required**, prevents Railpack re-running migrate+seed at boot |
-| `DB_CONNECTION` | `mysql` |
-| `DB_HOST` | `${{mysql.HOST}}` |
-| `DB_PORT` | `${{mysql.PORT}}` |
-| `DB_DATABASE` | `${{mysql.DATABASE}}` |
-| `DB_USERNAME` | `${{mysql.USERNAME}}` |
-| `DB_PASSWORD` | `${{mysql.PASSWORD}}` |
-| `SESSION_DRIVER` | `database` |
-| `SESSION_SECURE_COOKIE` | `true` |
-| `QUEUE_CONNECTION` | `database` |
-| `CACHE_STORE` | `database` |
-| `FILESYSTEM_DISK` | `supabase` |
-| `MAIL_MAILER` | `smtp` |
-| `MAIL_HOST` | your SMTP host |
-| `MAIL_PORT` | `587` |
-| `MAIL_USERNAME` | your SMTP user |
-| `MAIL_PASSWORD` | your SMTP password |
-| `MAIL_FROM_ADDRESS` | `noreply@gmn.gov.ph` |
-| `SUPABASE_KEY` | service-role key |
-| `SUPABASE_SECRET` | service-role secret |
-| `SUPABASE_STORAGE_REGION` | `ap-southeast-1` |
-| `SUPABASE_STORAGE_BUCKET` | `alalay-docs` |
-| `SUPABASE_STORAGE_ENDPOINT` | `https://<ref>.supabase.co/storage/v1/s3` |
-| `SMS_DRIVER` | `philsms` |
-| `PHILSMS_API_TOKEN` | PhilSMS token |
-| `SMS_SENDER_NAME` | `PhilSMS` |
-| `BACKUP_ENCRYPT_PASS` | strong passphrase |
-| `BACKUP_RETENTION_DAYS` | `30` |
-| `SUPABASE_BACKUP_BUCKET` | `alalay-backups` |
-| `APP_MAINTENANCE_SECRET` | set a secret (for `/up?secret=` bypass) |
+> `railway/.env.production` is gitignored (contains real secrets, not committed). It carries the
+> production overrides (`APP_ENV=production`, `SMS_DRIVER=philsms`, `FILESYSTEM_DISK=supabase`,
+> `RAILPACK_SKIP_MIGRATIONS=true`, fresh `APP_KEY`/`BACKUP_ENCRYPT_PASS`/`APP_MAINTENANCE_SECRET`).
+
+**Settings → Deploy** — `railway.json` only pins the Build Command; everything below is
+editable in the dashboard. Copy-paste these exactly:
+
+**Build Command:**
+```bash
+chmod +x ./railway/init.sh && sh ./railway/init.sh
+```
+
+**PreDeploy Command** (runs on every deploy, in order: caches → migrate → seed):
+```bash
+php artisan config:cache && php artisan event:cache && php artisan route:cache && php artisan view:cache && php artisan migrate --force && php artisan db:seed --force
+```
+
+**Start Command:** *(leave empty)* — Railpack auto-detects Laravel and boots FrankenPHP.
+**Healthcheck Path:** `/up`
 
 > `${{mysql.VARIABLE}}` references use your database service name. If you renamed it,
 > use that name in the reference.
@@ -113,23 +101,43 @@ You now have 4 items: 1 MySQL database + 3 app services. Rename them:
 
 ## 3. Configure `worker` service
 
-Same **Source** + same **Variables** (copy the web set, incl. `RAILPACK_SKIP_MIGRATIONS=true`).
+Same **Source** + same **Variables** (paste the same
+[`railway/.env.production`](railway/.env.production) block into its RAW Editor).
 
-Deploy settings — **override**:
-- PreDeploy Command: `php artisan config:cache` (caches only — **no migrate/seed here**)
-- Start Command: `sh ./railway/worker.sh`
-- Healthcheck: leave off / not applicable
+Deploy settings — copy-paste (overrides web's; **no migrate/seed here**):
+
+**PreDeploy Command:**
+```bash
+php artisan config:cache
+```
+
+**Start Command:**
+```bash
+sh ./railway/worker.sh
+```
+
+**Healthcheck:** leave off / not applicable
 
 ---
 
 ## 4. Configure `cron` service
 
-Same **Source** + same **Variables** (incl. `RAILPACK_SKIP_MIGRATIONS=true`).
+Same **Source** + same **Variables** (paste the same
+[`railway/.env.production`](railway/.env.production) block into its RAW Editor).
 
-Deploy settings — **override**:
-- PreDeploy Command: `php artisan config:cache`
-- Start Command: `sh ./railway/cron.sh`
-- Healthcheck: leave off
+Deploy settings — copy-paste:
+
+**PreDeploy Command:**
+```bash
+php artisan config:cache
+```
+
+**Start Command:**
+```bash
+sh ./railway/cron.sh
+```
+
+**Healthcheck:** leave off
 
 ---
 

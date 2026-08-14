@@ -404,8 +404,10 @@ Fix items discovered while verifying the refactor live, plus the pending auth te
 - [x] **Railway deploy files**: `railway/init.sh` (build: `composer install --no-dev --optimize-autoloader`,
       `npm ci`, `npm run build`), `railway/worker.sh` (`queue:work database --sleep=3 --tries=3
       --max-time=3600`), `railway/cron.sh` (60s `schedule:run` loop), `railway.json` (builder RAILPACK;
-      buildCommand chmod+sh init.sh; preDeployCommand `config:cache`, `event:cache`, `route:cache`,
-      `view:cache`, `migrate --force`; healthcheck `/up`). Artisan caches run in **preDeploy (runtime)**
+      buildCommand chmod+sh init.sh only — deploy settings are copied per-service into the Railway
+      dashboard, e.g. web preDeploy `php artisan config:cache && php artisan event:cache &&
+      php artisan route:cache && php artisan view:cache && php artisan migrate --force &&
+      php artisan db:seed --force` chained with `&&` because the schema takes a single string). Artisan caches run in **preDeploy (runtime)**
       not build, because a custom buildCommand bypasses Railpack's auto-run and build-time env is not
       the production env.
 - [x] **`php.ini`** (repo root, picked up by FrankenPHP): opcache enabled (validate_timestamps=0,
