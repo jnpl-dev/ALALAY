@@ -426,15 +426,11 @@ const statusLabel = (status) => ({
     <div class="max-w-5xl px-4 py-8 mx-auto sm:px-6 lg:px-8 sm:py-12">
       <div v-if="currentStep < 4" class="mb-10">
         <div class="max-w-2xl mx-auto">
-          <div class="flex items-start">
+          <div class="relative flex items-start">
+            <div class="absolute top-5 left-[12.5%] right-[12.5%] h-0.5 bg-gray-200"></div>
+            <div class="absolute top-5 left-[12.5%] h-0.5 bg-emerald-600 transition-all duration-700" :style="{ width: (currentStep / 3) * 75 + '%' }"></div>
             <template v-for="(step, i) in steps().slice(0, 4)" :key="i">
               <div class="flex flex-col items-center relative flex-1">
-                <div v-if="i > 0" class="absolute top-5 left-0 right-1/2 h-0.5 overflow-hidden bg-gray-200">
-                  <div class="h-full bg-emerald-600 transition-all duration-700" :style="{ width: i < currentStep || i === currentStep ? '100%' : '0%' }" />
-                </div>
-                <div v-if="i < 3" class="absolute top-5 left-1/2 right-0 h-0.5 overflow-hidden bg-gray-200">
-                  <div class="h-full bg-emerald-600 transition-all duration-700" :style="{ width: i < currentStep ? '100%' : '0%' }" />
-                </div>
                 <div
                   :class="[
                     'relative z-10 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-500 cursor-pointer',

@@ -279,5 +279,15 @@
   "common.scanning": "Scanning document...",
   "common.original": "Original",
   "common.enhanced": "Enhanced",
-  "common.bw": "B&W"
+  "common.bw": "B&W",
+
+  "disclaimer.title": "Academic Project Disclaimer",
+  "disclaimer.lead": "Please read this notice carefully before continuing.",
+  "disclaimer.w1": "This website is an academic project and is for demonstration and educational purposes only.",
+  "disclaimer.w2": "All data shown — including applications, beneficiaries, residents, users, and records — are mock, sample, or synthetic data and do not represent real individuals.",
+  "disclaimer.w3": "No personal information is collected, stored, or shared. Any resemblance to real persons is purely coincidental.",
+  "disclaimer.w4": "This system is not the official AICS platform and is not affiliated with, endorsed by, or operated by the Municipal Government of General Mamerto Natividad, the DSWD, or any government agency.",
+  "disclaimer.w5": "This system may be modified, taken offline, or removed after the academic requirement has been graded. Do not rely on it for real transactions.",
+  "disclaimer.agree": "I have read and understood the disclaimer. I understand that this is for academic purposes only and that all data is mock data.",
+  "disclaimer.proceed": "I Understand — Proceed"
 }

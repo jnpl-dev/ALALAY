@@ -27,7 +27,7 @@ const submit = () => {
     <div class="w-full max-w-md">
       <div class="text-center mb-8">
         <Link :href="homeUrl" class="inline-flex items-center gap-2 mb-4">
-          <img src="/images/logo/alalay-logo.png" alt="ALALAY" class="h-10 w-auto">
+          <img src="/images/logo/alalay-logo.png" alt="ALALAY" class="h-14 w-auto">
         </Link>
         <h1 class="text-2xl font-bold text-emerald-900">Welcome Back</h1>
         <p class="text-emerald-600 text-sm mt-1">Sign in to your staff account</p>

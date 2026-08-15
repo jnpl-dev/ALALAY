@@ -4,6 +4,7 @@ import { Head, Link, usePage } from '@inertiajs/vue3'
 import { useI18n } from 'vue-i18n'
 import LanguageSwitcher from '@/Components/Public/LanguageSwitcher.vue'
 import LanguageModal from '@/Components/Public/LanguageModal.vue'
+import DisclaimerModal from '@/Components/Common/DisclaimerModal.vue'
 
 const { t } = useI18n()
 const page = usePage()
@@ -17,6 +18,7 @@ const isScrolled = ref(false)
 const mobileMenuOpen = ref(false)
 const activeSection = ref('home')
 const showLangModal = ref(false)
+const disclaimerDone = ref(false)
 
 const sections = [
   { id: 'home', label: () => t('nav.home') },
@@ -229,6 +231,7 @@ onUnmounted(() => {
       </div>
     </footer>
 
-    <LanguageModal @close="showLangModal = false" />
+    <DisclaimerModal @close="disclaimerDone = true" />
+    <LanguageModal :autoShow="disclaimerDone" @close="showLangModal = false" />
   </div>
 </template>
