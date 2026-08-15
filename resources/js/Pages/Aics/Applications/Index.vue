@@ -134,10 +134,13 @@ function onPage(event) {
       <div class="card">
         <div class="flex items-center justify-between mb-6">
           <div class="font-semibold text-xl">Applications</div>
-          <AppExportButton
-            :url="route('aics.applications.export')"
-            :params="exportParams"
-          />
+          <div class="flex items-center gap-2">
+            <Button label="New Assisted Application" icon="pi pi-plus" @click="router.get(route('aics.applications.create'))" />
+            <AppExportButton
+              :url="route('aics.applications.export')"
+              :params="exportParams"
+            />
+          </div>
         </div>
 
         <div class="flex flex-wrap gap-4 mb-6">

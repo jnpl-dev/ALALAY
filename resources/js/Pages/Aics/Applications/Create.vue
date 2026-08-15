@@ -1,0 +1,927 @@
+<script setup>
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
+import { useI18n } from 'vue-i18n'
+import axios from 'axios'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import DocumentScanner from '@/Components/Application/DocumentScanner.vue'
+import { usePsgcAddress } from '@/Composables/usePsgcAddress.js'
+import { jsPDF } from 'jspdf'
+
+defineOptions({ layout: AppLayout })
+
+const { t } = useI18n()
+
+
+const props = defineProps({
+  categories: Array,
+  reference_code: String,
+})
+
+const flash = computed(() => usePage().props.flash)
+
+function handleBeforeUnload(e) {
+  if (form.isDirty) {
+    e.preventDefault()
+    e.returnValue = ''
+  }
+}
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+onMounted(() => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+const homeUrl = route('aics.applications.index')
+const createUrl = route('aics.applications.create')
+const copied = ref(false)
+
+function copyCode(code) {
+  navigator.clipboard.writeText(code).then(() => {
+    copied.value = true
+    setTimeout(() => copied.value = false, 2000)
+  })
+}
+
+const steps = () => [t('apply.step_category'), t('apply.step_info'), t('apply.step_documents'), t('apply.step_summary'), t('apply.step_complete')]
+const stepDescriptions = () => [
+  t('apply.step_desc_category'),
+  t('apply.step_desc_info'),
+  t('apply.step_desc_documents'),
+  t('apply.step_desc_summary'),
+]
+const currentStep = ref(0)
+const submittedCode = ref(props.reference_code || null)
+
+if (props.reference_code) {
+  currentStep.value = 4
+}
+
+watch(
+  () => props.reference_code,
+  (code) => {
+    if (code) {
+      currentStep.value = 4
+      submittedCode.value = code
+    }
+  },
+)
+
+const form = useForm({
+  category_id: null,
+  claimant_last_name: '',
+  claimant_first_name: '',
+  claimant_middle_name: '',
+  claimant_name_extension: '',
+  claimant_sex: '',
+  claimant_dob: '',
+  claimant_address: '',
+  claimant_phone: '',
+  claimant_email: '',
+  claimant_relationship_to_beneficiary: '',
+  beneficiary_last_name: '',
+  beneficiary_first_name: '',
+  beneficiary_middle_name: '',
+  beneficiary_name_extension: '',
+  beneficiary_sex: '',
+  beneficiary_dob: '',
+  beneficiary_address: '',
+  documents: [],
+  document_ids: [],
+})
+
+const claimantAddr = reactive(usePsgcAddress())
+const beneficiaryAddr = reactive(usePsgcAddress())
+const sameAddress = ref(false)
+
+watch(() => claimantAddr.addressString, (val) => { form.claimant_address = val })
+watch(() => beneficiaryAddr.addressString, (val) => { form.beneficiary_address = val })
+
+watch(sameAddress, (val) => {
+  if (val) {
+    beneficiaryAddr.selectedProvince = claimantAddr.selectedProvince
+    beneficiaryAddr.selectedCity = claimantAddr.selectedCity
+    beneficiaryAddr.selectedBarangay = claimantAddr.selectedBarangay
+    beneficiaryAddr.street = claimantAddr.street
+    if (claimantAddr.selectedProvince) {
+      beneficiaryAddr.cities = [...claimantAddr.cities]
+      beneficiaryAddr.barangays = [...claimantAddr.barangays]
+    }
+  }
+})
+
+const beneficiaryEligible = ref(null)
+const beneficiaryEligibilityMsg = ref('')
+let eligibilityTimer = null
+
+watch([() => form.beneficiary_first_name, () => form.beneficiary_last_name, () => form.beneficiary_middle_name], () => {
+  clearTimeout(eligibilityTimer)
+  beneficiaryEligible.value = null
+  beneficiaryEligibilityMsg.value = ''
+
+  if (!form.beneficiary_first_name || !form.beneficiary_last_name) return
+
+  eligibilityTimer = setTimeout(async () => {
+    try {
+      const res = await axios.get(route('validate.beneficiary'), {
+        params: {
+          beneficiary_first_name: form.beneficiary_first_name,
+          beneficiary_last_name: form.beneficiary_last_name,
+          beneficiary_middle_name: form.beneficiary_middle_name || null,
+        }
+      })
+      beneficiaryEligible.value = res.data.eligible
+      if (!res.data.eligible) {
+        beneficiaryEligibilityMsg.value = res.data.message
+      }
+    } catch {
+      // silent fail
+    }
+  }, 500)
+})
+
+import { useFieldValidation } from '@/Composables/useFieldValidation'
+
+const phoneValid = useFieldValidation(
+  route('validate.phone'),
+  () => form.claimant_phone,
+  {},
+  { debounceMs: 400 },
+)
+
+onMounted(async () => {
+  await claimantAddr.fetchProvinces()
+  await beneficiaryAddr.fetchProvinces()
+  const ne = claimantAddr.provinces?.find(p => p.name === 'Nueva Ecija')
+  if (ne) {
+    await Promise.all([
+      claimantAddr.setProvince(ne),
+      beneficiaryAddr.setProvince(ne),
+    ])
+    const gmn = claimantAddr.cities?.find(c => c.name === 'General Mamerto Natividad')
+    if (gmn) {
+      claimantAddr.setCity(gmn)
+      beneficiaryAddr.setCity(gmn)
+    }
+  }
+})
+
+const selectedCategory = computed(() =>
+  props.categories?.find(c => c.id === form.category_id)
+)
+
+const isRepresentative = computed(() =>
+  form.claimant_relationship_to_beneficiary === 'Representative'
+)
+
+const allRequiredDocs = computed(() =>
+  selectedCategory.value?.required_documents?.filter(d => d.is_active) ?? []
+)
+
+const capturedCount = computed(() =>
+  allRequiredDocs.value.filter(d => form.document_ids.includes(d.id)).length
+)
+
+const allMandatoryCaptured = computed(() => {
+  const mandatory = allRequiredDocs.value.filter(d => d.is_mandatory)
+  const captured = mandatory.every(d => form.document_ids.includes(d.id))
+  if (isRepresentative.value) {
+    const authDoc = allRequiredDocs.value.find(d => d.doc_name === 'Authorization Letter')
+    if (authDoc) {
+      return captured && form.document_ids.includes(authDoc.id)
+    }
+  }
+  return captured
+})
+
+// Step 3 pagination
+const currentDocIndex = ref(0)
+const visibleDocs = computed(() =>
+  allRequiredDocs.value.filter(d =>
+    d.doc_name !== 'Authorization Letter' || isRepresentative.value
+  )
+)
+const currentDoc = computed(() => visibleDocs.value[currentDocIndex.value])
+
+// Store captured raw data for previews + deferred PDF conversion
+const capturedDocs = ref({}) // docId -> { pages: [...], docName }
+const docPreviews = ref({})  // docId -> { preview: dataUrl, pageCount }
+
+// Submit progress
+const submitting = ref(false)
+const submitProgress = ref(0)
+const submitMessage = ref('')
+const submitStep = ref('')
+const submitTotal = ref(0)
+const submitCurrent = ref(0)
+
+onBeforeUnmount(() => {
+  Object.values(docPreviews.value).forEach(dp => {
+    if (dp?.preview?.startsWith('blob:')) URL.revokeObjectURL(dp.preview)
+  })
+})
+
+function selectCategory(category) {
+  form.category_id = category.id
+  form.documents = []
+  form.document_ids = []
+  capturedDocs.value = {}
+  docPreviews.value = {}
+  currentDocIndex.value = 0
+  currentStep.value = 1
+}
+
+function isStep2Valid() {
+  const r = form
+  return (
+    r.claimant_last_name &&
+    r.claimant_first_name &&
+    r.claimant_sex &&
+    r.claimant_dob &&
+    r.claimant_address &&
+    r.claimant_phone &&
+    r.claimant_relationship_to_beneficiary &&
+    r.beneficiary_last_name &&
+    r.beneficiary_first_name &&
+    r.beneficiary_sex &&
+    r.beneficiary_dob &&
+    r.beneficiary_address
+  )
+}
+
+function nextStep() {
+  if (currentStep.value === 1 && !isStep2Valid()) return
+  if (currentStep.value === 2 && !allMandatoryCaptured.value) return
+  currentStep.value++
+}
+
+function prevStep() {
+  if (currentStep.value > 0) currentStep.value--
+}
+
+function onDocCapture(docId, payload) {
+  const doc = allRequiredDocs.value.find(d => d.id === docId)
+  if (!doc) return
+  capturedDocs.value[docId] = {
+    pages: payload.pages || [],
+    docName: doc.doc_name,
+  }
+  docPreviews.value[docId] = {
+    preview: payload.preview,
+    pageCount: payload.pageCount,
+  }
+  if (!form.document_ids.includes(docId)) {
+    form.document_ids.push(docId)
+    form.documents.push(payload.file)
+  } else {
+    const idx = form.document_ids.indexOf(docId)
+    form.documents[idx] = payload.file
+  }
+}
+
+function onDocClear(docId) {
+  delete capturedDocs.value[docId]
+  delete docPreviews.value[docId]
+  const idx = form.document_ids.indexOf(docId)
+  if (idx >= 0) {
+    form.document_ids.splice(idx, 1)
+    form.documents.splice(idx, 1)
+  }
+}
+
+function goToDoc(i) {
+  if (i >= 0 && i < visibleDocs.value.length) {
+    currentDocIndex.value = i
+  }
+}
+
+async function submitApplication() {
+  submitting.value = true
+  submitProgress.value = 0
+  submitMessage.value = ''
+
+  const total = form.document_ids.length
+  submitTotal.value = total
+  submitCurrent.value = 0
+  submitStep.value = 'converting'
+
+  const pdfFiles = []
+
+  for (let i = 0; i < total; i++) {
+    const docId = form.document_ids[i]
+    const doc = capturedDocs.value[docId]
+    if (!doc || !doc.pages?.length) {
+      pdfFiles.push(form.documents[i])
+      submitCurrent.value = i + 1
+      submitProgress.value = ((i + 1) / total) * 70
+      continue
+    }
+
+    submitMessage.value = `Converting "${doc.docName}" to PDF...`
+    submitCurrent.value = i + 1
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    })
+
+    const pageW = pdf.internal.pageSize.getWidth()
+    const pageH = pdf.internal.pageSize.getHeight()
+    const margin = 10
+    const maxW = pageW - margin * 2
+    const maxH = pageH - margin * 2
+
+    doc.pages.forEach((img, pi) => {
+      if (pi > 0) pdf.addPage('a4', 'portrait')
+
+      const imgAspect = img.width / img.height
+      const pageAspect = maxW / maxH
+
+      let drawW, drawH
+      if (imgAspect > pageAspect) {
+        drawW = maxW
+        drawH = maxW / imgAspect
+      } else {
+        drawH = maxH
+        drawW = maxH * imgAspect
+      }
+
+      pdf.addImage(img.data, 'JPEG', (pageW - drawW) / 2, (pageH - drawH) / 2, drawW, drawH)
+    })
+
+    const blob = pdf.output('blob')
+    const file = new File([blob], `${doc.docName}.pdf`, { type: 'application/pdf' })
+    pdfFiles.push(file)
+
+    submitProgress.value = ((i + 1) / total) * 70
+  }
+
+  submitStep.value = 'submitting'
+  submitMessage.value = 'Submitting your application...'
+  submitProgress.value = 75
+
+  form.documents = pdfFiles
+
+  form.post(route('aics.applications.store-assisted'), {
+    preserveState: true,
+    preserveScroll: true,
+    onSuccess: () => {
+      submitting.value = false
+      currentStep.value = 4
+      submittedCode.value = props.reference_code || flash.value?.reference_code
+    },
+    onError: () => {
+      submitting.value = false
+      submitMessage.value = ''
+    },
+    onFinish: () => {
+      submitting.value = false
+    },
+  })
+}
+</script>
+
+<template>
+  <Head :title="$t('apply.title')" />
+
+  <div class="grid grid-cols-12 gap-8">
+    <div class="col-span-12">
+      <div class="card">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <div class="font-semibold text-xl">{{ $t('apply.title') }}</div>
+            <p class="text-sm text-muted-color">{{ $t('apply.subtitle') }}</p>
+          </div>
+          <Link :href="homeUrl" class="inline-flex items-center gap-1.5 text-sm text-muted-color hover:text-primary transition-colors">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
+            {{ $t('apply.back') }}
+          </Link>
+        </div>
+        <div class="max-w-5xl mx-auto">
+      <div v-if="currentStep < 4" class="mb-10">
+        <div class="max-w-2xl mx-auto">
+          <div class="flex items-start">
+            <template v-for="(step, i) in steps().slice(0, 4)" :key="i">
+              <div class="flex flex-col items-center relative flex-1">
+                <div v-if="i > 0" class="absolute top-5 left-0 right-1/2 h-0.5 overflow-hidden bg-gray-200">
+                  <div class="h-full bg-emerald-600 transition-all duration-700" :style="{ width: i < currentStep || i === currentStep ? '100%' : '0%' }" />
+                </div>
+                <div v-if="i < 3" class="absolute top-5 left-1/2 right-0 h-0.5 overflow-hidden bg-gray-200">
+                  <div class="h-full bg-emerald-600 transition-all duration-700" :style="{ width: i < currentStep ? '100%' : '0%' }" />
+                </div>
+                <div
+                  :class="[
+                    'relative z-10 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-500 cursor-pointer',
+                    i < currentStep ? 'bg-emerald-600 text-white shadow-md hover:scale-110' :
+                    i === currentStep ? 'bg-white text-emerald-600 ring-4 ring-emerald-300 shadow-lg scale-110 glow-pulse' :
+                    'bg-gray-200 text-gray-400'
+                  ]"
+                  @click="i < currentStep ? currentStep = i : null"
+                >
+                  <svg v-if="i < currentStep" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+                  <span v-else>{{ i + 1 }}</span>
+                </div>
+                <span
+                  :class="[
+                    'text-xs font-medium mt-2 whitespace-nowrap transition-colors duration-300',
+                    i <= currentStep ? 'text-emerald-700' : 'text-gray-400'
+                  ]"
+                >{{ step }}</span>
+              </div>
+            </template>
+          </div>
+          <p class="mt-4 text-xs text-center text-gray-500 sm:text-sm">{{ stepDescriptions()[currentStep] || '' }}</p>
+        </div>
+      </div>
+
+      <div v-if="Object.keys(form.errors).length && currentStep === 3" class="p-4 mb-6 border border-red-200 rounded-lg bg-red-50">
+        <p class="mb-1 text-sm font-medium text-red-800">{{ $t('apply.unable_submit') }}</p>
+        <ul class="text-sm text-red-600 list-disc list-inside">
+          <li v-for="(msg, key) in form.errors" :key="key">{{ msg }}</li>
+        </ul>
+      </div>
+
+        <div v-if="flash?.error" class="p-4 mb-6 border border-red-200 rounded-lg bg-red-50">
+        <p class="text-sm text-red-600">{{ flash.error }}</p>
+      </div>
+
+      <div v-if="(flash?.success && flash?.reference_code) || submittedCode" class="text-center">
+        <div class="p-8 bg-white border shadow-lg rounded-2xl border-emerald-100 sm:p-12">
+          <div class="flex items-center justify-center w-16 h-16 mx-auto mb-6 rounded-full bg-emerald-100">
+            <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h1 class="mb-2 text-2xl font-bold sm:text-3xl text-emerald-900">{{ $t('apply.success_title') }}</h1>
+          <p class="mb-6 text-emerald-600">{{ $t('apply.success_desc') }}</p>
+          <div class="inline-flex items-center gap-3 p-6 mb-6 bg-emerald-50 rounded-xl">
+            <div>
+              <p class="mb-1 text-xs font-semibold tracking-wide uppercase text-emerald-600">{{ $t('apply.ref_code') }}</p>
+              <p class="font-mono text-2xl font-bold tracking-wider sm:text-3xl text-emerald-900">{{ submittedCode || flash?.reference_code }}</p>
+            </div>
+            <button @click="copyCode(submittedCode || flash?.reference_code)" class="p-2 text-white transition-colors border-none rounded-lg cursor-pointer shrink-0 bg-emerald-600 hover:bg-emerald-700" :title="$t('apply.copy_tooltip')">
+              <svg v-if="!copied" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <svg v-else class="w-5 h-5 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+              </svg>
+            </button>
+          </div>
+          <div class="flex flex-col justify-center gap-3 sm:flex-row">
+            <Link
+              :href="homeUrl"
+              class="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold text-white transition-colors bg-emerald-600 rounded-xl hover:bg-emerald-700"
+            >
+              <span>Go back to Applications</span>
+            </Link>
+            <Link
+              :href="createUrl"
+              class="inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold transition-colors bg-white border text-emerald-700 rounded-xl border-emerald-200 hover:bg-emerald-50"
+            >
+              <span>Submit Another Application</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="currentStep === 0" class="p-8 bg-white border shadow-lg rounded-2xl border-emerald-100 sm:p-12">
+        <div class="mb-8 text-center">
+          <h1 class="mb-2 text-2xl font-bold sm:text-3xl text-emerald-900">{{ $t('apply.title') }}</h1>
+          <p class="text-emerald-600">{{ $t('apply.subtitle') }}</p>
+        </div>
+
+        <div v-if="!categories?.length" class="py-8 text-center">
+          <p class="text-gray-500">{{ $t('apply.no_categories') }}</p>
+        </div>
+
+        <div v-else class="grid gap-5">
+          <button
+            v-for="category in categories"
+            :key="category.id"
+            @click="selectCategory(category)"
+            class="p-6 text-left transition-all duration-200 bg-white border-2 cursor-pointer rounded-xl border-emerald-200 hover:border-emerald-500 hover:bg-emerald-50/50 group"
+          >
+            <div class="flex-1 min-w-0">
+                <h3 class="font-bold text-emerald-900 text-lg mb-1.5 group-hover:text-emerald-700 transition-colors">{{ category.category_name }}</h3>
+                <p class="mb-4 text-sm leading-relaxed text-gray-600">{{ category.category_description }}</p>
+                <div class="p-3 border rounded-lg bg-emerald-50/50 border-emerald-100">
+                  <p class="mb-2 text-xs font-semibold tracking-wider text-gray-500 uppercase">{{ $t('apply.required_docs') }}</p>
+                  <ul class="space-y-1">
+                    <li
+                      v-for="doc in category.required_documents"
+                      :key="doc.id"
+                      class="flex items-center gap-2 text-xs"
+                    >
+                      <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="doc.is_mandatory ? 'bg-red-400' : 'bg-gray-300'"></span>
+                      <span class="text-gray-600">{{ doc.doc_name }}</span>
+                      <span v-if="doc.is_mandatory" class="text-[10px] font-semibold text-rose-600 uppercase bg-rose-50 px-1.5 py-0.5 rounded shrink-0">{{ $t('apply.required') }}</span>
+                    </li>
+                  </ul>
+                </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div v-else-if="currentStep === 1" class="p-8 bg-white border shadow-lg rounded-2xl border-emerald-100 sm:p-12">
+        <h2 class="mb-6 text-xl font-bold text-emerald-900">{{ $t('apply.section_applicant') }}</h2>
+
+        <div class="mb-8 space-y-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_last_name') }} <span class="text-red-500">*</span></label>
+              <input v-model="form.claimant_last_name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.claimant_last_name" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_last_name }}</p>
+            </div>
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_first_name') }} <span class="text-red-500">*</span></label>
+              <input v-model="form.claimant_first_name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.claimant_first_name" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_first_name }}</p>
+            </div>
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_middle_name') }}</label>
+              <input v-model="form.claimant_middle_name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_name_extension') }}</label>
+              <select v-model="form.claimant_name_extension" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                <option value="">{{ $t('apply.select_none') }}</option>
+                <option value="Jr.">{{ $t('apply.name_extension_jr') }}</option>
+                <option value="Sr.">{{ $t('apply.name_extension_sr') }}</option>
+                <option value="III">{{ $t('apply.name_extension_iii') }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_sex') }} <span class="text-red-500">*</span></label>
+              <select v-model="form.claimant_sex" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                <option value="">{{ $t('apply.select_sex') }}</option>
+                <option value="Male">{{ $t('apply.sex_male') }}</option>
+                <option value="Female">{{ $t('apply.sex_female') }}</option>
+              </select>
+              <p v-if="form.errors.claimant_sex" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_sex }}</p>
+            </div>
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_dob') }} <span class="text-red-500">*</span></label>
+              <input v-model="form.claimant_dob" type="date" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.claimant_dob" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_dob }}</p>
+            </div>
+          </div>
+
+          <div>
+            <label class="block mb-2 text-sm font-medium text-gray-700">{{ $t('apply.label_address') }} <span class="text-red-500">*</span></label>
+            <div class="space-y-2">
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <select v-model="claimantAddr.selectedProvince" @change="claimantAddr.setProvince(claimantAddr.selectedProvince)" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                    <option :value="null" disabled>{{ claimantAddr.loadingProvinces ? $t('common.checking') : $t('apply.select_province') }}</option>
+                    <option v-for="p in claimantAddr.provinces" :key="p.code" :value="p">{{ p.name }}</option>
+                  </select>
+                </div>
+                <div>
+                  <select v-model="claimantAddr.selectedCity" @change="claimantAddr.setCity(claimantAddr.selectedCity)" :disabled="!claimantAddr.selectedProvince" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <option :value="null" disabled>{{ claimantAddr.loadingCities ? $t('common.checking') : $t('apply.select_city') }}</option>
+                    <option v-for="c in claimantAddr.cities" :key="c.code" :value="c">{{ c.name }}</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <select v-model="claimantAddr.selectedBarangay" @change="claimantAddr.setBarangay(claimantAddr.selectedBarangay)" :disabled="!claimantAddr.selectedCity" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <option :value="null" disabled>{{ claimantAddr.loadingBarangays ? $t('common.checking') : $t('apply.select_barangay') }}</option>
+                    <option v-for="b in claimantAddr.barangays" :key="b.code" :value="b">{{ b.name }}</option>
+                  </select>
+                </div>
+                <div>
+                  <input v-model="claimantAddr.street" type="text" :placeholder="$t('apply.street_placeholder')" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                </div>
+              </div>
+            </div>
+            <input v-model="form.claimant_address" type="hidden" />
+            <p v-if="form.errors.claimant_address" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_address }}</p>
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_phone') }} <span class="text-red-500">*</span></label>
+              <input v-model="form.claimant_phone" type="tel" :placeholder="$t('apply.phone_placeholder')" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.claimant_phone" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_phone }}</p>
+              <p v-else-if="phoneValid.isChecking.value && form.claimant_phone" class="mt-1 text-xs text-gray-400">{{ $t('apply.phone_checking') }}</p>
+              <p v-else-if="phoneValid.isValid.value === false" class="mt-1 text-xs text-amber-600">{{ phoneValid.message.value }}</p>
+            </div>
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_email') }}</label>
+              <input v-model="form.claimant_email" type="email" :placeholder="$t('apply.email_placeholder')" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.claimant_email" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_email }}</p>
+            </div>
+          </div>
+
+          <div>
+            <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_relationship') }} <span class="text-red-500">*</span></label>
+            <select v-model="form.claimant_relationship_to_beneficiary" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+              <option value="">{{ $t('apply.select_relationship') }}</option>
+              <option value="Spouse">{{ $t('apply.rel_spouse') }}</option>
+              <option value="Parent">{{ $t('apply.rel_parent') }}</option>
+              <option value="Child">{{ $t('apply.rel_child') }}</option>
+              <option value="Sibling">{{ $t('apply.rel_sibling') }}</option>
+              <option value="Grandparent">{{ $t('apply.rel_grandparent') }}</option>
+              <option value="Grandchild">{{ $t('apply.rel_grandchild') }}</option>
+              <option value="Representative">{{ $t('apply.rel_representative') }}</option>
+            </select>
+            <p v-if="form.errors.claimant_relationship_to_beneficiary" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_relationship_to_beneficiary }}</p>
+          </div>
+        </div>
+
+        <h2 class="mb-4 text-xl font-bold text-emerald-900">{{ $t('apply.section_beneficiary') }}</h2>
+
+        <div class="mb-8 space-y-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_last_name') }} <span class="text-red-500">*</span></label>
+              <input v-model="form.beneficiary_last_name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.beneficiary_last_name" class="mt-1 text-xs text-red-500">{{ form.errors.beneficiary_last_name }}</p>
+            </div>
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_first_name') }} <span class="text-red-500">*</span></label>
+              <input v-model="form.beneficiary_first_name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.beneficiary_first_name" class="mt-1 text-xs text-red-500">{{ form.errors.beneficiary_first_name }}</p>
+            </div>
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_middle_name') }}</label>
+              <input v-model="form.beneficiary_middle_name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_name_extension') }}</label>
+              <select v-model="form.beneficiary_name_extension" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                <option value="">{{ $t('apply.select_none') }}</option>
+                <option value="Jr.">{{ $t('apply.name_extension_jr') }}</option>
+                <option value="Sr.">{{ $t('apply.name_extension_sr') }}</option>
+                <option value="III">{{ $t('apply.name_extension_iii') }}</option>
+              </select>
+            </div>
+            <div class="sm:col-span-3">
+              <p v-if="beneficiaryEligible === false" class="px-3 py-2 text-xs border rounded-lg bg-amber-50 border-amber-200 text-amber-800">
+                {{ beneficiaryEligibilityMsg }}
+              </p>
+              <p v-else-if="beneficiaryEligible === null && (form.beneficiary_first_name || form.beneficiary_last_name)" class="text-xs text-gray-400">
+                {{ $t('apply.beneficiary_checking') }}
+              </p>
+            </div>
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_sex') }} <span class="text-red-500">*</span></label>
+              <select v-model="form.beneficiary_sex" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                <option value="">{{ $t('apply.select_sex') }}</option>
+                <option value="Male">{{ $t('apply.sex_male') }}</option>
+                <option value="Female">{{ $t('apply.sex_female') }}</option>
+              </select>
+              <p v-if="form.errors.beneficiary_sex" class="mt-1 text-xs text-red-500">{{ form.errors.beneficiary_sex }}</p>
+            </div>
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_dob') }} <span class="text-red-500">*</span></label>
+              <input v-model="form.beneficiary_dob" type="date" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <p v-if="form.errors.beneficiary_dob" class="mt-1 text-xs text-red-500">{{ form.errors.beneficiary_dob }}</p>
+            </div>
+          </div>
+
+          <label class="flex items-center gap-2 mb-2 cursor-pointer">
+            <input type="checkbox" v-model="sameAddress" class="w-4 h-4 border-gray-300 rounded text-emerald-600 focus:ring-emerald-500" />
+            <span class="text-sm text-gray-700">{{ $t('apply.label_same_address') }}</span>
+          </label>
+
+          <div>
+            <label class="block mb-2 text-sm font-medium text-gray-700">{{ $t('apply.label_address') }} <span class="text-red-500">*</span></label>
+            <div class="space-y-2">
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <select v-model="beneficiaryAddr.selectedProvince" @change="beneficiaryAddr.setProvince(beneficiaryAddr.selectedProvince)" :disabled="sameAddress" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <option :value="null" disabled>{{ beneficiaryAddr.loadingProvinces ? $t('common.checking') : $t('apply.select_province') }}</option>
+                    <option v-for="p in beneficiaryAddr.provinces" :key="p.code" :value="p">{{ p.name }}</option>
+                  </select>
+                </div>
+                <div>
+                  <select v-model="beneficiaryAddr.selectedCity" @change="beneficiaryAddr.setCity(beneficiaryAddr.selectedCity)" :disabled="sameAddress || !beneficiaryAddr.selectedProvince" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <option :value="null" disabled>{{ beneficiaryAddr.loadingCities ? $t('common.checking') : $t('apply.select_city') }}</option>
+                    <option v-for="c in beneficiaryAddr.cities" :key="c.code" :value="c">{{ c.name }}</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <select v-model="beneficiaryAddr.selectedBarangay" @change="beneficiaryAddr.setBarangay(beneficiaryAddr.selectedBarangay)" :disabled="sameAddress || !beneficiaryAddr.selectedCity" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <option :value="null" disabled>{{ beneficiaryAddr.loadingBarangays ? $t('common.checking') : $t('apply.select_barangay') }}</option>
+                    <option v-for="b in beneficiaryAddr.barangays" :key="b.code" :value="b">{{ b.name }}</option>
+                  </select>
+                </div>
+                <div>
+                  <input v-model="beneficiaryAddr.street" type="text" :placeholder="$t('apply.street_placeholder')" :disabled="sameAddress" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed" />
+                </div>
+              </div>
+            </div>
+            <input v-model="form.beneficiary_address" type="hidden" />
+            <p v-if="form.errors.beneficiary_address" class="mt-1 text-xs text-red-500">{{ form.errors.beneficiary_address }}</p>
+          </div>
+        </div>
+
+        <div class="flex justify-between">
+          <button @click="prevStep" class="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50 transition-colors cursor-pointer">{{ $t('apply.back') }}</button>
+          <button @click="nextStep" :disabled="!isStep2Valid()" :class="['px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer', isStep2Valid() ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-300 cursor-not-allowed']">{{ $t('apply.next') }}</button>
+        </div>
+      </div>
+
+      <div v-else-if="currentStep === 2" class="p-8 bg-white border shadow-lg rounded-2xl border-emerald-100 sm:p-12">
+        <h2 class="mb-2 text-xl font-bold text-emerald-900">{{ $t('apply.capture_title') }}</h2>
+        <p class="mb-6 text-sm text-gray-500">
+          {{ $t('apply.step_of', { current: currentDocIndex + 1, total: visibleDocs.length }) }} &mdash; {{ $t('apply.captured_count', { captured: capturedCount, total: allRequiredDocs.length }) }}
+        </p>
+
+        <div v-if="form.errors.documents" class="p-3 mb-4 border border-red-200 rounded-lg bg-red-50">
+          <p class="text-sm text-red-600">{{ form.errors.documents }}</p>
+        </div>
+
+        <div v-if="currentDoc" class="space-y-4">
+          <div class="p-4 border border-gray-200 rounded-xl">
+            <DocumentScanner
+              :key="currentDoc.id"
+              :docName="currentDoc.doc_name"
+              :required="currentDoc.is_mandatory || (isRepresentative && currentDoc.doc_name === 'Authorization Letter')"
+              :captureType="currentDoc.capture_type || 'single'"
+              @captured="(payload) => onDocCapture(currentDoc.id, payload)"
+              @cleared="() => onDocClear(currentDoc.id)"
+            />
+          </div>
+
+          <!-- Multi-preview dots -->
+          <div v-if="visibleDocs.length > 1" class="flex items-center justify-center gap-1.5">
+            <button
+              v-for="(d, i) in visibleDocs"
+              :key="d.id"
+              @click="goToDoc(i)"
+              :class="[
+                'w-2.5 h-2.5 rounded-full border-0 cursor-pointer transition-colors',
+                i === currentDocIndex ? 'bg-emerald-600' :
+                form.document_ids.includes(d.id) ? 'bg-emerald-300' : 'bg-gray-300'
+              ]"
+              :title="d.doc_name"
+            />
+          </div>
+
+          <!-- Navigation -->
+          <div class="flex items-center justify-between pt-2">
+            <button
+              v-if="currentDocIndex > 0"
+              @click="goToDoc(currentDocIndex - 1)"
+              class="px-4 py-2 text-sm font-medium text-gray-600 transition-colors border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50"
+            >
+              {{ $t('apply.previous_doc') }}
+            </button>
+            <div v-else />
+
+            <button
+              v-if="currentDocIndex < visibleDocs.length - 1"
+              @click="goToDoc(currentDocIndex + 1)"
+              class="px-4 py-2 text-sm font-medium text-white rounded-lg cursor-pointer"
+              :class="form.document_ids.includes(currentDoc.id) ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-300 cursor-not-allowed'"
+              :disabled="!form.document_ids.includes(currentDoc.id)"
+            >
+              {{ $t('apply.next_doc') }}
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-6 mt-8 border-t border-gray-200">
+          <div class="flex justify-between">
+            <button @click="prevStep" class="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50 transition-colors cursor-pointer">{{ $t('apply.back') }}</button>
+            <button @click="nextStep" :disabled="!allMandatoryCaptured" :class="['px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors cursor-pointer', allMandatoryCaptured ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-300 cursor-not-allowed']">
+              {{ allMandatoryCaptured ? $t('apply.review_summary') : $t('apply.capture_required', { captured: capturedCount, total: allRequiredDocs.length }) }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="currentStep === 3" class="p-8 bg-white border shadow-lg rounded-2xl border-emerald-100 sm:p-12">
+        <h2 class="mb-6 text-xl font-bold text-emerald-900">{{ $t('apply.summary_title') }}</h2>
+        <p class="mb-6 text-sm text-gray-500">{{ $t('apply.summary_desc') }}</p>
+
+        <div v-if="form.errors.category_id" class="p-3 mb-4 border border-red-200 rounded-lg bg-red-50">
+          <p class="text-sm text-red-600">{{ form.errors.category_id }}</p>
+        </div>
+
+        <div class="space-y-6">
+          <div class="p-4 bg-emerald-50 rounded-xl">
+            <h3 class="mb-2 font-semibold text-emerald-900">{{ $t('apply.summary_category') }}</h3>
+            <p class="text-sm text-emerald-700">{{ selectedCategory?.category_name }}</p>
+          </div>
+
+          <div class="p-4 bg-gray-50 rounded-xl">
+            <h3 class="mb-3 font-semibold text-gray-900">{{ $t('apply.summary_claimant') }}</h3>
+            <dl class="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+              <div><dt class="text-gray-500">{{ $t('apply.summary_full_name') }}</dt><dd class="font-medium">{{ form.claimant_first_name }} {{ form.claimant_middle_name }} {{ form.claimant_last_name }} {{ form.claimant_name_extension }}</dd></div>
+              <div><dt class="text-gray-500">{{ $t('apply.summary_sex') }}</dt><dd class="font-medium">{{ form.claimant_sex }}</dd></div>
+              <div><dt class="text-gray-500">{{ $t('apply.summary_dob') }}</dt><dd class="font-medium">{{ form.claimant_dob }}</dd></div>
+              <div><dt class="text-gray-500">{{ $t('apply.summary_phone') }}</dt><dd class="font-medium">{{ form.claimant_phone }}</dd></div>
+              <div class="sm:col-span-2"><dt class="text-gray-500">{{ $t('apply.summary_address') }}</dt><dd class="font-medium">{{ form.claimant_address }}</dd></div>
+              <div><dt class="text-gray-500">{{ $t('apply.summary_email') }}</dt><dd class="font-medium">{{ form.claimant_email || '—' }}</dd></div>
+              <div><dt class="text-gray-500">{{ $t('apply.summary_relationship') }}</dt><dd class="font-medium">{{ form.claimant_relationship_to_beneficiary }}</dd></div>
+            </dl>
+          </div>
+
+          <div class="p-4 bg-gray-50 rounded-xl">
+            <h3 class="mb-3 font-semibold text-gray-900">{{ $t('apply.summary_beneficiary') }}</h3>
+            <dl class="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+              <div><dt class="text-gray-500">{{ $t('apply.summary_full_name') }}</dt><dd class="font-medium">{{ form.beneficiary_first_name }} {{ form.beneficiary_middle_name }} {{ form.beneficiary_last_name }} {{ form.beneficiary_name_extension }}</dd></div>
+              <div><dt class="text-gray-500">{{ $t('apply.summary_sex') }}</dt><dd class="font-medium">{{ form.beneficiary_sex }}</dd></div>
+              <div><dt class="text-gray-500">{{ $t('apply.summary_dob') }}</dt><dd class="font-medium">{{ form.beneficiary_dob }}</dd></div>
+              <div class="sm:col-span-2"><dt class="text-gray-500">{{ $t('apply.summary_address') }}</dt><dd class="font-medium">{{ form.beneficiary_address }}</dd></div>
+            </dl>
+          </div>
+
+          <div class="p-4 bg-gray-50 rounded-xl">
+            <h3 class="mb-3 font-semibold text-gray-900">{{ $t('apply.summary_documents', { count: capturedCount }) }}</h3>
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div v-for="(docId, i) in form.document_ids" :key="docId" class="overflow-hidden bg-white border border-gray-200 rounded-lg">
+                <div class="flex items-center justify-center w-full overflow-hidden h-28 bg-gray-50">
+                  <img
+                    v-if="docPreviews[docId]?.preview"
+                    :src="docPreviews[docId].preview"
+                    :alt="allRequiredDocs.find(d => d.id === docId)?.doc_name"
+                    class="object-contain w-full h-full"
+                  />
+                  <div v-else class="text-xs text-gray-400">{{ $t('apply.no_preview') }}</div>
+                </div>
+                <div class="px-2 py-1.5 text-xs font-medium text-gray-700 truncate flex items-center justify-between">
+                  <span class="truncate">{{ allRequiredDocs.find(d => d.id === docId)?.doc_name || $t('apply.document_label') }}</span>
+                  <span v-if="docPreviews[docId]?.pageCount > 1" class="ml-1 text-gray-400 shrink-0">{{ docPreviews[docId].pageCount }}p</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-between mt-8">
+          <button @click="prevStep" :disabled="submitting" class="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50">{{ $t('apply.back') }}</button>
+          <button @click="submitApplication" :disabled="submitting" class="px-8 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+            {{ submitting ? $t('apply.processing') : $t('apply.submit') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit Progress Modal -->
+    <Teleport to="body">
+      <div
+        v-if="submitting"
+        class="fixed inset-0 z-[99999] bg-black/60 flex items-center justify-center p-6"
+      >
+        <div class="w-full max-w-sm p-8 bg-white shadow-2xl rounded-2xl">
+          <h3 class="mb-1 text-lg font-bold text-center text-gray-900">{{ $t('apply.submitting') }}</h3>
+          <p class="mb-6 text-sm text-center text-gray-500">{{ submitMessage }}</p>
+
+          <!-- Progress bar -->
+          <div class="w-full h-3 mb-4 overflow-hidden bg-gray-200 rounded-full">
+            <div
+              class="h-full transition-all duration-300 ease-out rounded-full bg-emerald-600"
+              :style="{ width: submitProgress + '%' }"
+            />
+          </div>
+
+          <!-- Per-doc status -->
+          <div v-if="submitStep === 'converting' && submitTotal > 0" class="space-y-1.5 mb-4">
+            <div
+              v-for="(docId, i) in form.document_ids"
+              :key="docId"
+              class="flex items-center gap-2 text-xs"
+            >
+              <span v-if="i < submitCurrent" class="text-emerald-600 shrink-0">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                </svg>
+              </span>
+              <span v-else class="w-3.5 h-3.5 shrink-0 rounded-full border-2 border-gray-300" />
+              <span :class="i < submitCurrent ? 'text-gray-700' : 'text-gray-400'">
+                {{ capturedDocs[docId]?.docName || $t('apply.document_label') }}
+              </span>
+              <span v-if="i === submitCurrent - 1" class="ml-auto text-emerald-600 animate-pulse">{{ $t('apply.converting_status') }}</span>
+              <span v-else-if="i < submitCurrent - 1" class="ml-auto text-emerald-600">{{ $t('apply.done_status') }}</span>
+            </div>
+          </div>
+
+          <p v-if="submitStep === 'submitting'" class="text-xs text-center text-gray-400">{{ $t('apply.submitting_msg') }}</p>
+        </div>
+      </div>
+    </Teleport>
+      </div>
+    </div>
+  </div>
+</template>
