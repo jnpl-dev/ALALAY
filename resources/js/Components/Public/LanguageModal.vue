@@ -1,18 +1,20 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+const props = defineProps({
+  autoShow: { type: Boolean, default: false },
+})
 const emit = defineEmits(['close'])
 
 const { locale } = useI18n()
 const show = ref(false)
 
-onMounted(() => {
-  const chosen = localStorage.getItem('locale')
-  if (!chosen) {
+watch(() => props.autoShow, (enabled) => {
+  if (enabled && !localStorage.getItem('locale')) {
     show.value = true
   }
-})
+}, { immediate: true })
 
 function select(lang) {
   locale.value = lang

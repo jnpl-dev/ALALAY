@@ -279,5 +279,15 @@
   "common.scanning": "Sina-scan ang dokumento...",
   "common.original": "Orihinal",
   "common.enhanced": "Pinaganda",
-  "common.bw": "B&W"
+  "common.bw": "B&W",
+
+  "disclaimer.title": "Paunawa para sa Akademikong Proyekto",
+  "disclaimer.lead": "Paki-basa nang mabuti ang paunawang ito bago magpatuloy.",
+  "disclaimer.w1": "Ang website na ito ay isang akademikong proyekto at para sa pagtuturo at pang-edukasyon na layunin lamang.",
+  "disclaimer.w2": "Lahat ng datos na ipinapakita — kabilang ang mga aplikasyon, benepisyaryo, residente, user, at rekord — ay mock, sample, o sintetiko lamang at hindi kumakatawan sa mga totoong tao.",
+  "disclaimer.w3": "Walang personal na impormasyon ang kinokolekta, iniimbak, o ibinabahagi. Anumang pagkakahalintulad sa mga tunay na tao ay nagkataon lamang.",
+  "disclaimer.w4": "Ang sistemang ito ay HINDI ang opisyal na plataporma ng AICS at hindi kaakibat, ineendorso, o pinamamahalaan ng Munisipalidad ng General Mamerto Natividad, ng DSWD, o ng anumang ahensya ng pamahalaan.",
+  "disclaimer.w5": "Ang sistemang ito ay maaaring baguhin, alisin, o patayin matapos ma-evaluate ang akademikong proyekto. Huwag umasa dito para sa mga totoong transaksyon.",
+  "disclaimer.agree": "Nabasa at naunawaan ko ang paunawa. Nauunawaan ko na ito ay para sa akademikong layunin lamang at ang lahat ng datos ay mock data lamang.",
+  "disclaimer.proceed": "Nauunawaan Ko — Magpatuloy"
 }

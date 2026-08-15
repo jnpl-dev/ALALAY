@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ALALAY — Maintenance</title>
+    <title>ALALAY — Session Expired</title>
     <style>
         body {
             margin: 0;
@@ -44,7 +44,6 @@
             color: #059669;
             margin: 0;
         }
-        .message { margin-bottom: 0.5rem; }
         .cta {
             display: inline-block;
             margin-top: 1.5rem;
@@ -74,12 +73,12 @@
 <body>
     <div class="wrapper">
         <img class="logo" src="/images/logo/alalay-logo.png" alt="ALALAY logo">
-        <img class="illustration" src="/images/illustration/error-503.svg" alt="Maintenance illustration">
-        <h1>Maintenance</h1>
-        <p class="message">The system is currently undergoing maintenance.</p>
-        <p>Please check back later.</p>
-        <!-- Hardcoded: the app root. Update manually if the public path ever changes. -->
-        <a class="cta" href="/">Back to Home</a>
+        <img class="illustration" src="/images/illustration/error-419.svg" alt="Session Expired illustration">
+        <h1>Session Expired</h1>
+        <p class="message">Session expired.</p>
+        <p>Please log in again to continue.</p>
+        <!-- Hardcoded: the login path. Update manually if the route ever changes. -->
+        <a class="cta" href="/login">Return to Login</a>
         <div class="footer">Municipality of General Mamerto Natividad, Nueva Ecija</div>
     </div>
 </body>

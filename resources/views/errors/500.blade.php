@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ALALAY — Maintenance</title>
+    <title>ALALAY — Server Error</title>
     <style>
         body {
             margin: 0;
@@ -45,6 +45,17 @@
             margin: 0;
         }
         .message { margin-bottom: 0.5rem; }
+        .ref {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.4rem 1rem;
+            background: #ecfdf5;
+            border: 1px solid #d1fae5;
+            border-radius: 0.5rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.8125rem;
+            color: #047857;
+        }
         .cta {
             display: inline-block;
             margin-top: 1.5rem;
@@ -72,12 +83,21 @@
     </style>
 </head>
 <body>
+    @php
+        $ref = strtoupper(bin2hex(random_bytes(4)));
+        \Illuminate\Support\Facades\Log::warning('500 error page rendered', [
+            'reference' => $ref,
+            'exception' => $exception instanceof \Throwable ? get_class($exception) : 'Unknown',
+        ]);
+    @endphp
     <div class="wrapper">
         <img class="logo" src="/images/logo/alalay-logo.png" alt="ALALAY logo">
-        <img class="illustration" src="/images/illustration/error-503.svg" alt="Maintenance illustration">
-        <h1>Maintenance</h1>
-        <p class="message">The system is currently undergoing maintenance.</p>
-        <p>Please check back later.</p>
+        <img class="illustration" src="/images/illustration/error-500.svg" alt="Server Error illustration">
+        <h1>Server Error</h1>
+        <p class="message">Something went wrong on our end.</p>
+        <p>Please try again later.</p>
+        <div class="ref">Reference ID: {{ $ref }}</div>
+        <br>
         <!-- Hardcoded: the app root. Update manually if the public path ever changes. -->
         <a class="cta" href="/">Back to Home</a>
         <div class="footer">Municipality of General Mamerto Natividad, Nueva Ecija</div>
