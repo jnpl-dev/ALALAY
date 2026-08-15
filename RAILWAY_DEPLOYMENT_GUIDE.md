@@ -144,6 +144,21 @@ railway up --service web
    - `POST /otp-challenge` with the 6-digit code → `302` dashboard
 3. If the queue ever backs up, `jobs` table rows accumulate; the worker drains them on next
    boot. Check `queue:work` is actually running: `railway logs --service worker`.
+4. **Logging in twice in a row (`logout → login`) asks for a code that "doesn't work":**
+   each `POST /login` used to expire all earlier pending OTPs (`EmailOtpService::generate()`),
+   so the code in your email from the *first* login was dead by the time you entered it.
+   Fixed in `d5d370a`: `verify()` now accepts *any* valid pending code; older codes stay
+   usable until their 5-minute expiry, then all remaining pending codes are expired once one
+   matches. Regression test: `test_multiple_pending_otps_any_valid_code_succeeds`.
+
+### Local development vs. production mail
+
+- `.env` (local) now uses `MAIL_MAILER=resend` + `RESEND_API_KEY` so OTP emails behave like
+  live (they land in `MAIL_TEST_RECIPIENT`'s inbox). Requires `php artisan queue:work` locally
+  (queue driver is `database`). For pure offline dev you can switch back to `MAIL_MAILER=log`
+  — the OTP text is written to `storage/logs/laravel.log` instead of being sent.
+- `.env.example` documents the Resend + `MAIL_TEST_RECIPIENT` variables; keep it in sync when
+  you change mail config.
 
 ---
 
