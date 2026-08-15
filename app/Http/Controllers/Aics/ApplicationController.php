@@ -4,16 +4,20 @@ namespace App\Http\Controllers\Aics;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Traits\HasPollCache;
+use App\Http\Requests\Aics\ApproveApplicationRequest;
+use App\Http\Requests\Aics\ReturnApplicationRequest;
+use App\Http\Requests\Public\StoreApplicationRequest;
+use App\Jobs\SendSmsJob;
 use App\Models\Application;
 use App\Models\AssistanceCategory;
 use App\Models\Review;
-use App\Jobs\SendSmsJob;
+use App\Services\ApplicationSubmissionService;
 use App\Services\SignedUrlService;
-use App\Http\Requests\Aics\ApproveApplicationRequest;
-use App\Http\Requests\Aics\ReturnApplicationRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ApplicationController extends Controller
 {
@@ -115,6 +119,40 @@ class ApplicationController extends Controller
             'tab' => $tab,
             'categories' => $categories,
         ]);
+    }
+
+    public function create()
+    {
+        $categories = Cache::remember('categories.with_docs', 3600, function () {
+            return AssistanceCategory::active()
+                ->with(['requiredDocuments' => fn($q) => $q->active()])
+                ->orderBy('category_name')
+                ->get();
+        });
+
+        return Inertia::render('Aics/Applications/Create', [
+            'categories' => $categories,
+            'reference_code' => \Illuminate\Support\Facades\Session::get('reference_code'),
+        ]);
+    }
+
+    public function storeAssisted(StoreApplicationRequest $request)
+    {
+        try {
+            $application = app(ApplicationSubmissionService::class)->submit($request, 'walk_in', $request->user());
+        } catch (HttpException $e) {
+            return redirect()->route('aics.applications.create')
+                ->with('error', $e->getMessage());
+        } catch (\Exception $e) {
+            return redirect()->route('aics.applications.create')
+                ->with('error', 'Failed to upload documents. Please try again.');
+        }
+
+        $this->bustPollCache();
+
+        return redirect()->route('aics.applications.create')
+            ->with('success', 'Assisted application submitted successfully.')
+            ->with('reference_code', $application->reference_code);
     }
 
     public function export()

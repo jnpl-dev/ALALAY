@@ -63,6 +63,16 @@ class Application extends Model
         return $this->belongsTo(AssistanceCategory::class, 'category_id');
     }
 
+    protected function setClaimantSexAttribute(?string $value): void
+    {
+        $this->attributes['claimant_sex'] = $value ? strtolower($value) : $value;
+    }
+
+    protected function setBeneficiarySexAttribute(?string $value): void
+    {
+        $this->attributes['beneficiary_sex'] = $value ? strtolower($value) : $value;
+    }
+
     public function encoder()
     {
         return $this->belongsTo(User::class, 'encoded_by');

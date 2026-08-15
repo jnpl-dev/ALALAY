@@ -130,6 +130,8 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/dashboard', [AicsDashboardController::class, 'index'])->name('dashboard');
         Route::get('/analytics', [AicsAnalyticsController::class, 'index'])->name('analytics');
         Route::get('/applications', [AicsApplicationController::class, 'index'])->name('applications.index');
+        Route::get('/applications/create', [AicsApplicationController::class, 'create'])->name('applications.create');
+        Route::post('/applications', [AicsApplicationController::class, 'storeAssisted'])->name('applications.store-assisted');
         Route::get('/applications/export', [AicsApplicationController::class, 'export'])->name('applications.export');
         Route::get('/applications/poll', [AicsApplicationController::class, 'poll'])->name('applications.poll');
         Route::get('/applications/{application}', [AicsApplicationController::class, 'show'])->name('applications.show');
