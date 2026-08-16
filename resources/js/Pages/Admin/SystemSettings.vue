@@ -106,18 +106,45 @@ function handleButtonClick() {
         </div>
 
         <Deferred data="groups">
-          <div class="mb-6 p-4 border border-surface rounded-lg flex items-center justify-between">
-            <div>
-              <div class="font-medium">Maintenance Mode</div>
-              <div class="text-sm text-muted-color">{{ isDownForMaintenance ? 'System is currently offline' : 'System is running normally' }}</div>
+          <div class="mb-6 p-5 border border-surface rounded-xl bg-surface-50/60">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex items-start gap-4">
+                <div
+                  class="flex items-center justify-center w-12 h-12 rounded-xl shrink-0"
+                  :class="isDownForMaintenance ? 'bg-red-50 text-red-500' : 'bg-emerald-50 text-emerald-600'"
+                >
+                  <i :class="isDownForMaintenance ? 'pi pi-exclamation-triangle' : 'pi pi-check-circle'" class="text-xl"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-semibold">Maintenance Mode</span>
+                    <span
+                      class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium"
+                      :class="isDownForMaintenance ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'"
+                    >
+                      <span
+                        class="w-1.5 h-1.5 rounded-full"
+                        :class="isDownForMaintenance ? 'bg-red-500' : 'bg-emerald-500'"
+                      ></span>
+                      {{ isDownForMaintenance ? 'In maintenance' : 'Running normally' }}
+                    </span>
+                  </div>
+                  <p class="mt-1 text-sm text-muted-color">
+                    {{ isDownForMaintenance
+                      ? 'The system is offline to the public. Staff access continues normally.'
+                      : 'The system is running normally. Public access is enabled.' }}
+                  </p>
+                </div>
+              </div>
+              <Button
+                :label="isDownForMaintenance ? 'Bring System Online' : 'Enable Maintenance Mode'"
+                :icon="isDownForMaintenance ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'"
+                :severity="isDownForMaintenance ? 'success' : 'danger'"
+                :loading="form.processing"
+                @click="toggleMaintenance"
+                class="shrink-0"
+              />
             </div>
-            <Button
-              :label="isDownForMaintenance ? 'Bring System Online' : 'Enable Maintenance Mode'"
-              :icon="isDownForMaintenance ? 'pi pi-check-circle' : 'pi pi-exclamation-triangle'"
-              :severity="isDownForMaintenance ? 'success' : 'danger'"
-              :loading="form.processing"
-              @click="toggleMaintenance"
-            />
           </div>
 
           <form @submit.prevent="handleButtonClick">
