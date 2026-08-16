@@ -3,12 +3,13 @@ import { computed } from 'vue'
 import { Head, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
+import AppGreeting from '@/Components/Common/AppGreeting.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Skeleton from 'primevue/skeleton'
-import { CHART_COLORS, baseChartOptions, paletteColors } from '@/Utils/chartColors'
+import { CHART_COLORS, baseChartOptions } from '@/Utils/chartColors'
 import { formatDate } from '@/Utils/formatDate'
 import { formatCurrency } from '@/Utils/formatCurrency'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
@@ -54,6 +55,12 @@ const voucherStatusData = computed(() => {
   }
 })
 
+const voucherStatusPercent = computed(() => {
+  const counts = (props.dashboardData?.voucher_statuses ?? []).map(d => d.count)
+  const total = counts.reduce((sum, n) => sum + n, 0)
+  return total === 0 ? counts.map(() => 0) : counts.map(n => Math.round((n / total) * 100))
+})
+
 const categoryAmountData = computed(() => {
   const data = props.dashboardData?.category_amount ?? []
   return {
@@ -88,24 +95,12 @@ const categoryAmountOptions = baseChartOptions({
   },
 })
 
-const doughnutOptions = baseChartOptions({
-  cutout: '65%',
-  plugins: {
-    legend: {
-      position: 'bottom',
-      labels: {
-        font: { family: 'Lato, sans-serif', size: 12 },
-        padding: 16,
-        usePointStyle: true,
-        pointStyle: 'rectRounded',
-      },
-    },
-  },
-})
 </script>
 
 <template>
   <Head title="Accountant Dashboard" />
+
+  <AppGreeting />
 
   <Deferred data="dashboardData">
     <div class="grid grid-cols-12 gap-8">
@@ -130,9 +125,24 @@ const doughnutOptions = baseChartOptions({
       <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Voucher Status</div>
-          <Chart v-if="voucherStatusData?.labels?.length" type="doughnut" :data="voucherStatusData" :options="doughnutOptions" class="h-72" />
+          <div v-if="voucherStatusData?.labels?.length" class="flex flex-col gap-4 py-2">
+            <div v-for="(item, index) in voucherStatusData.labels" :key="item" class="flex flex-col gap-1">
+              <div class="flex items-center justify-between text-sm">
+                <span class="font-medium text-color">{{ item }}</span>
+                <span class="text-muted-color">
+                  {{ voucherStatusData.datasets[0].data[index] }} · {{ voucherStatusPercent[index] }}%
+                </span>
+              </div>
+              <div class="h-2 w-full rounded-full bg-surface-200 overflow-hidden">
+                <div
+                  class="h-full rounded-full transition-all duration-500"
+                  :style="{ width: (voucherStatusPercent[index] || 0) + '%', backgroundColor: voucherStatusData.datasets[0].backgroundColor[index] }"
+                ></div>
+              </div>
+            </div>
+          </div>
           <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
+            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
             <span>No data available</span>
           </div>
         </div>

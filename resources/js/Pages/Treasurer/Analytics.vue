@@ -4,7 +4,7 @@ import { Head, Deferred, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
 import AppDateRangeFilter from '@/Components/Common/AppDateRangeFilter.vue'
-import { CHART_COLORS, baseChartOptions, paletteColors } from '@/Utils/chartColors'
+import { CHART_COLORS, baseChartOptions } from '@/Utils/chartColors'
 import { fillMissingDates } from '@/Utils/chartDates'
 import { formatCurrency } from '@/Utils/formatCurrency'
 import Skeleton from 'primevue/skeleton'
@@ -36,20 +36,20 @@ const statusColors = {
 
 const trendData = computed(() => {
   const raw = props.analyticsData?.status_trend ?? []
-  const { date_from, date_to } = props.filters
   const grouped = {}
   for (const item of raw) {
     if (!grouped[item.status]) grouped[item.status] = {}
     grouped[item.status][item.date] = Number(item.count)
   }
-  const allDates = [...new Set(raw.map(d => d.date))].sort()
+  const filled = fillMissingDates(raw, props.filters.date_from, props.filters.date_to)
+  if (!filled.length) return { labels: [], datasets: [] }
+  const labels = filled.map(d => d.date)
   const statuses = Object.keys(grouped)
-  if (!allDates.length) return { labels: [], datasets: [] }
   return {
-    labels: allDates,
+    labels,
     datasets: statuses.map(status => ({
       label: statusLabels[status] || status,
-      data: allDates.map(d => grouped[status]?.[d] ?? 0),
+      data: labels.map(d => grouped[status]?.[d] ?? 0),
       borderColor: statusColors[status] || CHART_COLORS.muted,
       backgroundColor: statusColors[status] || CHART_COLORS.muted,
       tension: 0.4,
@@ -62,12 +62,13 @@ const trendData = computed(() => {
 const statusData = computed(() => {
   const data = props.analyticsData?.status_distribution ?? []
   return {
-    labels: data.map(d => statusLabels[d.status] || d.status),
+    labels: data.map(d => statusLabels[d.status] || d.status).reverse(),
     datasets: [{
-      data: data.map(d => d.count),
-      backgroundColor: data.map(d => statusColors[d.status] || CHART_COLORS.muted),
-      borderWidth: 2,
-      borderColor: '#FFFFFF',
+      label: 'Vouchers',
+      data: data.map(d => d.count).reverse(),
+      backgroundColor: data.map(d => statusColors[d.status] || CHART_COLORS.muted).reverse(),
+      borderWidth: 1,
+      borderRadius: 4,
     }],
   }
 })
@@ -125,17 +126,24 @@ const amountOverTimeData = computed(() => {
   }
 })
 
-const doughnutOptions = baseChartOptions({
-  cutout: '65%',
+const horizontalBarOptions = baseChartOptions({
+  indexAxis: 'y',
+  interaction: {
+    intersect: false,
+    mode: 'y',
+  },
   plugins: {
-    legend: {
-      position: 'bottom',
-      labels: {
-        font: { family: 'Lato, sans-serif', size: 12 },
-        padding: 16,
-        usePointStyle: true,
-        pointStyle: 'rectRounded',
-      },
+    legend: { display: false },
+  },
+  scales: {
+    x: {
+      beginAtZero: true,
+      grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
+      ticks: { font: { family: 'Lato, sans-serif', size: 11 } },
+    },
+    y: {
+      grid: { display: false },
+      ticks: { font: { family: 'Lato, sans-serif', size: 11 } },
     },
   },
 })
@@ -182,7 +190,7 @@ const doughnutOptions = baseChartOptions({
       <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Status Distribution</div>
-          <Chart v-if="statusData?.labels?.length" type="doughnut" :data="statusData" :options="doughnutOptions" class="h-72" />
+          <Chart v-if="statusData?.labels?.length" type="bar" :data="statusData" :options="horizontalBarOptions" class="h-72" />
           <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
             <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
             <span>No data available</span>

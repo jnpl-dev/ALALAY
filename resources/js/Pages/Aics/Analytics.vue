@@ -46,6 +46,12 @@ const trendData = computed(() => {
   }
 })
 
+const submissionTypePercent = computed(() => {
+  const counts = (props.analyticsData?.submission_type ?? []).map(d => d.count)
+  const total = counts.reduce((sum, n) => sum + n, 0)
+  return total === 0 ? counts.map(() => 0) : counts.map(n => Math.round((n / total) * 100))
+})
+
 const categoryData = computed(() => {
   const data = props.analyticsData?.category_distribution ?? []
   return {
@@ -180,9 +186,24 @@ const doughnutOptions = baseChartOptions({
       <div class="col-span-12 md:col-span-6 xl:col-span-4">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Online vs Walk-in</div>
-          <Chart v-if="submissionTypeData?.labels?.length" type="doughnut" :data="submissionTypeData" :options="doughnutOptions" class="h-72" />
+          <div v-if="submissionTypeData?.labels?.length" class="flex flex-col gap-4 py-2">
+            <div v-for="(item, index) in submissionTypeData.labels" :key="item" class="flex flex-col gap-1">
+              <div class="flex items-center justify-between text-sm">
+                <span class="font-medium text-color">{{ item }}</span>
+                <span class="text-muted-color">
+                  {{ submissionTypeData.datasets[0].data[index] }} · {{ submissionTypePercent[index] }}%
+                </span>
+              </div>
+              <div class="h-2 w-full rounded-full bg-surface-200 overflow-hidden">
+                <div
+                  class="h-full rounded-full transition-all duration-500"
+                  :style="{ width: (submissionTypePercent[index] || 0) + '%', backgroundColor: submissionTypeData.datasets[0].backgroundColor[index] }"
+                ></div>
+              </div>
+            </div>
+          </div>
           <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
+            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
             <span>No data available</span>
           </div>
         </div>

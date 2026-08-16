@@ -3,10 +3,11 @@ import { computed } from 'vue'
 import { Head, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
+import AppGreeting from '@/Components/Common/AppGreeting.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
 import DataView from 'primevue/dataview'
 import Skeleton from 'primevue/skeleton'
-import { CHART_COLORS, baseChartOptions, paletteColors } from '@/Utils/chartColors'
+import { CHART_COLORS, baseChartOptions } from '@/Utils/chartColors'
 import { roleLabel } from '@/Utils/roleLabel'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
@@ -21,27 +22,36 @@ const props = defineProps({
 const roleData = computed(() => {
   const data = props.dashboardData?.users_by_role ?? []
   return {
-    labels: data.map(d => roleLabel(d.role)),
+    labels: data.map(d => roleLabel(d.role)).reverse(),
     datasets: [{
-      data: data.map(d => d.count),
-      backgroundColor: paletteColors.slice(0, data.length || 1),
-      borderWidth: 2,
-      borderColor: '#FFFFFF',
+      label: 'Users',
+      data: data.map(d => d.count).reverse(),
+      backgroundColor: CHART_COLORS.primaryLight,
+      borderColor: CHART_COLORS.primaryLight,
+      borderWidth: 1,
+      borderRadius: 4,
     }],
   }
 })
 
-const chartOptions = baseChartOptions({
-  cutout: '65%',
+const horizontalBarOptions = baseChartOptions({
+  indexAxis: 'y',
+  interaction: {
+    intersect: false,
+    mode: 'y',
+  },
   plugins: {
-    legend: {
-      position: 'bottom',
-      labels: {
-        font: { family: 'Lato, sans-serif', size: 12 },
-        padding: 16,
-        usePointStyle: true,
-        pointStyle: 'rectRounded',
-      },
+    legend: { display: false },
+  },
+  scales: {
+    x: {
+      beginAtZero: true,
+      grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
+      ticks: { font: { family: 'Lato, sans-serif', size: 11 } },
+    },
+    y: {
+      grid: { display: false },
+      ticks: { font: { family: 'Lato, sans-serif', size: 11 } },
     },
   },
 })
@@ -49,6 +59,8 @@ const chartOptions = baseChartOptions({
 
 <template>
   <Head title="Admin Dashboard" />
+
+  <AppGreeting />
 
   <Deferred data="dashboardData">
     <div class="grid grid-cols-12 gap-8">
@@ -61,11 +73,10 @@ const chartOptions = baseChartOptions({
       <div class="col-span-12 lg:col-span-6 xl:col-span-4">
         <AppKpiCard title="Inactive Users" :value="dashboardData?.inactive_users ?? 0" icon="pi pi-ban" color="warn" subtitle="deactivated accounts" />
       </div>
-
       <div class="col-span-12 xl:col-span-4">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Users by Role</div>
-          <Chart v-if="roleData?.labels?.length" type="doughnut" :data="roleData" :options="chartOptions" class="h-80" />
+          <Chart v-if="roleData?.labels?.length" type="bar" :data="roleData" :options="horizontalBarOptions" class="h-80" />
           <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
             <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
             <span>No data available</span>

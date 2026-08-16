@@ -4,7 +4,7 @@ import { Head, Deferred, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
 import AppDateRangeFilter from '@/Components/Common/AppDateRangeFilter.vue'
-import { CHART_COLORS, baseChartOptions, paletteColors } from '@/Utils/chartColors'
+import { CHART_COLORS, baseChartOptions } from '@/Utils/chartColors'
 import { fillMissingDates } from '@/Utils/chartDates'
 import { formatCurrency } from '@/Utils/formatCurrency'
 import { getStatusLabel } from '@/Utils/statusLabels'
@@ -51,12 +51,14 @@ const trendData = computed(() => {
 const statusData = computed(() => {
   const data = props.analyticsData?.application_status_distribution ?? []
   return {
-    labels: data.map(d => getStatusLabel(d.status).label),
+    labels: data.map(d => getStatusLabel(d.status).label).reverse(),
     datasets: [{
-      data: data.map(d => d.count),
-      backgroundColor: paletteColors.slice(0, data.length || 1),
-      borderWidth: 2,
-      borderColor: '#FFFFFF',
+      label: 'Applications',
+      data: data.map(d => d.count).reverse(),
+      backgroundColor: CHART_COLORS.primaryLight,
+      borderColor: CHART_COLORS.primaryLight,
+      borderWidth: 1,
+      borderRadius: 4,
     }],
   }
 })
@@ -83,12 +85,14 @@ const userRegData = computed(() => {
 const roleData = computed(() => {
   const data = props.analyticsData?.users_by_role ?? []
   return {
-    labels: data.map(d => roleLabel(d.role)),
+    labels: data.map(d => roleLabel(d.role)).reverse(),
     datasets: [{
-      data: data.map(d => d.count),
-      backgroundColor: paletteColors.slice(0, data.length || 1),
-      borderWidth: 2,
-      borderColor: '#FFFFFF',
+      label: 'Users',
+      data: data.map(d => d.count).reverse(),
+      backgroundColor: CHART_COLORS.success,
+      borderColor: CHART_COLORS.success,
+      borderWidth: 1,
+      borderRadius: 4,
     }],
   }
 })
@@ -109,17 +113,24 @@ const disbursementData = computed(() => {
   }
 })
 
-const doughnutOptions = baseChartOptions({
-  cutout: '65%',
+const horizontalBarOptions = baseChartOptions({
+  indexAxis: 'y',
+  interaction: {
+    intersect: false,
+    mode: 'y',
+  },
   plugins: {
-    legend: {
-      position: 'bottom',
-      labels: {
-        font: { family: 'Lato, sans-serif', size: 12 },
-        padding: 16,
-        usePointStyle: true,
-        pointStyle: 'rectRounded',
-      },
+    legend: { display: false },
+  },
+  scales: {
+    x: {
+      beginAtZero: true,
+      grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
+      ticks: { font: { family: 'Lato, sans-serif', size: 11 } },
+    },
+    y: {
+      grid: { display: false },
+      ticks: { font: { family: 'Lato, sans-serif', size: 11 } },
     },
   },
 })
@@ -164,7 +175,7 @@ const doughnutOptions = baseChartOptions({
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Applications by Status</div>
-          <Chart v-if="statusData?.labels?.length" type="doughnut" :data="statusData" :options="doughnutOptions" class="h-80" />
+          <Chart v-if="statusData?.labels?.length" type="bar" :data="statusData" :options="horizontalBarOptions" class="h-80" />
           <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
             <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
             <span>No data available</span>
@@ -186,7 +197,7 @@ const doughnutOptions = baseChartOptions({
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Users by Role</div>
-          <Chart v-if="roleData?.labels?.length" type="doughnut" :data="roleData" :options="doughnutOptions" class="h-80" />
+          <Chart v-if="roleData?.labels?.length" type="bar" :data="roleData" :options="horizontalBarOptions" class="h-80" />
           <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
             <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
             <span>No data available</span>
