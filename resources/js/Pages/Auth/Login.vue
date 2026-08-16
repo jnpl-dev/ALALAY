@@ -36,10 +36,6 @@ const submit = () => {
       <div class="bg-white rounded-2xl shadow-lg border border-emerald-100 p-8">
         <form @submit.prevent="submit" class="space-y-5">
 
-          <div v-if="form.errors.email || pageErrors.email" class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-            {{ form.errors.email || pageErrors.email }}
-          </div>
-
           <div>
             <label for="email" class="block text-sm font-medium text-emerald-900 mb-1.5">Email Address</label>
             <input
@@ -49,9 +45,12 @@ const submit = () => {
               autocomplete="email"
               placeholder="you@example.com"
               class="w-full px-4 py-2.5 rounded-lg border text-emerald-900 placeholder-emerald-400 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              :class="form.errors.email ? 'border-red-300 bg-red-50' : 'border-emerald-200 bg-emerald-50/50'"
+              :class="form.errors.email || pageErrors.email ? 'border-red-300 bg-red-50' : 'border-emerald-200 bg-emerald-50/50'"
               @input="form.errors.email = null"
             />
+            <p v-if="form.errors.email || pageErrors.email" class="mt-1.5 text-xs text-red-600">
+              {{ form.errors.email || pageErrors.email }}
+            </p>
           </div>
 
           <div>
@@ -81,6 +80,9 @@ const submit = () => {
                 </svg>
               </button>
             </div>
+            <p v-if="form.errors.password" class="mt-1.5 text-xs text-red-600">
+              {{ form.errors.password }}
+            </p>
           </div>
 
           <div class="flex items-center justify-between">

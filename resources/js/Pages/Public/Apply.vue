@@ -51,6 +51,39 @@ const applyUrl = route('apply')
 const trackUrl = route('track')
 const copied = ref(false)
 
+const showLeaveModal = ref(false)
+
+const hasFormInput = computed(() => {
+  const f = form
+  return !!(
+    f.claimant_last_name || f.claimant_first_name || f.claimant_middle_name ||
+    f.claimant_sex || f.claimant_dob || f.claimant_phone || f.claimant_email ||
+    f.claimant_relationship_to_beneficiary ||
+    f.beneficiary_last_name || f.beneficiary_first_name || f.beneficiary_middle_name ||
+    f.beneficiary_sex || f.beneficiary_dob ||
+    f.document_ids.length > 0 ||
+    claimantAddr.selectedBarangay || claimantAddr.street ||
+    beneficiaryAddr.selectedBarangay || beneficiaryAddr.street
+  )
+})
+
+function requestLeave() {
+  if (hasFormInput.value && currentStep.value < 4) {
+    showLeaveModal.value = true
+  } else {
+    router.visit(homeUrl)
+  }
+}
+
+function confirmLeave() {
+  showLeaveModal.value = false
+  router.visit(homeUrl)
+}
+
+function cancelLeave() {
+  showLeaveModal.value = false
+}
+
 function copyCode(code) {
   navigator.clipboard.writeText(code).then(() => {
     copied.value = true
@@ -100,6 +133,10 @@ const claimantAddr = reactive(usePsgcAddress())
 const beneficiaryAddr = reactive(usePsgcAddress())
 const sameAddress = ref(false)
 
+const isSelf = computed(() =>
+  form.claimant_relationship_to_beneficiary === 'Self'
+)
+
 watch(() => claimantAddr.addressString, (val) => { form.claimant_address = val })
 watch(() => beneficiaryAddr.addressString, (val) => { form.beneficiary_address = val })
 
@@ -115,6 +152,44 @@ watch(sameAddress, (val) => {
     }
   }
 })
+
+function mirrorClaimantToBeneficiary() {
+  form.beneficiary_last_name = form.claimant_last_name
+  form.beneficiary_first_name = form.claimant_first_name
+  form.beneficiary_middle_name = form.claimant_middle_name
+  form.beneficiary_name_extension = form.claimant_name_extension
+  form.beneficiary_sex = form.claimant_sex
+  form.beneficiary_dob = form.claimant_dob
+  beneficiaryAddr.selectedProvince = claimantAddr.selectedProvince
+  beneficiaryAddr.selectedCity = claimantAddr.selectedCity
+  beneficiaryAddr.selectedBarangay = claimantAddr.selectedBarangay
+  beneficiaryAddr.street = claimantAddr.street
+  if (claimantAddr.selectedProvince) {
+    beneficiaryAddr.cities = [...claimantAddr.cities]
+    beneficiaryAddr.barangays = [...claimantAddr.barangays]
+  }
+}
+
+watch(isSelf, (val) => {
+  if (val) {
+    mirrorClaimantToBeneficiary()
+  }
+})
+
+watch(
+  [
+    () => form.claimant_last_name,
+    () => form.claimant_first_name,
+    () => form.claimant_middle_name,
+    () => form.claimant_name_extension,
+    () => form.claimant_sex,
+    () => form.claimant_dob,
+    () => claimantAddr.addressString,
+  ],
+  () => {
+    if (isSelf.value) mirrorClaimantToBeneficiary()
+  }
+)
 
 const beneficiaryEligible = ref(null)
 const beneficiaryEligibilityMsg = ref('')
@@ -154,6 +229,15 @@ const phoneValid = useFieldValidation(
   {},
   { debounceMs: 400 },
 )
+
+function sanitizePhone(e) {
+  form.claimant_phone = e.target.value.replace(/\D/g, '').slice(0, 11)
+}
+
+const isGmail = computed(() => {
+  const email = (form.claimant_email || '').toLowerCase().trim()
+  return email.includes('@gmail.com')
+})
 
 onMounted(async () => {
   await claimantAddr.fetchProvinces()
@@ -416,10 +500,10 @@ const statusLabel = (status) => ({
               <img src="/images/logo/AICS.png" alt="AICS" class="h-6 opacity-60">
             </div>
           </div>
-          <Link :href="homeUrl" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+          <button @click="requestLeave" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors cursor-pointer">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
             {{ $t('apply.back') }}
-          </Link>
+          </button>
         </div>
       </div>
     </div>
@@ -598,13 +682,13 @@ const statusLabel = (status) => ({
             <div class="space-y-2">
               <div class="grid grid-cols-2 gap-2">
                 <div>
-                  <select v-model="claimantAddr.selectedProvince" @change="claimantAddr.setProvince(claimantAddr.selectedProvince)" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                  <select v-model="claimantAddr.selectedProvince" @change="claimantAddr.setProvince(claimantAddr.selectedProvince)" disabled class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50">
                     <option :value="null" disabled>{{ claimantAddr.loadingProvinces ? $t('common.checking') : $t('apply.select_province') }}</option>
                     <option v-for="p in claimantAddr.provinces" :key="p.code" :value="p">{{ p.name }}</option>
                   </select>
                 </div>
                 <div>
-                  <select v-model="claimantAddr.selectedCity" @change="claimantAddr.setCity(claimantAddr.selectedCity)" :disabled="!claimantAddr.selectedProvince" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <select v-model="claimantAddr.selectedCity" @change="claimantAddr.setCity(claimantAddr.selectedCity)" disabled class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50">
                     <option :value="null" disabled>{{ claimantAddr.loadingCities ? $t('common.checking') : $t('apply.select_city') }}</option>
                     <option v-for="c in claimantAddr.cities" :key="c.code" :value="c">{{ c.name }}</option>
                   </select>
@@ -629,15 +713,23 @@ const statusLabel = (status) => ({
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_phone') }} <span class="text-red-500">*</span></label>
-              <input v-model="form.claimant_phone" type="tel" :placeholder="$t('apply.phone_placeholder')" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <input :value="form.claimant_phone" type="tel" inputmode="numeric" maxlength="11" :placeholder="$t('apply.phone_placeholder')" @input="sanitizePhone" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
               <p v-if="form.errors.claimant_phone" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_phone }}</p>
               <p v-else-if="phoneValid.isChecking.value && form.claimant_phone" class="mt-1 text-xs text-gray-400">{{ $t('apply.phone_checking') }}</p>
               <p v-else-if="phoneValid.isValid.value === false" class="mt-1 text-xs text-amber-600">{{ phoneValid.message.value }}</p>
             </div>
             <div>
               <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_email') }}</label>
-              <input v-model="form.claimant_email" type="email" :placeholder="$t('apply.email_placeholder')" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <input v-model="form.claimant_email" type="email" :placeholder="$t('apply.email_placeholder')"
+                :class="[
+                  'w-full px-3 py-2 text-sm border rounded-lg outline-none focus:ring-2',
+                  form.errors.claimant_email || (form.claimant_email && !isGmail)
+                    ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500'
+                    : 'border-gray-300 focus:ring-emerald-500 focus:border-emerald-500'
+                ]"
+              />
               <p v-if="form.errors.claimant_email" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_email }}</p>
+              <p v-else-if="form.claimant_email && !isGmail" class="mt-1 text-xs text-red-500">{{ $t('apply.email_require_gmail') }}</p>
             </div>
           </div>
 
@@ -645,6 +737,7 @@ const statusLabel = (status) => ({
             <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_relationship') }} <span class="text-red-500">*</span></label>
             <select v-model="form.claimant_relationship_to_beneficiary" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
               <option value="">{{ $t('apply.select_relationship') }}</option>
+              <option value="Self">{{ $t('apply.rel_self') }}</option>
               <option value="Spouse">{{ $t('apply.rel_spouse') }}</option>
               <option value="Parent">{{ $t('apply.rel_parent') }}</option>
               <option value="Child">{{ $t('apply.rel_child') }}</option>
@@ -663,24 +756,24 @@ const statusLabel = (status) => ({
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_last_name') }} <span class="text-red-500">*</span></label>
-              <input v-model="form.beneficiary_last_name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <input v-model="form.beneficiary_last_name" type="text" :disabled="isSelf" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50" />
               <p v-if="form.errors.beneficiary_last_name" class="mt-1 text-xs text-red-500">{{ form.errors.beneficiary_last_name }}</p>
             </div>
             <div>
               <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_first_name') }} <span class="text-red-500">*</span></label>
-              <input v-model="form.beneficiary_first_name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <input v-model="form.beneficiary_first_name" type="text" :disabled="isSelf" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50" />
               <p v-if="form.errors.beneficiary_first_name" class="mt-1 text-xs text-red-500">{{ form.errors.beneficiary_first_name }}</p>
             </div>
             <div>
               <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_middle_name') }}</label>
-              <input v-model="form.beneficiary_middle_name" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <input v-model="form.beneficiary_middle_name" type="text" :disabled="isSelf" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50" />
             </div>
           </div>
 
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_name_extension') }}</label>
-              <select v-model="form.beneficiary_name_extension" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+              <select v-model="form.beneficiary_name_extension" :disabled="isSelf" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50">
                 <option value="">{{ $t('apply.select_none') }}</option>
                 <option value="Jr.">{{ $t('apply.name_extension_jr') }}</option>
                 <option value="Sr.">{{ $t('apply.name_extension_sr') }}</option>
@@ -697,7 +790,7 @@ const statusLabel = (status) => ({
             </div>
             <div>
               <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_sex') }} <span class="text-red-500">*</span></label>
-              <select v-model="form.beneficiary_sex" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+              <select v-model="form.beneficiary_sex" :disabled="isSelf" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50">
                 <option value="">{{ $t('apply.select_sex') }}</option>
                 <option value="Male">{{ $t('apply.sex_male') }}</option>
                 <option value="Female">{{ $t('apply.sex_female') }}</option>
@@ -706,13 +799,13 @@ const statusLabel = (status) => ({
             </div>
             <div>
               <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_dob') }} <span class="text-red-500">*</span></label>
-              <input v-model="form.beneficiary_dob" type="date" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <input v-model="form.beneficiary_dob" type="date" :disabled="isSelf" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50" />
               <p v-if="form.errors.beneficiary_dob" class="mt-1 text-xs text-red-500">{{ form.errors.beneficiary_dob }}</p>
             </div>
           </div>
 
           <label class="flex items-center gap-2 mb-2 cursor-pointer">
-            <input type="checkbox" v-model="sameAddress" class="w-4 h-4 border-gray-300 rounded text-emerald-600 focus:ring-emerald-500" />
+            <input type="checkbox" v-model="sameAddress" :disabled="isSelf" class="w-4 h-4 border-gray-300 rounded text-emerald-600 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed" />
             <span class="text-sm text-gray-700">{{ $t('apply.label_same_address') }}</span>
           </label>
 
@@ -721,13 +814,13 @@ const statusLabel = (status) => ({
             <div class="space-y-2">
               <div class="grid grid-cols-2 gap-2">
                 <div>
-                  <select v-model="beneficiaryAddr.selectedProvince" @change="beneficiaryAddr.setProvince(beneficiaryAddr.selectedProvince)" :disabled="sameAddress" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <select v-model="beneficiaryAddr.selectedProvince" @change="beneficiaryAddr.setProvince(beneficiaryAddr.selectedProvince)" :disabled="sameAddress || isSelf" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50">
                     <option :value="null" disabled>{{ beneficiaryAddr.loadingProvinces ? $t('common.checking') : $t('apply.select_province') }}</option>
                     <option v-for="p in beneficiaryAddr.provinces" :key="p.code" :value="p">{{ p.name }}</option>
                   </select>
                 </div>
                 <div>
-                  <select v-model="beneficiaryAddr.selectedCity" @change="beneficiaryAddr.setCity(beneficiaryAddr.selectedCity)" :disabled="sameAddress || !beneficiaryAddr.selectedProvince" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <select v-model="beneficiaryAddr.selectedCity" @change="beneficiaryAddr.setCity(beneficiaryAddr.selectedCity)" :disabled="sameAddress || isSelf || !beneficiaryAddr.selectedProvince" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50">
                     <option :value="null" disabled>{{ beneficiaryAddr.loadingCities ? $t('common.checking') : $t('apply.select_city') }}</option>
                     <option v-for="c in beneficiaryAddr.cities" :key="c.code" :value="c">{{ c.name }}</option>
                   </select>
@@ -735,13 +828,13 @@ const statusLabel = (status) => ({
               </div>
               <div class="grid grid-cols-2 gap-2">
                 <div>
-                  <select v-model="beneficiaryAddr.selectedBarangay" @change="beneficiaryAddr.setBarangay(beneficiaryAddr.selectedBarangay)" :disabled="sameAddress || !beneficiaryAddr.selectedCity" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <select v-model="beneficiaryAddr.selectedBarangay" @change="beneficiaryAddr.setBarangay(beneficiaryAddr.selectedBarangay)" :disabled="sameAddress || isSelf || !beneficiaryAddr.selectedCity" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50">
                     <option :value="null" disabled>{{ beneficiaryAddr.loadingBarangays ? $t('common.checking') : $t('apply.select_barangay') }}</option>
                     <option v-for="b in beneficiaryAddr.barangays" :key="b.code" :value="b">{{ b.name }}</option>
                   </select>
                 </div>
                 <div>
-                  <input v-model="beneficiaryAddr.street" type="text" :placeholder="$t('apply.street_placeholder')" :disabled="sameAddress" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed" />
+                  <input v-model="beneficiaryAddr.street" type="text" :placeholder="$t('apply.street_placeholder')" :disabled="sameAddress || isSelf" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50" />
                 </div>
               </div>
             </div>
@@ -934,6 +1027,38 @@ const statusLabel = (status) => ({
           </div>
 
           <p v-if="submitStep === 'submitting'" class="text-xs text-center text-gray-400">{{ $t('apply.submitting_msg') }}</p>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Leave confirmation modal -->
+    <Teleport to="body">
+      <div
+        v-if="showLeaveModal"
+        class="fixed inset-0 z-[99999] bg-black/60 flex items-center justify-center p-6"
+      >
+        <div class="w-full max-w-sm p-8 bg-white shadow-2xl rounded-2xl">
+          <div class="flex items-center justify-center w-14 h-14 mx-auto mb-4 rounded-full bg-amber-100">
+            <svg class="w-7 h-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          </div>
+          <h3 class="mb-2 text-lg font-bold text-center text-gray-900">{{ $t('apply.leave_modal_title') }}</h3>
+          <p class="mb-6 text-sm text-center text-gray-500">{{ $t('apply.leave_modal_message') }}</p>
+          <div class="flex flex-col gap-3 sm:flex-row">
+            <button
+              @click="cancelLeave"
+              class="flex-1 px-6 py-2.5 rounded-xl text-sm font-semibold text-emerald-700 border border-emerald-200 bg-white hover:bg-emerald-50 transition-colors cursor-pointer"
+            >
+              {{ $t('apply.leave_modal_stay') }}
+            </button>
+            <button
+              @click="confirmLeave"
+              class="flex-1 px-6 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer"
+            >
+              {{ $t('apply.leave_modal_leave') }}
+            </button>
+          </div>
         </div>
       </div>
     </Teleport>

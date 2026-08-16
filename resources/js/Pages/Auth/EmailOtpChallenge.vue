@@ -92,12 +92,12 @@ const setRef = (el, index) => {
           {{ page.props.flash.success }}
         </div>
 
-        <div v-if="form.errors.otp_code" class="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
-          {{ form.errors.otp_code }}
+        <div v-if="page.props.flash?.success" class="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-lg px-4 py-3 mb-4">
+          {{ page.props.flash.success }}
         </div>
 
         <form @submit.prevent="submit">
-          <div class="flex justify-center gap-2 sm:gap-3 mb-6">
+          <div class="flex justify-center gap-2 sm:gap-3 mb-2">
             <input
               v-for="(digit, i) in digits"
               :key="i"
@@ -115,6 +115,12 @@ const setRef = (el, index) => {
               @paste="handlePaste"
             />
           </div>
+          <p v-if="form.errors.otp_code" class="mb-6 text-sm text-center text-red-600">
+            {{ form.errors.otp_code }}
+          </p>
+          <p v-else class="mb-6 text-xs text-center text-gray-400">
+            Enter the 6-digit code from your email.
+          </p>
 
           <button
             type="submit"
