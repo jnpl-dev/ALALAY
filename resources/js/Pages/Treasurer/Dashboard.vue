@@ -3,12 +3,13 @@ import { computed } from 'vue'
 import { Head, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
+import AppGreeting from '@/Components/Common/AppGreeting.vue'
 import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Skeleton from 'primevue/skeleton'
-import { CHART_COLORS, baseChartOptions, paletteColors } from '@/Utils/chartColors'
+import { CHART_COLORS, baseChartOptions } from '@/Utils/chartColors'
 import { generateWeekLabels } from '@/Utils/chartDates'
 import { formatDate } from '@/Utils/formatDate'
 import { formatCurrency } from '@/Utils/formatCurrency'
@@ -55,12 +56,13 @@ const trendData = computed(() => {
 const statusData = computed(() => {
   const data = props.dashboardData?.status_distribution ?? []
   return {
-    labels: data.map(d => statusLabels[d.status] || d.status),
+    labels: data.map(d => statusLabels[d.status] || d.status).reverse(),
     datasets: [{
-      data: data.map(d => d.count),
-      backgroundColor: data.map(d => statusColors[d.status] || CHART_COLORS.muted),
-      borderWidth: 2,
-      borderColor: '#FFFFFF',
+      label: 'Vouchers',
+      data: data.map(d => d.count).reverse(),
+      backgroundColor: data.map(d => statusColors[d.status] || CHART_COLORS.muted).reverse(),
+      borderWidth: 1,
+      borderRadius: 4,
     }],
   }
 })
@@ -99,17 +101,24 @@ const categoryAmountOptions = baseChartOptions({
   },
 })
 
-const doughnutOptions = baseChartOptions({
-  cutout: '65%',
+const horizontalBarOptions = baseChartOptions({
+  indexAxis: 'y',
+  interaction: {
+    intersect: false,
+    mode: 'y',
+  },
   plugins: {
-    legend: {
-      position: 'bottom',
-      labels: {
-        font: { family: 'Lato, sans-serif', size: 12 },
-        padding: 16,
-        usePointStyle: true,
-        pointStyle: 'rectRounded',
-      },
+    legend: { display: false },
+  },
+  scales: {
+    x: {
+      beginAtZero: true,
+      grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
+      ticks: { font: { family: 'Lato, sans-serif', size: 11 } },
+    },
+    y: {
+      grid: { display: false },
+      ticks: { font: { family: 'Lato, sans-serif', size: 11 } },
     },
   },
 })
@@ -117,6 +126,8 @@ const doughnutOptions = baseChartOptions({
 
 <template>
   <Head title="Treasurer Dashboard" />
+
+  <AppGreeting />
 
   <Deferred data="dashboardData">
     <div class="grid grid-cols-12 gap-8">
@@ -144,7 +155,7 @@ const doughnutOptions = baseChartOptions({
       <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Status Breakdown</div>
-          <Chart v-if="statusData?.labels?.length" type="doughnut" :data="statusData" :options="doughnutOptions" class="h-72" />
+          <Chart v-if="statusData?.labels?.length" type="bar" :data="statusData" :options="horizontalBarOptions" class="h-72" />
           <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
             <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
             <span>No data available</span>

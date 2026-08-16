@@ -3,13 +3,14 @@ import { computed } from 'vue'
 import { Head, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
-import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
+import AppGreeting from '@/Components/Common/AppGreeting.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Skeleton from 'primevue/skeleton'
-import { CHART_COLORS, baseChartOptions, categoryColors } from '@/Utils/chartColors'
+import { CHART_COLORS, baseChartOptions } from '@/Utils/chartColors'
 import { formatDate } from '@/Utils/formatDate'
+import { formatCurrency } from '@/Utils/formatCurrency'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
@@ -20,57 +21,74 @@ const props = defineProps({
   dashboardData: { type: Object, default: () => ({}) },
 })
 
-const trendData = computed(() => {
-  const raw = props.dashboardData?.weekly_trend ?? []
+const decisionTrendData = computed(() => {
+  const raw = props.dashboardData?.decision_trend ?? []
+  const labels = [...new Set(raw.map(d => d.date))].sort()
+  const byDecision = (decision) => labels.map(date => raw.find(r => r.date === date && r.decision === decision)?.count ?? 0)
   return {
-    labels: raw.map(d => d.date),
-    datasets: [{
-      label: 'Applications Submitted',
-      data: raw.map(d => d.count),
-      borderColor: CHART_COLORS.primary,
-      backgroundColor: CHART_COLORS.primaryBg,
-      tension: 0.4,
-      fill: true,
-      pointRadius: 3,
-      pointHoverRadius: 5,
-      pointBackgroundColor: CHART_COLORS.primary,
-    }],
+    labels,
+    datasets: [
+      {
+        label: 'Approved',
+        data: byDecision('approved'),
+        backgroundColor: CHART_COLORS.success,
+        borderRadius: 3,
+      },
+      {
+        label: 'Returned',
+        data: byDecision('returned'),
+        backgroundColor: CHART_COLORS.danger,
+        borderRadius: 3,
+      },
+    ],
   }
 })
 
-const categoryData = computed(() => {
-  const data = props.dashboardData?.category_distribution ?? []
+const stackedBarOptions = baseChartOptions({
+  plugins: {
+    legend: {
+      position: 'bottom',
+      labels: {
+        font: { family: 'Lato, sans-serif', size: 12 },
+        padding: 16,
+        usePointStyle: true,
+        pointStyle: 'rectRounded',
+      },
+    },
+  },
+  scales: {
+    x: { stacked: true },
+    y: { beginAtZero: true, stacked: true },
+  },
+})
+
+const decisionCounts = computed(() => {
+  const c = props.dashboardData?.decision_counts ?? {}
   return {
-    labels: data.map(d => d.category_name),
-    datasets: [{
-      data: data.map(d => d.count),
-      backgroundColor: categoryColors.slice(0, data.length || 1),
-      borderWidth: 2,
-      borderColor: '#FFFFFF',
-    }],
+    approved: c.approved ?? 0,
+    returned: c.returned ?? 0,
   }
 })
 
-const submissionTypeData = computed(() => {
-  const data = props.dashboardData?.submission_type_distribution ?? []
-  return {
-    labels: data.map(d => d.submission_type === 'online' ? 'Online' : 'Walk-in'),
-    datasets: [{
-      data: data.map(d => d.count),
-      backgroundColor: data.map(d => d.submission_type === 'online' ? CHART_COLORS.primary : CHART_COLORS.muted),
-      borderWidth: 2,
-      borderColor: '#FFFFFF',
-    }],
-  }
+const approvalRate = computed(() => {
+  const total = decisionCounts.value.approved + decisionCounts.value.returned
+  return total === 0 ? 0 : Math.round((decisionCounts.value.approved / total) * 100)
 })
 
-const barangayData = computed(() => {
-  const data = props.dashboardData?.barangay_distribution ?? []
+const decisionColors = { approved: CHART_COLORS.success, returned: CHART_COLORS.danger }
+
+const approvedRateBar = computed(() => [
+  { label: 'Approved', count: decisionCounts.value.approved, pct: approvalRate.value, color: decisionColors.approved },
+  { label: 'Returned', count: decisionCounts.value.returned, pct: 100 - approvalRate.value, color: decisionColors.returned },
+])
+
+const amountByCategoryData = computed(() => {
+  const data = props.dashboardData?.approved_amount_by_category ?? []
   return {
-    labels: data.map(d => d.barangay).reverse(),
+    labels: data.map(d => d.category_name).reverse(),
     datasets: [{
-      label: 'Applications',
-      data: data.map(d => d.count).reverse(),
+      label: 'Approved Amount',
+      data: data.map(d => Number(d.total)).reverse(),
       backgroundColor: CHART_COLORS.primaryLight,
       borderColor: CHART_COLORS.primaryLight,
       borderWidth: 1,
@@ -79,7 +97,7 @@ const barangayData = computed(() => {
   }
 })
 
-const horizontalBarOptions = baseChartOptions({
+const horizontalAmountOptions = baseChartOptions({
   indexAxis: 'y',
   interaction: {
     intersect: false,
@@ -92,7 +110,10 @@ const horizontalBarOptions = baseChartOptions({
     x: {
       beginAtZero: true,
       grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
-      ticks: { font: { family: 'Lato, sans-serif', size: 11 } },
+      ticks: {
+        font: { family: 'Lato, sans-serif', size: 11 },
+        callback: (v) => '₱' + Number(v).toLocaleString(),
+      },
     },
     y: {
       grid: { display: false },
@@ -100,25 +121,12 @@ const horizontalBarOptions = baseChartOptions({
     },
   },
 })
-
-const doughnutOptions = baseChartOptions({
-  cutout: '65%',
-  plugins: {
-    legend: {
-      position: 'bottom',
-      labels: {
-        font: { family: 'Lato, sans-serif', size: 12 },
-        padding: 16,
-        usePointStyle: true,
-        pointStyle: 'rectRounded',
-      },
-    },
-  },
-})
 </script>
 
 <template>
   <Head title="Internal Audit Dashboard" />
+
+  <AppGreeting />
 
   <Deferred data="dashboardData">
     <div class="grid grid-cols-12 gap-8">
@@ -134,41 +142,8 @@ const doughnutOptions = baseChartOptions({
 
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
-          <div class="font-semibold text-xl mb-4">Applications This Week</div>
-          <Chart v-if="trendData?.labels?.length" type="line" :data="trendData" :options="baseChartOptions()" class="h-72" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-line text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-span-12 md:col-span-6 xl:col-span-3">
-        <div class="card h-full">
-          <div class="font-semibold text-xl mb-4">Categories This Week</div>
-          <Chart v-if="categoryData?.labels?.length" type="doughnut" :data="categoryData" :options="doughnutOptions" class="h-72" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-span-12 md:col-span-6 xl:col-span-3">
-        <div class="card h-full">
-          <div class="font-semibold text-xl mb-4">Submission Type This Week</div>
-          <Chart v-if="submissionTypeData?.labels?.length" type="doughnut" :data="submissionTypeData" :options="doughnutOptions" class="h-72" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-span-12 xl:col-span-6">
-        <div class="card">
-          <div class="font-semibold text-xl mb-4">Barangay Distribution This Week</div>
-          <Chart v-if="barangayData?.labels?.length" type="bar" :data="barangayData" :options="horizontalBarOptions" class="h-72" />
+          <div class="font-semibold text-xl mb-4">Coding Decisions This Week</div>
+          <Chart v-if="decisionTrendData?.labels?.length" type="bar" :data="decisionTrendData" :options="stackedBarOptions" class="h-72" />
           <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
             <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
             <span>No data available</span>
@@ -176,42 +151,72 @@ const doughnutOptions = baseChartOptions({
         </div>
       </div>
 
-      <div class="col-span-12 xl:col-span-6">
+      <div class="col-span-12 md:col-span-6 xl:col-span-3">
+        <div class="card h-full">
+          <div class="font-semibold text-xl mb-4">Approval Rate This Week</div>
+          <div v-if="approvedRateBar.length" class="flex flex-col gap-5 py-2">
+            <div v-for="item in approvedRateBar" :key="item.label" class="flex flex-col gap-1">
+              <div class="flex items-center justify-between text-sm">
+                <span class="font-medium text-color">{{ item.label }}</span>
+                <span class="text-muted-color">{{ item.count }} · {{ item.pct }}%</span>
+              </div>
+              <div class="h-2 w-full rounded-full bg-surface-200 overflow-hidden">
+                <div class="h-full rounded-full transition-all duration-500" :style="{ width: item.pct + '%', backgroundColor: item.color }"></div>
+              </div>
+            </div>
+            <div class="text-3xl font-bold mt-2" :style="{ color: CHART_COLORS.success }">{{ approvalRate }}%</div>
+          </div>
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-span-12 md:col-span-6 xl:col-span-3">
+        <div class="card h-full">
+          <div class="font-semibold text-xl mb-4">Approved Amount by Category</div>
+          <Chart v-if="amountByCategoryData?.labels?.length" type="bar" :data="amountByCategoryData" :options="horizontalAmountOptions" class="h-72" />
+          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
+            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
+            <span>No data available</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-span-12">
         <div class="card">
-          <div class="font-semibold text-xl mb-4">Recent Applications</div>
-          <DataTable :value="dashboardData?.recent_applications ?? []" striped-rows class="w-full">
+          <div class="font-semibold text-xl mb-4">Recent Reviews</div>
+          <DataTable :value="dashboardData?.recent_reviews ?? []" striped-rows class="w-full">
             <Column field="reference_code" header="Code">
               <template #body="{ data }">
                 <span class="font-mono text-sm font-medium" style="color: #1B4F72">{{ data.reference_code }}</span>
               </template>
             </Column>
-            <Column field="beneficiary_first_name" header="Beneficiary">
+            <Column field="claimant_name" header="Claimant" />
+            <Column field="category_name" header="Category" />
+            <Column field="amount" header="Amount">
               <template #body="{ data }">
-                {{ data.beneficiary_first_name }} {{ data.beneficiary_last_name }}
+                {{ data.amount != null ? formatCurrency(data.amount) : '—' }}
               </template>
             </Column>
-            <Column field="category_name" header="Category">
+            <Column field="decision" header="Decision">
               <template #body="{ data }">
-                {{ data.category?.category_name || '—' }}
+                <span
+                  class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize"
+                  :style="data.decision === 'approved'
+                    ? 'background-color: rgba(5, 150, 105, 0.15); color: ' + CHART_COLORS.success
+                    : 'background-color: rgba(220, 38, 38, 0.15); color: ' + CHART_COLORS.danger"
+                >{{ data.decision }}</span>
               </template>
             </Column>
-            <Column field="submission_type" header="Type">
+            <Column field="reviewed_at" header="Date">
               <template #body="{ data }">
-                <span class="capitalize">{{ data.submission_type }}</span>
-              </template>
-            </Column>
-            <Column field="status" header="Status">
-              <template #body="{ data }">
-                <AppStatusBadge :status="data.status" />
-              </template>
-            </Column>
-            <Column field="created_at" header="Date">
-              <template #body="{ data }">
-                {{ formatDate(data.created_at) }}
+                {{ formatDate(data.reviewed_at) }}
               </template>
             </Column>
             <template #empty>
-              <AppEmptyState icon="pi pi-inbox" message="No applications yet" />
+              <AppEmptyState icon="pi pi-inbox" message="No reviews yet" />
             </template>
           </DataTable>
         </div>
@@ -249,13 +254,7 @@ const doughnutOptions = baseChartOptions({
             <Skeleton width="100%" height="260px" />
           </div>
         </div>
-        <div class="col-span-12 xl:col-span-6">
-          <div class="card">
-            <Skeleton width="50%" height="1.5rem" class="mb-4" />
-            <Skeleton width="100%" height="260px" />
-          </div>
-        </div>
-        <div class="col-span-12 xl:col-span-6">
+        <div class="col-span-12">
           <div class="card">
             <Skeleton width="50%" height="1.5rem" class="mb-4" />
             <div class="space-y-3">

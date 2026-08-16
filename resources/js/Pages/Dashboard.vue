@@ -3,6 +3,7 @@ import { Head, router, Deferred } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { useAuth } from '@/Composables/useAuth'
 import AppKpiCard from '@/Components/Common/AppKpiCard.vue'
+import AppGreeting from '@/Components/Common/AppGreeting.vue'
 import AppEmptyState from '@/Components/Common/AppEmptyState.vue'
 import Button from 'primevue/button'
 import Accordion from 'primevue/accordion'
@@ -27,6 +28,8 @@ const accountUrl = route('account.edit')
 
 <template>
   <Head title="Dashboard" />
+
+  <AppGreeting />
 
   <Deferred data="dashboardData">
     <Transition appear mode="out-in">

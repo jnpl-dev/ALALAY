@@ -4,6 +4,7 @@ namespace App\Http\Controllers\BudgetOffice;
 
 use App\Http\Controllers\Controller;
 use App\Models\Application;
+use App\Models\Review;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -15,40 +16,49 @@ class DashboardController extends Controller
 
         return Inertia::render('BudgetOffice/Dashboard', [
             'dashboardData' => Inertia::defer(function () use ($today, $weekStart) {
+                $reviews = Review::byStage('budget_checking');
+
                 return [
                     'pending_budget_checks' => Application::where('status', 'budget_checking')->count(),
                     'on_hold' => Application::where('status', 'voucher_on_hold')->count(),
-                    'recorded_today' => Application::where('status', 'voucher_recording')
-                        ->whereDate('updated_at', $today)->count(),
+                    'forwarded_today' => (clone $reviews)
+                        ->where('decision', 'approved')->whereDate('created_at', $today)->count(),
 
-                    'weekly_trend' => Application::selectRaw('DATE(created_at) as date, COUNT(*) as count')
+                    'decision_trend' => (clone $reviews)
                         ->where('created_at', '>=', $weekStart)
-                        ->groupBy('date')->orderBy('date')->get(),
+                        ->selectRaw('DATE(created_at) as date, decision, COUNT(*) as count')
+                        ->groupBy('date', 'decision')->orderBy('date')->get(),
 
-                    'category_distribution' => Application::selectRaw(
-                        'assistance_categories.category_name, COUNT(*) as count'
-                    )->join('assistance_categories', 'applications.category_id', '=', 'assistance_categories.id')
-                        ->where('applications.created_at', '>=', $weekStart)
+                    'decision_counts' => [
+                        'approved' => (clone $reviews)->where('decision', 'approved')
+                            ->where('created_at', '>=', $weekStart)->count(),
+                        'hold' => (clone $reviews)->where('decision', 'hold')
+                            ->where('created_at', '>=', $weekStart)->count(),
+                        'on_hold' => (clone $reviews)->where('decision', 'on_hold')
+                            ->where('created_at', '>=', $weekStart)->count(),
+                    ],
+
+                    'under_review_amount_by_category' => Application::whereIn('status', ['budget_checking', 'voucher_on_hold'])
+                        ->join('assistance_codes', 'assistance_codes.application_id', '=', 'applications.id')
+                        ->join('assistance_categories', 'assistance_categories.id', '=', 'applications.category_id')
+                        ->selectRaw('assistance_categories.category_name, SUM(assistance_codes.amount) as total')
                         ->groupBy('assistance_categories.category_name')->get(),
 
-                    'submission_type_distribution' => Application::selectRaw(
-                        'submission_type, COUNT(*) as count'
-                    )->where('created_at', '>=', $weekStart)
-                        ->whereNotNull('submission_type')
-                        ->groupBy('submission_type')->get(),
-
-                    'barangay_distribution' => Application::selectRaw(
-                        'beneficiary_barangay as barangay, COUNT(*) as count'
-                    )->where('created_at', '>=', $weekStart)
-                        ->whereNotNull('beneficiary_barangay')
-                        ->groupBy('beneficiary_barangay')
-                        ->orderByDesc('count')->limit(10)->get(),
-
-                    'recent_applications' => Application::with('category')
-                        ->orderByDesc('updated_at')->limit(5)
-                        ->get(['id', 'reference_code', 'beneficiary_first_name',
-                            'beneficiary_last_name', 'category_id',
-                            'submission_type', 'status', 'created_at']),
+                    'recent_reviews' => (clone $reviews)
+                        ->with(['application.category', 'application.assistanceCode'])
+                        ->latest()
+                        ->limit(5)
+                        ->get(['application_id', 'decision', 'created_at'])
+                        ->map(fn ($r) => [
+                            'reference_code' => $r->application?->reference_code,
+                            'claimant_name' => $r->application
+                                ? $r->application->claimant_first_name . ' ' . $r->application->claimant_last_name
+                                : '—',
+                            'category_name' => $r->application?->category?->category_name ?? '—',
+                            'amount' => $r->application?->assistanceCode?->amount,
+                            'decision' => $r->decision,
+                            'reviewed_at' => $r->created_at,
+                        ]),
                 ];
             }),
         ]);

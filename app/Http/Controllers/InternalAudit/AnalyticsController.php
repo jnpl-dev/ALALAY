@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\InternalAudit;
 
 use App\Http\Controllers\Controller;
-use App\Models\Application;
 use App\Models\AssistanceCode;
+use App\Models\Review;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -23,40 +23,44 @@ class AnalyticsController extends Controller
 
         return Inertia::render('InternalAudit/Analytics', [
             'analyticsData' => Inertia::defer(function () use ($dateFrom, $dateTo) {
-                $base = Application::whereBetween('applications.created_at', [$dateFrom, $dateTo]);
+                $reviews = Review::byStage('internal_audit_review')
+                    ->whereBetween('reviews.created_at', [$dateFrom, $dateTo]);
+
                 $days = max(1, $dateFrom->diffInDays($dateTo) + 1);
 
+                $approvedIds = (clone $reviews)->where('decision', 'approved')
+                    ->distinct()->pluck('application_id');
+
+                $codedAmount = AssistanceCode::whereIn('application_id', $approvedIds)
+                    ->sum('amount');
+                $codedCount = $approvedIds->count();
+
                 return [
-                    'total_applications' => (clone $base)->count(),
-                    'average_per_day' => round((clone $base)->count() / $days, 1),
-                    'total_approved' => (clone $base)->where('status', 'voucher_creation')->count(),
-                    'total_returned' => (clone $base)->where('status', 'returned_assistance_coding')->count(),
-                    'total_amount' => AssistanceCode::whereHas('application',
-                        fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo])
-                    )->sum('amount'),
-                    'average_amount' => AssistanceCode::whereHas('application',
-                        fn ($q) => $q->whereBetween('created_at', [$dateFrom, $dateTo])
-                    )->avg('amount'),
+                    'total_reviewed' => (clone $reviews)->count(),
+                    'average_reviewed_per_day' => round((clone $reviews)->count() / $days, 1),
+                    'approved' => (clone $reviews)->where('decision', 'approved')->count(),
+                    'returned' => (clone $reviews)->where('decision', 'returned')->count(),
+                    'coded_amount' => $codedAmount,
+                    'average_coded_amount' => $codedCount > 0 ? round($codedAmount / $codedCount, 2) : 0,
+                    'approved_count' => $codedCount,
 
-                    'trend' => (clone $base)
-                        ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
-                        ->groupBy('date')->orderBy('date')->get(),
+                    'decision_trend' => (clone $reviews)
+                        ->selectRaw('DATE(created_at) as date, decision, COUNT(*) as count')
+                        ->groupBy('date', 'decision')->orderBy('date')->get(),
 
-                    'category_distribution' => (clone $base)
+                    'category_distribution' => (clone $reviews)
+                        ->join('applications', 'applications.id', '=', 'reviews.application_id')
+                        ->join('assistance_categories', 'assistance_categories.id', '=', 'applications.category_id')
                         ->selectRaw('assistance_categories.category_name, COUNT(*) as count')
-                        ->join('assistance_categories', 'applications.category_id', '=', 'assistance_categories.id')
                         ->groupBy('assistance_categories.category_name')->get(),
 
-                    'submission_type' => (clone $base)
-                        ->selectRaw('submission_type, COUNT(*) as count')
-                        ->whereNotNull('submission_type')
-                        ->groupBy('submission_type')->get(),
-
-                    'barangay_distribution' => (clone $base)
-                        ->selectRaw('beneficiary_barangay as barangay, COUNT(*) as count')
-                        ->whereNotNull('beneficiary_barangay')
-                        ->groupBy('beneficiary_barangay')
-                        ->orderByDesc('count')->limit(10)->get(),
+                    'amount_by_category' => (clone $reviews)
+                        ->where('decision', 'approved')
+                        ->join('assistance_codes', 'assistance_codes.application_id', '=', 'reviews.application_id')
+                        ->join('applications', 'applications.id', '=', 'reviews.application_id')
+                        ->join('assistance_categories', 'assistance_categories.id', '=', 'applications.category_id')
+                        ->selectRaw('assistance_categories.category_name, SUM(assistance_codes.amount) as total')
+                        ->groupBy('assistance_categories.category_name')->get(),
                 ];
             }),
             'filters' => [
