@@ -135,8 +135,7 @@ class TrackOtpTest extends TestCase
             'otp_code' => '000000',
         ]);
 
-        $response->assertRedirect(route('track.show', 'TEST-OTP-001'));
-        $response->assertSessionHas('error');
+        $response->assertSessionHasErrors('otp_code');
         $this->assertEquals(1, session('track_otp_TEST-OTP-001')['attempts']);
     }
 
@@ -168,8 +167,7 @@ class TrackOtpTest extends TestCase
             'otp_code' => '123456',
         ]);
 
-        $response->assertRedirect(route('track.show', 'TEST-OTP-001'));
-        $response->assertSessionHas('error');
+        $response->assertSessionHasErrors('otp_code');
     }
 
     public function test_verify_with_too_many_attempts_is_blocked(): void
@@ -184,8 +182,7 @@ class TrackOtpTest extends TestCase
             'otp_code' => '123456',
         ]);
 
-        $response->assertRedirect(route('track.show', 'TEST-OTP-001'));
-        $response->assertSessionHas('error');
+        $response->assertSessionHasErrors('otp_code');
     }
 
     public function test_send_otp_returns_not_found_for_nonexistent_reference(): void
@@ -204,5 +201,61 @@ class TrackOtpTest extends TestCase
 
         $response = $this->post(route('track.verify-otp', 'TEST-OTP-001'), []);
         $response->assertSessionHasErrors('otp_code');
+    }
+
+    public function test_resend_during_cooldown_is_blocked(): void
+    {
+        $this->post(route('track.send-otp', 'TEST-OTP-001'));
+        $stored = session('track_otp_TEST-OTP-001');
+        $this->assertNotNull($stored);
+
+        $response = $this->post(route('track.send-otp', 'TEST-OTP-001'));
+
+        $response->assertSessionHasErrors('otp_code');
+    }
+
+    public function test_resend_after_cooldown_succeeds(): void
+    {
+        $this->post(route('track.send-otp', 'TEST-OTP-001'));
+        session()->put('track_resend_TEST-OTP-001', [
+            'count' => 1,
+            'available_at' => now()->subMinute(),
+        ]);
+
+        $response = $this->post(route('track.send-otp', 'TEST-OTP-001'));
+
+        $response->assertRedirect(route('track.show', 'TEST-OTP-001'));
+        $this->assertEquals(0, session('track_otp_TEST-OTP-001')['attempts']);
+        $this->assertEquals(2, session('track_resend_TEST-OTP-001')['count']);
+    }
+
+    public function test_resend_limit_of_three_is_enforced(): void
+    {
+        session()->put('track_otp_TEST-OTP-001', [
+            'code' => Hash::make('123456'),
+            'expires_at' => now()->addMinutes(5),
+            'attempts' => 0,
+        ]);
+        session()->put('track_resend_TEST-OTP-001', [
+            'count' => 3,
+            'available_at' => now()->subMinute(),
+        ]);
+
+        $response = $this->post(route('track.send-otp', 'TEST-OTP-001'));
+
+        $response->assertSessionHasErrors('otp_code');
+    }
+
+    public function test_flags_passed_to_track_page(): void
+    {
+        $this->post(route('track.send-otp', 'TEST-OTP-001'));
+
+        $response = $this->get(route('track.show', 'TEST-OTP-001'));
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('otp_resend_count', 0)
+            ->where('otp_resend_limit', 3)
+            ->where('otp_resend_available_at', session('track_resend_TEST-OTP-001')['available_at']->toISOString())
+        );
     }
 }

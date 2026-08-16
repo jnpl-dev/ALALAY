@@ -22,7 +22,12 @@ class OtpChallengeController extends Controller
             return redirect()->route('login');
         }
 
-        return Inertia::render('Auth/EmailOtpChallenge');
+        return Inertia::render('Auth/EmailOtpChallenge', [
+            'otp_available_at' => session('otp_resend_available_at'),
+            'otp_resend_count' => session('otp_resend_count', 0),
+            'otp_resend_limit' => 3,
+            'otp_cooldown_seconds' => 60,
+        ]);
     }
 
     public function verify(OtpChallengeRequest $request, EmailOtpService $otpService)
@@ -41,7 +46,7 @@ class OtpChallengeController extends Controller
 
         if (! $otpService->verify($user, $validated['otp_code'])) {
             throw ValidationException::withMessages([
-                'otp_code' => ['The verification code is invalid or has expired.'],
+                'otp_code' => ['The verification code is invalid.'],
             ]);
         }
 
@@ -98,7 +103,28 @@ class OtpChallengeController extends Controller
             return redirect()->route('login');
         }
 
+        $resendCount = (int) session('otp_resend_count', 0);
+        $availableAt = session('otp_resend_available_at')
+            ? \Illuminate\Support\Carbon::parse(session('otp_resend_available_at'))
+            : null;
+
+        if ($resendCount >= 3) {
+            throw ValidationException::withMessages([
+                'otp_code' => ['Resend limit reached. Please try again later.'],
+            ]);
+        }
+
+        if ($availableAt && now()->lt($availableAt)) {
+            $remaining = max(1, (int) ceil(now()->diffInSeconds($availableAt)));
+            throw ValidationException::withMessages([
+                'otp_code' => ["Please wait {$remaining}s before requesting a new code."],
+            ]);
+        }
+
         $otpService->generate($user);
+
+        session()->put('otp_resend_count', $resendCount + 1);
+        session()->put('otp_resend_available_at', now()->addMinute());
 
         return redirect()->route('otp.challenge')->with('success', 'A new verification code has been sent to your email.');
     }

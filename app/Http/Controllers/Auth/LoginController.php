@@ -42,6 +42,8 @@ class LoginController extends Controller
 
         $request->session()->put('otp_user_id', $user->id);
         $request->session()->put('otp_remember', $validated['remember'] ?? false);
+        $request->session()->put('otp_resend_count', 0);
+        $request->session()->put('otp_resend_available_at', now()->addMinute());
 
         return redirect()->route('otp.challenge');
     }

@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -65,6 +66,7 @@ class ApplicationController extends Controller
                 $stored = $request->session()->get('track_otp_' . $referenceCode);
                 $otpExpired = now() > $stored['expires_at'];
             }
+            $resendData = $request->session()->get('track_resend_' . $referenceCode);
             return Inertia::render('Public/Track', [
                 'application' => null,
                 'documents' => [],
@@ -74,6 +76,10 @@ class ApplicationController extends Controller
                 'otp_sent' => $otpSent,
                 'otp_expired' => $otpExpired,
                 'otp_attempts' => $otpSent ? ($request->session()->get('track_otp_' . $referenceCode)['attempts'] ?? 0) : 0,
+                'otp_resend_count' => $resendData['count'] ?? 0,
+                'otp_resend_available_at' => $resendData['available_at'] ?? null,
+                'otp_resend_limit' => 3,
+                'otp_cooldown_seconds' => 300,
                 'reference_code' => $referenceCode,
             ]);
         }
@@ -154,12 +160,37 @@ class ApplicationController extends Controller
     {
         $application = Application::where('reference_code', $referenceCode)->firstOrFail();
 
+        $isResend = $request->session()->has('track_otp_' . $referenceCode);
+        $resendData = $request->session()->get('track_resend_' . $referenceCode);
+        $resendCount = $isResend ? ($resendData['count'] ?? 0) : 0;
+        $availableAt = isset($resendData['available_at'])
+            ? \Illuminate\Support\Carbon::parse($resendData['available_at'])
+            : null;
+
+        if ($isResend && $resendCount >= 3) {
+            throw ValidationException::withMessages([
+                'otp_code' => ['Resend limit reached. Please try again later.'],
+            ]);
+        }
+
+        if ($isResend && $availableAt && now()->lt($availableAt)) {
+            $remaining = max(1, (int) ceil(now()->diffInSeconds($availableAt)));
+            throw ValidationException::withMessages([
+                'otp_code' => ["Please wait {$remaining}s before requesting a new code."],
+            ]);
+        }
+
         $code = str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
 
         $request->session()->put('track_otp_' . $referenceCode, [
             'code' => Hash::make($code),
             'expires_at' => now()->addMinutes(5),
             'attempts' => 0,
+        ]);
+
+        $request->session()->put('track_resend_' . $referenceCode, [
+            'count' => $isResend ? $resendCount + 1 : 0,
+            'available_at' => now()->addMinutes(5),
         ]);
 
         $phone = $application->claimant_phone;
@@ -195,20 +226,23 @@ class ApplicationController extends Controller
         $stored = $request->session()->get('track_otp_' . $referenceCode);
 
         if (!$stored || now() > $stored['expires_at']) {
-            return redirect()->route('track.show', $referenceCode)
-                ->with('error', 'OTP has expired. Request a new one.');
+            throw ValidationException::withMessages([
+                'otp_code' => ['The verification code is invalid.'],
+            ]);
         }
 
         if ($stored['attempts'] >= 5) {
-            return redirect()->route('track.show', $referenceCode)
-                ->with('error', 'Too many incorrect attempts. Request a new OTP.');
+            throw ValidationException::withMessages([
+                'otp_code' => ['Too many incorrect attempts. Request a new OTP.'],
+            ]);
         }
 
         if (!Hash::check($request->otp_code, $stored['code'])) {
             $stored['attempts']++;
             $request->session()->put('track_otp_' . $referenceCode, $stored);
-            return redirect()->route('track.show', $referenceCode)
-                ->with('error', 'Invalid OTP code. Please try again.');
+            throw ValidationException::withMessages([
+                'otp_code' => ['The verification code is invalid.'],
+            ]);
         }
 
         $request->session()->put('track_verified_' . $referenceCode, true);

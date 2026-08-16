@@ -1,10 +1,12 @@
 <script setup>
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 
 const page = usePage()
 
 const homeUrl = route('home')
+
+const pageErrors = computed(() => page.props.errors || {})
 
 const form = useForm({
   otp_code: '',
@@ -15,6 +17,42 @@ const inputRefs = ref([])
 
 const otpString = computed(() => digits.value.join(''))
 
+const nowTs = ref(Date.now())
+let countdownTimer = null
+
+const resendAvailableAt = computed(() => {
+  const value = page.props.otp_available_at
+  if (!value) return null
+  const ts = new Date(value).getTime()
+  return Number.isNaN(ts) ? null : ts
+})
+
+const resendCount = computed(() => Number(page.props.otp_resend_count ?? 0))
+const resendLimit = computed(() => Number(page.props.otp_resend_limit ?? 3))
+const cooldownSeconds = computed(() => Number(page.props.otp_cooldown_seconds ?? 60))
+
+const resendCooldownLeft = computed(() => {
+  if (!resendAvailableAt.value) return 0
+  return Math.max(0, Math.ceil((resendAvailableAt.value - nowTs.value) / 1000))
+})
+
+const resendAllowed = computed(() =>
+  resendCooldownLeft.value === 0 && resendCount.value < resendLimit.value
+)
+
+const resendLabel = computed(() => {
+  if (resendCount.value >= resendLimit.value) return 'Resend limit reached'
+  return resendCooldownLeft.value > 0 ? `Resend in ${resendCooldownLeft.value}s` : 'Resend Code'
+})
+
+onMounted(() => {
+  countdownTimer = setInterval(() => { nowTs.value = Date.now() }, 1000)
+})
+
+onBeforeUnmount(() => {
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
 const submit = () => {
   form.otp_code = otpString.value
   form.post(route('otp.challenge'), {
@@ -24,16 +62,19 @@ const submit = () => {
 }
 
 const resend = () => {
+  if (!resendAllowed.value || form.processing) return
   form.post(route('otp.resend'), {
     preserveState: true,
     onSuccess: () => {
       digits.value = ['', '', '', '', '', '']
-      form.errors.otp_code = null
+      clearOtpError()
+      nowTs.value = Date.now()
     },
   })
 }
 
 const handleInput = (index, e) => {
+  clearOtpError()
   const val = e.target.value
   if (!/^\d*$/.test(val)) {
     e.target.value = digits.value[index]
@@ -42,6 +83,13 @@ const handleInput = (index, e) => {
   digits.value[index] = val.slice(-1)
   if (val && index < 5) {
     inputRefs.value[index + 1]?.focus()
+  }
+}
+
+const clearOtpError = () => {
+  form.errors.otp_code = null
+  if (page.props.errors) {
+    delete page.props.errors.otp_code
   }
 }
 
@@ -92,10 +140,6 @@ const setRef = (el, index) => {
           {{ page.props.flash.success }}
         </div>
 
-        <div v-if="page.props.flash?.success" class="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-lg px-4 py-3 mb-4">
-          {{ page.props.flash.success }}
-        </div>
-
         <form @submit.prevent="submit">
           <div class="flex justify-center gap-2 sm:gap-3 mb-2">
             <input
@@ -108,15 +152,15 @@ const setRef = (el, index) => {
               maxlength="1"
               autocomplete="one-time-code"
               class="w-11 h-12 sm:w-12 sm:h-14 text-center text-lg font-bold rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              :class="form.errors.otp_code ? 'border-red-300 bg-red-50' : 'border-emerald-200 bg-emerald-50/50'"
+              :class="form.errors.otp_code || pageErrors.otp_code ? 'border-red-300 bg-red-50' : 'border-emerald-200 bg-emerald-50/50'"
               :disabled="form.processing"
               @input="handleInput(i, $event)"
               @keydown="handleKeydown(i, $event)"
               @paste="handlePaste"
             />
           </div>
-          <p v-if="form.errors.otp_code" class="mb-6 text-sm text-center text-red-600">
-            {{ form.errors.otp_code }}
+          <p v-if="form.errors.otp_code || pageErrors.otp_code" class="mb-6 text-sm text-center text-red-600">
+            {{ form.errors.otp_code || pageErrors.otp_code }}
           </p>
           <p v-else class="mb-6 text-xs text-center text-gray-400">
             Enter the 6-digit code from your email.
@@ -138,11 +182,11 @@ const setRef = (el, index) => {
           <div class="text-center">
             <button
               type="button"
-              :disabled="form.processing"
+              :disabled="!resendAllowed || form.processing"
               class="text-sm text-emerald-600 hover:text-emerald-800 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               @click="resend"
             >
-              Resend Code
+              {{ resendLabel }}
             </button>
           </div>
         </form>

@@ -17,6 +17,10 @@ const props = defineProps({
   otp_sent: Boolean,
   otp_expired: Boolean,
   otp_attempts: Number,
+  otp_resend_count: Number,
+  otp_resend_available_at: [String, null],
+  otp_resend_limit: Number,
+  otp_cooldown_seconds: Number,
   reference_code: String,
 })
 
@@ -41,26 +45,76 @@ watch(() => usePage().props.errors, (errors) => {
   if (errors?.documents) showToast(errors.documents, 'error')
 }, { deep: true })
 
-onBeforeUnmount(() => clearTimeout(toastTimer))
-
 const hasApplication = computed(() => !!props.application)
 
 const otpForm = useForm({
   otp_code: '',
 })
 
+const otpPageErrors = computed(() => usePage().props.errors || {})
+
 const digits = ref(['', '', '', '', '', ''])
 const inputRefs = ref([])
 
 const otpString = computed(() => digits.value.join(''))
 
+function clearOtpError() {
+  otpForm.errors.otp_code = null
+  if (usePage().props.errors) {
+    delete usePage().props.errors.otp_code
+  }
+}
+
 function sendOtp() {
-  if (!props.reference_code) return
+  if (!props.reference_code || !otpResendAllowed.value) return
   router.post(route('track.send-otp', props.reference_code), {}, {
     preserveState: true,
     preserveScroll: true,
+    onSuccess: () => {
+      clearOtpError()
+      nowTs.value = Date.now()
+    },
   })
 }
+
+const nowTs = ref(Date.now())
+const cooldownTimer = ref(null)
+
+const otpResendAvailableAt = computed(() => {
+  if (!props.otp_resend_available_at) return null
+  const ts = new Date(props.otp_resend_available_at).getTime()
+  return Number.isNaN(ts) ? null : ts
+})
+
+const otpResendCount = computed(() => Number(props.otp_resend_count ?? 0))
+const otpResendLimit = computed(() => Number(props.otp_resend_limit ?? 3))
+
+const otpResendCooldownLeft = computed(() => {
+  if (!otpResendAvailableAt.value) return 0
+  return Math.max(0, Math.ceil((otpResendAvailableAt.value - nowTs.value) / 1000))
+})
+
+const otpResendAllowed = computed(() =>
+  otpResendCooldownLeft.value === 0 && otpResendCount.value < otpResendLimit.value
+)
+
+const otpResendLabel = computed(() => {
+  if (otpResendCount.value >= otpResendLimit.value) return 'Resend limit reached'
+  return otpResendCooldownLeft.value > 0
+    ? `${new Intl.NumberFormat().format(otpResendCooldownLeft.value)}s`
+    : 'Resend OTP'
+})
+
+watch(() => [props.otp_resend_available_at, props.otp_sent], () => {
+  nowTs.value = Date.now()
+  if (cooldownTimer.value) clearInterval(cooldownTimer.value)
+  cooldownTimer.value = setInterval(() => { nowTs.value = Date.now() }, 1000)
+}, { immediate: true })
+
+onBeforeUnmount(() => {
+  clearTimeout(toastTimer)
+  if (cooldownTimer.value) clearInterval(cooldownTimer.value)
+})
 
 function submitOtp() {
   if (!props.reference_code || otpString.value.length !== 6) return
@@ -72,6 +126,7 @@ function submitOtp() {
 }
 
 function handleInput(index, e) {
+  clearOtpError()
   const val = e.target.value
   if (!/^\d*$/.test(val)) {
     e.target.value = digits.value[index]
@@ -305,7 +360,6 @@ const timelineSteps = computed(() => {
         </div>
 
         <div v-if="!otp_sent" class="text-center">
-          <p class="text-sm text-gray-600 mb-6">{{ $t('track.otp_will_send') }}</p>
           <button
             @click="sendOtp"
             :disabled="otpForm.processing"
@@ -320,10 +374,10 @@ const timelineSteps = computed(() => {
             <p class="text-sm text-amber-600 mb-4">{{ $t('track.otp_expired') }}</p>
             <button
               @click="sendOtp"
-              :disabled="otpForm.processing"
-              class="px-8 py-3 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50"
+              :disabled="!otpResendAllowed || otpForm.processing"
+              class="px-8 py-3 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {{ $t('track.otp_resend') }}
+              {{ otpForm.processing ? $t('track.otp_sending') : otpResendLabel }}
             </button>
           </div>
 
@@ -341,7 +395,7 @@ const timelineSteps = computed(() => {
                 maxlength="1"
                 autocomplete="one-time-code"
                 class="w-11 h-12 sm:w-12 sm:h-14 text-center text-lg font-bold rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                :class="otpForm.errors.otp_code ? 'border-red-300 bg-red-50' : 'border-emerald-200 bg-emerald-50/50'"
+                :class="otpForm.errors.otp_code || otpPageErrors.otp_code ? 'border-red-300 bg-red-50' : 'border-emerald-200 bg-emerald-50/50'"
                 :disabled="otpForm.processing"
                 @input="handleInput(i, $event)"
                 @keydown="handleKeydown(i, $event)"
@@ -349,8 +403,8 @@ const timelineSteps = computed(() => {
               />
             </div>
 
-            <div v-if="otpForm.errors.otp_code" class="text-center mb-4">
-              <p class="text-sm text-red-600">{{ otpForm.errors.otp_code }}</p>
+            <div v-if="otpForm.errors.otp_code || otpPageErrors.otp_code" class="text-center mb-4">
+              <p class="text-sm text-red-600">{{ otpForm.errors.otp_code || otpPageErrors.otp_code }}</p>
             </div>
 
             <div class="flex flex-col gap-3">
@@ -366,10 +420,10 @@ const timelineSteps = computed(() => {
               <div class="text-center">
                 <button
                   @click="sendOtp"
-                  :disabled="otpForm.processing"
-                  class="text-sm text-emerald-600 hover:text-emerald-800 font-medium transition-colors cursor-pointer disabled:opacity-50"
+                  :disabled="!otpResendAllowed || otpForm.processing"
+                  class="text-sm text-emerald-600 hover:text-emerald-800 font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {{ $t('track.otp_resend') }}
+                  {{ otpResendLabel }}
                 </button>
               </div>
             </div>

@@ -152,6 +152,10 @@ const phoneValid = useFieldValidation(
   { debounceMs: 400 },
 )
 
+function sanitizePhone(e) {
+  form.claimant_phone = e.target.value.replace(/\D/g, '').slice(0, 11)
+}
+
 onMounted(async () => {
   await claimantAddr.fetchProvinces()
   await beneficiaryAddr.fetchProvinces()
@@ -582,13 +586,13 @@ async function submitApplication() {
             <div class="space-y-2">
               <div class="grid grid-cols-2 gap-2">
                 <div>
-                  <select v-model="claimantAddr.selectedProvince" @change="claimantAddr.setProvince(claimantAddr.selectedProvince)" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                  <select v-model="claimantAddr.selectedProvince" @change="claimantAddr.setProvince(claimantAddr.selectedProvince)" disabled class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50">
                     <option :value="null" disabled>{{ claimantAddr.loadingProvinces ? $t('common.checking') : $t('apply.select_province') }}</option>
                     <option v-for="p in claimantAddr.provinces" :key="p.code" :value="p">{{ p.name }}</option>
                   </select>
                 </div>
                 <div>
-                  <select v-model="claimantAddr.selectedCity" @change="claimantAddr.setCity(claimantAddr.selectedCity)" :disabled="!claimantAddr.selectedProvince" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <select v-model="claimantAddr.selectedCity" @change="claimantAddr.setCity(claimantAddr.selectedCity)" disabled class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50">
                     <option :value="null" disabled>{{ claimantAddr.loadingCities ? $t('common.checking') : $t('apply.select_city') }}</option>
                     <option v-for="c in claimantAddr.cities" :key="c.code" :value="c">{{ c.name }}</option>
                   </select>
@@ -613,7 +617,7 @@ async function submitApplication() {
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label class="block mb-1 text-sm font-medium text-gray-700">{{ $t('apply.label_phone') }} <span class="text-red-500">*</span></label>
-              <input v-model="form.claimant_phone" type="tel" :placeholder="$t('apply.phone_placeholder')" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <input :value="form.claimant_phone" type="number" inputmode="numeric" maxlength="11" :placeholder="$t('apply.phone_placeholder')" @input="sanitizePhone" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
               <p v-if="form.errors.claimant_phone" class="mt-1 text-xs text-red-500">{{ form.errors.claimant_phone }}</p>
               <p v-else-if="phoneValid.isChecking.value && form.claimant_phone" class="mt-1 text-xs text-gray-400">{{ $t('apply.phone_checking') }}</p>
               <p v-else-if="phoneValid.isValid.value === false" class="mt-1 text-xs text-amber-600">{{ phoneValid.message.value }}</p>
@@ -705,13 +709,13 @@ async function submitApplication() {
             <div class="space-y-2">
               <div class="grid grid-cols-2 gap-2">
                 <div>
-                  <select v-model="beneficiaryAddr.selectedProvince" @change="beneficiaryAddr.setProvince(beneficiaryAddr.selectedProvince)" :disabled="sameAddress" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <select v-model="beneficiaryAddr.selectedProvince" @change="beneficiaryAddr.setProvince(beneficiaryAddr.selectedProvince)" disabled class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50">
                     <option :value="null" disabled>{{ beneficiaryAddr.loadingProvinces ? $t('common.checking') : $t('apply.select_province') }}</option>
                     <option v-for="p in beneficiaryAddr.provinces" :key="p.code" :value="p">{{ p.name }}</option>
                   </select>
                 </div>
                 <div>
-                  <select v-model="beneficiaryAddr.selectedCity" @change="beneficiaryAddr.setCity(beneficiaryAddr.selectedCity)" :disabled="sameAddress || !beneficiaryAddr.selectedProvince" class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <select v-model="beneficiaryAddr.selectedCity" @change="beneficiaryAddr.setCity(beneficiaryAddr.selectedCity)" disabled class="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50">
                     <option :value="null" disabled>{{ beneficiaryAddr.loadingCities ? $t('common.checking') : $t('apply.select_city') }}</option>
                     <option v-for="c in beneficiaryAddr.cities" :key="c.code" :value="c">{{ c.name }}</option>
                   </select>
