@@ -19,7 +19,13 @@ class SendContactMessageRequest extends FormRequest
             'email' => ['required', 'string', 'email', 'max:255'],
             'message' => ['required', 'string', 'min:10', 'max:5000'],
             'cf-turnstile-response' => ['nullable', new Turnstile],
+            'company_website' => ['nullable', 'string'],
         ];
+    }
+
+    public function isBot(): bool
+    {
+        return $this->filled('company_website');
     }
 
     public function messages(): array

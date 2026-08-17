@@ -64,7 +64,7 @@ class StoreApplicationRequest extends FormRequest
             'documents.*' => ['required', 'file', 'mimes:pdf', 'max:10240'],
             'document_ids' => ['required', 'array'],
             'document_ids.*' => ['required', 'exists:required_documents,id'],
-            'cf-turnstile-response' => ['nullable', new Turnstile],
+            'cf-turnstile-response' => $this->user() ? ['nullable'] : ['nullable', new Turnstile],
         ];
     }
 

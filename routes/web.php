@@ -47,23 +47,23 @@ Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('home');
 
-Route::post('/contact', [ContactController::class, 'send'])->name('contact.send');
+Route::post('/contact', [ContactController::class, 'send'])->name('contact.send')->middleware('throttle:contact');
 
 Route::get('/apply', [CategoryController::class, 'index'])->name('apply');
-Route::post('/apply', [ApplicationController::class, 'store']);
+Route::post('/apply', [ApplicationController::class, 'store'])->middleware('throttle:application_submit');
 
 Route::get('/track', [ApplicationController::class, 'track'])->name('track');
-Route::get('/track/poll', [ApplicationController::class, 'trackPoll'])->name('track.poll');
-Route::get('/track/{referenceCode}', [ApplicationController::class, 'show'])->name('track.show');
+Route::get('/track/poll', [ApplicationController::class, 'trackPoll'])->name('track.poll')->middleware('throttle:track_poll');
+Route::get('/track/{referenceCode}', [ApplicationController::class, 'show'])->name('track.show')->middleware('throttle:track_show');
 Route::post('/track/{referenceCode}/send-otp', [ApplicationController::class, 'sendTrackOtp'])->name('track.send-otp')->middleware('throttle:3,5');
 Route::post('/track/{referenceCode}/verify-otp', [ApplicationController::class, 'verifyTrackOtp'])->name('track.verify-otp')->middleware('throttle:10,5');
-Route::post('/track/{referenceCode}/resubmit', [ApplicationController::class, 'resubmit'])->name('track.resubmit');
+Route::post('/track/{referenceCode}/resubmit', [ApplicationController::class, 'resubmit'])->name('track.resubmit')->middleware('throttle:resubmit');
 
 // Real-time validation (public)
-Route::get('/validate/beneficiary', [ValidationController::class, 'checkBeneficiary'])->name('validate.beneficiary');
-Route::get('/validate/phone', [ValidationController::class, 'checkPhone'])->name('validate.phone');
-Route::get('/validate/email', [ValidationController::class, 'checkEmail'])->name('validate.email');
-Route::get('/validate/reference-code', [ValidationController::class, 'checkReferenceCode'])->name('validate.reference-code');
+Route::get('/validate/beneficiary', [ValidationController::class, 'checkBeneficiary'])->name('validate.beneficiary')->middleware('throttle:public_validate');
+Route::get('/validate/phone', [ValidationController::class, 'checkPhone'])->name('validate.phone')->middleware('throttle:public_validate');
+Route::get('/validate/email', [ValidationController::class, 'checkEmail'])->name('validate.email')->middleware('throttle:public_validate');
+Route::get('/validate/reference-code', [ValidationController::class, 'checkReferenceCode'])->name('validate.reference-code')->middleware('throttle:public_validate');
 
 // Auth routes (guest only)
 Route::middleware('guest')->group(function () {
@@ -72,15 +72,17 @@ Route::middleware('guest')->group(function () {
     Route::get('/forgot-password', function () {
         return Inertia::render('Auth/ForgotPassword');
     })->name('password.request');
+    Route::post('/forgot-password', [\Laravel\Fortify\Http\Controllers\PasswordResetLinkController::class, 'store'])->name('password.email')->middleware('throttle:forgot_password');
     Route::get('/reset-password/{token}', function (Request $request) {
         return Inertia::render('Auth/ResetPassword', [
             'token' => $request->token,
             'email' => $request->email,
         ]);
     })->name('password.reset');
+    Route::post('/reset-password', [\Laravel\Fortify\Http\Controllers\NewPasswordController::class, 'store'])->name('password.update')->middleware('throttle:reset_password');
     Route::get('/otp-challenge', [OtpChallengeController::class, 'show'])->name('otp.challenge');
-    Route::post('/otp-challenge', [OtpChallengeController::class, 'verify'])->name('otp.verify');
-    Route::post('/otp-challenge/resend', [OtpChallengeController::class, 'resend'])->name('otp.resend');
+    Route::post('/otp-challenge', [OtpChallengeController::class, 'verify'])->name('otp.verify')->middleware('throttle:otp_verify');
+    Route::post('/otp-challenge/resend', [OtpChallengeController::class, 'resend'])->name('otp.resend')->middleware('throttle:otp_resend');
 });
 
 // Authenticated routes (any role)
@@ -131,7 +133,7 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/analytics', [AicsAnalyticsController::class, 'index'])->name('analytics');
         Route::get('/applications', [AicsApplicationController::class, 'index'])->name('applications.index');
         Route::get('/applications/create', [AicsApplicationController::class, 'create'])->name('applications.create');
-        Route::post('/applications', [AicsApplicationController::class, 'storeAssisted'])->name('applications.store-assisted');
+        Route::post('/applications', [AicsApplicationController::class, 'storeAssisted'])->name('applications.store-assisted')->middleware('throttle:assisted_submit');
         Route::get('/applications/export', [AicsApplicationController::class, 'export'])->name('applications.export');
         Route::get('/applications/poll', [AicsApplicationController::class, 'poll'])->name('applications.poll');
         Route::get('/applications/{application}', [AicsApplicationController::class, 'show'])->name('applications.show');
