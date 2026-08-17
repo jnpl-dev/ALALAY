@@ -13,6 +13,7 @@ use App\Services\ApplicationSubmissionService;
 use App\Services\FileUploadService;
 use App\Services\SignedUrlService;
 use App\Services\SmsService;
+use App\Rules\Turnstile;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -159,6 +160,12 @@ class ApplicationController extends Controller
     public function sendTrackOtp(string $referenceCode, Request $request)
     {
         $application = Application::where('reference_code', $referenceCode)->firstOrFail();
+
+        if (config('turnstile.enabled')) {
+            $request->validate([
+                'cf-turnstile-response' => ['nullable', new Turnstile],
+            ]);
+        }
 
         $isResend = $request->session()->has('track_otp_' . $referenceCode);
         $resendData = $request->session()->get('track_resend_' . $referenceCode);

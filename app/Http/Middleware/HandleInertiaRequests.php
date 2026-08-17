@@ -42,6 +42,9 @@ class HandleInertiaRequests extends Middleware
                 'error' => $request->session()->get('error'),
                 'reference_code' => $request->session()->get('reference_code'),
             ],
+            'utils' => [
+                'turnstile_site_key' => config('turnstile.site_key'),
+            ],
             'ziggy' => fn () => (new Ziggy)->toArray(),
         ];
     }

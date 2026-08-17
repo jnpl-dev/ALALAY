@@ -5,6 +5,7 @@ namespace App\Http\Requests\Public;
 use App\Models\AssistanceCategory;
 use App\Models\RequiredDocument;
 use App\Rules\BeneficiaryEligible;
+use App\Rules\Turnstile;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreApplicationRequest extends FormRequest
@@ -63,6 +64,7 @@ class StoreApplicationRequest extends FormRequest
             'documents.*' => ['required', 'file', 'mimes:pdf', 'max:10240'],
             'document_ids' => ['required', 'array'],
             'document_ids.*' => ['required', 'exists:required_documents,id'],
+            'cf-turnstile-response' => ['nullable', new Turnstile],
         ];
     }
 

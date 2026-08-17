@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Public;
 
+use App\Rules\Turnstile;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SendContactMessageRequest extends FormRequest
@@ -17,6 +18,7 @@ class SendContactMessageRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255'],
             'message' => ['required', 'string', 'min:10', 'max:5000'],
+            'cf-turnstile-response' => ['nullable', new Turnstile],
         ];
     }
 
