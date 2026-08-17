@@ -5,6 +5,20 @@ import { ref } from 'vue'
 const { locale } = useI18n()
 const open = ref(false)
 
+const vClickOutside = {
+  beforeMount(el, binding) {
+    el._clickOutsideHandler = (event) => {
+      if (el.contains(event.target) === false) {
+        binding.value()
+      }
+    }
+    document.addEventListener('click', el._clickOutsideHandler)
+  },
+  unmounted(el) {
+    document.removeEventListener('click', el._clickOutsideHandler)
+  },
+}
+
 function switchLanguage(lang) {
   locale.value = lang
   try { localStorage.setItem('locale', lang) } catch {}
