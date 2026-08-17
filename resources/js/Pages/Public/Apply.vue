@@ -4,6 +4,7 @@ import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3'
 import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import DocumentScanner from '@/Components/Application/DocumentScanner.vue'
+import TurnstileWidget from '@/Components/TurnstileWidget.vue'
 import { usePsgcAddress } from '@/Composables/usePsgcAddress.js'
 import { jsPDF } from 'jspdf'
 
@@ -127,7 +128,13 @@ const form = useForm({
   beneficiary_address: '',
   documents: [],
   document_ids: [],
+  'cf-turnstile-response': '',
 })
+
+const turnstileToken = ref('')
+function onTurnstileToken(token) {
+  turnstileToken.value = token
+}
 
 const claimantAddr = reactive(usePsgcAddress())
 const beneficiaryAddr = reactive(usePsgcAddress())
@@ -454,6 +461,7 @@ async function submitApplication() {
   submitProgress.value = 75
 
   form.documents = pdfFiles
+  form['cf-turnstile-response'] = turnstileToken.value || ''
 
   form.post(route('apply'), {
     preserveState: true,
@@ -462,6 +470,7 @@ async function submitApplication() {
       submitting.value = false
       currentStep.value = 4
       submittedCode.value = flash.value?.reference_code
+      turnstileToken.value = ''
     },
     onError: () => {
       submitting.value = false
@@ -978,11 +987,14 @@ const statusLabel = (status) => ({
           </div>
         </div>
 
-        <div class="flex justify-between mt-8">
-          <button @click="prevStep" :disabled="submitting" class="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50">{{ $t('apply.back') }}</button>
-          <button @click="submitApplication" :disabled="submitting" class="px-8 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-            {{ submitting ? $t('apply.processing') : $t('apply.submit') }}
-          </button>
+        <div class="flex flex-col items-center mt-8 gap-4">
+          <TurnstileWidget action="apply" @token="onTurnstileToken" />
+          <div class="flex justify-between w-full">
+            <button @click="prevStep" :disabled="submitting" class="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50">{{ $t('apply.back') }}</button>
+            <button @click="submitApplication" :disabled="submitting" class="px-8 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+              {{ submitting ? $t('apply.processing') : $t('apply.submit') }}
+            </button>
+          </div>
         </div>
       </div>
     </div>

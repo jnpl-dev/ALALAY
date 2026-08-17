@@ -24,11 +24,12 @@ class SecurityHeaders
             ? 'ws://localhost:5173 ws://127.0.0.1:5173'
             : '';
         $viteAll = ($viteOrigins ? " $viteOrigins" : '') . ($viteWsOrigins ? " $viteWsOrigins" : '');
+        $turnstile = config('turnstile.enabled') ? 'https://challenges.cloudflare.com' : '';
 
-        $scriptSrc = "'self' 'unsafe-inline' 'unsafe-eval'" . ($viteOrigins ? " $viteOrigins" : '');
+        $scriptSrc = "'self' 'unsafe-inline' 'unsafe-eval'" . ($turnstile ? " $turnstile" : '') . ($viteOrigins ? " $viteOrigins" : '');
         $styleSrc = "'self' 'unsafe-inline'" . ($viteOrigins ? " $viteOrigins" : '');
         $fontSrc = "'self' data:" . ($viteOrigins ? " $viteOrigins" : '');
-        $connectSrc = "'self' https://*.supabase.co https://psgc.gitlab.io" . ($viteWsOrigins ? " $viteWsOrigins" : '');
+        $connectSrc = "'self' https://*.supabase.co https://psgc.gitlab.io" . ($turnstile ? " $turnstile" : '') . ($viteWsOrigins ? " $viteWsOrigins" : '');
 
         $response->headers->set('Content-Security-Policy', implode('; ', [
             "default-src 'self'",
@@ -39,7 +40,7 @@ class SecurityHeaders
             "img-src 'self' data: blob: https://*.supabase.co",
             "media-src 'self' blob:",
             "connect-src $connectSrc",
-            "frame-src 'self' blob: https://*.supabase.co" . ($viteOrigins ? " $viteOrigins" : ''),
+            "frame-src 'self' blob: https://*.supabase.co" . ($turnstile ? " $turnstile" : '') . ($viteOrigins ? " $viteOrigins" : ''),
             "object-src 'none'",
             "frame-ancestors 'none'",
         ]));

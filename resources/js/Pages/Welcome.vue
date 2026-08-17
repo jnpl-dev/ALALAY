@@ -4,6 +4,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3'
 import { useI18n } from 'vue-i18n'
 import PublicLayout from '@/Layouts/PublicLayout.vue'
 import { useScrollReveal } from '@/Composables/useScrollReveal.js'
+import TurnstileWidget from '@/Components/TurnstileWidget.vue'
 
 const { t } = useI18n()
 useScrollReveal()
@@ -50,12 +51,20 @@ const contactForm = useForm({
   name: '',
   email: '',
   message: '',
+  'cf-turnstile-response': '',
 })
+
+const onContactTurnstileToken = (token) => {
+  contactForm['cf-turnstile-response'] = token
+}
 
 const submitContact = () => {
   contactForm.post(route('contact.send'), {
     preserveScroll: true,
-    onSuccess: () => contactForm.reset(),
+    onSuccess: () => {
+      contactForm.reset()
+      contactForm['cf-turnstile-response'] = ''
+    },
   })
 }
 
@@ -385,6 +394,7 @@ const trackUrl = route('track')
                   :placeholder="$t('contact.form_message_placeholder')"
                 ></textarea>
               </div>
+              <TurnstileWidget action="contact" @token="onContactTurnstileToken" class="flex justify-center" />
               <button
                 type="submit"
                 :disabled="contactForm.processing"

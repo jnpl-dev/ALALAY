@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { usePolling } from '@/Composables/usePolling'
 import { useFieldValidation } from '@/Composables/useFieldValidation'
 import DocumentScanner from '@/Components/Application/DocumentScanner.vue'
+import TurnstileWidget from '@/Components/TurnstileWidget.vue'
 
 const { t } = useI18n()
 
@@ -65,14 +66,23 @@ function clearOtpError() {
   }
 }
 
+const turnstileToken = ref('')
+
+function onTurnstileToken(token) {
+  turnstileToken.value = token
+}
+
 function sendOtp() {
   if (!props.reference_code || !otpResendAllowed.value) return
-  router.post(route('track.send-otp', props.reference_code), {}, {
+  router.post(route('track.send-otp', props.reference_code), {
+    'cf-turnstile-response': turnstileToken.value || '',
+  }, {
     preserveState: true,
     preserveScroll: true,
     onSuccess: () => {
       clearOtpError()
       nowTs.value = Date.now()
+      turnstileToken.value = ''
     },
   })
 }
@@ -360,6 +370,7 @@ const timelineSteps = computed(() => {
         </div>
 
         <div v-if="!otp_sent" class="text-center">
+          <TurnstileWidget action="track_otp" @token="onTurnstileToken" class="mb-4" />
           <button
             @click="sendOtp"
             :disabled="otpForm.processing"

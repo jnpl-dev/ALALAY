@@ -1,11 +1,13 @@
 <script setup>
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
+import TurnstileWidget from '@/Components/TurnstileWidget.vue'
 
 const form = useForm({
   email: usePage().props.email || '',
   password: '',
   remember: false,
+  'cf-turnstile-response': '',
 })
 
 const showPassword = ref(false)
@@ -15,8 +17,14 @@ const pageErrors = computed(() => usePage().props.errors || {})
 const homeUrl = route('home')
 const forgotUrl = route('password.request')
 
+const onTurnstileToken = (token) => {
+  form['cf-turnstile-response'] = token
+}
+
 const submit = () => {
-  form.post(route('login'))
+  form.post(route('login'), {
+    onSuccess: () => { form['cf-turnstile-response'] = '' },
+  })
 }
 </script>
 
@@ -101,6 +109,8 @@ const submit = () => {
               Forgot password?
             </Link>
           </div>
+
+          <TurnstileWidget action="login" @token="onTurnstileToken" />
 
           <button
             type="submit"
