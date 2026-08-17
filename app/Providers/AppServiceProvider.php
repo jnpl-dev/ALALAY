@@ -22,12 +22,15 @@ use App\Policies\SocialCaseStudyPolicy;
 use App\Policies\SystemSettingPolicy;
 use App\Policies\UserPolicy;
 use App\Policies\VoucherPolicy;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use Illuminate\Http\Request;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -70,5 +73,101 @@ class AppServiceProvider extends ServiceProvider
                 }
             });
         }
+
+        RateLimiter::for('contact', function (Request $request) {
+            return Limit::perMinutes(15, 5)
+                ->by($request->ip())
+                ->response(fn (Request $r) => $this->rateLimitResponse($r, 'Contact form limit reached for IP: ' . $r->ip()));
+        });
+
+        RateLimiter::for('application_submit', function (Request $request) {
+            $phone = preg_replace('/\D/', '', (string) $request->input('claimant_phone', ''));
+            $ip = $request->ip();
+
+            return [
+                Limit::perDay(3)
+                    ->by($phone)
+                    ->response(fn (Request $r) => $this->rateLimitResponse($r, 'Application submission limit reached for phone: ' . $phone)),
+                Limit::perDay(10)
+                    ->by($ip)
+                    ->response(fn (Request $r) => $this->rateLimitResponse($r, 'Application submission limit reached for IP: ' . $ip)),
+            ];
+        });
+
+        RateLimiter::for('resubmit', function (Request $request) {
+            return Limit::perMinutes(30, 5)
+                ->by($request->route('referenceCode') . '|' . $request->ip())
+                ->response(fn (Request $r) => $this->rateLimitResponse($r, 'Document resubmission limit reached for reference: ' . $r->route('referenceCode')));
+        });
+
+        RateLimiter::for('track_poll', function (Request $request) {
+            return Limit::perMinute(30)
+                ->by($request->ip())
+                ->response(fn (Request $r) => $this->rateLimitResponse($r, 'Track polling limit reached for IP: ' . $r->ip()));
+        });
+
+        RateLimiter::for('track_show', function (Request $request) {
+            return Limit::perMinute(30)
+                ->by($request->ip())
+                ->response(fn (Request $r) => $this->rateLimitResponse($r, 'Track page limit reached for IP: ' . $r->ip()));
+        });
+
+        RateLimiter::for('otp_verify', function (Request $request) {
+            return Limit::perMinute(10)
+                ->by($request->ip())
+                ->response(fn (Request $r) => $this->rateLimitResponse($r, 'OTP verification limit reached for IP: ' . $r->ip()));
+        });
+
+        RateLimiter::for('otp_resend', function (Request $request) {
+            return Limit::perMinutes(5, 3)
+                ->by($request->ip())
+                ->response(fn (Request $r) => $this->rateLimitResponse($r, 'OTP resend limit reached for IP: ' . $r->ip()));
+        });
+
+        RateLimiter::for('forgot_password', function (Request $request) {
+            return Limit::perMinutes(5, 2)
+                ->by($request->ip())
+                ->response(fn (Request $r) => $this->rateLimitResponse($r, 'Password reset request limit reached for IP: ' . $r->ip()));
+        });
+
+        RateLimiter::for('reset_password', function (Request $request) {
+            return Limit::perMinute(5)
+                ->by($request->ip())
+                ->response(fn (Request $r) => $this->rateLimitResponse($r, 'Password reset submission limit reached for IP: ' . $r->ip()));
+        });
+
+        RateLimiter::for('public_validate', function (Request $request) {
+            return Limit::perMinute(30)
+                ->by($request->ip())
+                ->response(fn (Request $r) => $this->rateLimitResponse($r, 'Validation endpoint limit reached for IP: ' . $r->ip()));
+        });
+
+        RateLimiter::for('assisted_submit', function (Request $request) {
+            return Limit::perDay(30)
+                ->by((string) ($request->user()?->id ?? $request->ip()))
+                ->response(fn (Request $r) => $this->rateLimitResponse($r, 'Assisted application limit reached for user: ' . ($r->user()?->id ?? $r->ip())));
+        });
+    }
+
+    protected function rateLimitResponse(Request $request, string $description): \Symfony\Component\HttpFoundation\Response
+    {
+        AuditLog::create([
+            'user_id' => $request->user()?->id,
+            'role' => $request->user()?->role,
+            'module' => 'security',
+            'action' => 'rate_limited',
+            'description' => $description,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'created_at' => now(),
+        ]);
+
+        if ($request->header('X-Inertia')) {
+            return back()->with('error', 'Too many requests. Please try again later.');
+        }
+
+        return response()->json([
+            'message' => 'Too many requests. Please try again later.',
+        ], 429);
     }
 }

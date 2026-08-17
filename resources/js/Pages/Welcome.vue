@@ -51,6 +51,7 @@ const contactForm = useForm({
   name: '',
   email: '',
   message: '',
+  company_website: '',
   'cf-turnstile-response': '',
 })
 
@@ -393,6 +394,16 @@ const trackUrl = route('track')
                   class="w-full px-4 py-2.5 rounded-lg border border-emerald-200 bg-white text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 resize-none"
                   :placeholder="$t('contact.form_message_placeholder')"
                 ></textarea>
+              </div>
+              <div class="hidden">
+                <label for="contact-website">Website</label>
+                <input
+                  id="contact-website"
+                  v-model="contactForm.company_website"
+                  type="text"
+                  tabindex="-1"
+                  autocomplete="off"
+                />
               </div>
               <TurnstileWidget action="contact" @token="onContactTurnstileToken" class="flex justify-center" />
               <button
