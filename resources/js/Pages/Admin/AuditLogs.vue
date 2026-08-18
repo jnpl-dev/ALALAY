@@ -144,7 +144,12 @@ function onPage(event) {
               </template>
             </Column>
             <Column field="description" header="Description" style="min-width: 12rem" />
-            <Column field="entity_type" header="Entity" sortable />
+            <Column field="entity_type" header="Entity" sortable>
+              <template #body="{ data }">
+                <span v-if="data.entity_type" class="font-medium">{{ data.entity_type }}</span>
+                <span v-else class="text-muted-color">—</span>
+              </template>
+            </Column>
             <Column field="ip_address" header="IP" sortable />
           </DataTable>
 
