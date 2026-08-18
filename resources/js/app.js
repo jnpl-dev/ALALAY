@@ -1,5 +1,5 @@
 import { createApp, h } from 'vue'
-import { createInertiaApp, Link, Head } from '@inertiajs/vue3'
+import { createInertiaApp, Link, Head, router, progress } from '@inertiajs/vue3'
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
 import { createPinia } from 'pinia'
 import PrimeVue from 'primevue/config'
@@ -13,6 +13,21 @@ import { i18n } from './i18n'
 import 'primeicons/primeicons.css'
 import '../css/app.css'
 import './layout/scss/styles.scss'
+
+router.on('httpException', (event) => {
+  const { response } = event.detail
+  const contentType = (response.headers['content-type'] || '').toLowerCase()
+  const data = response.data
+
+  if (response.status >= 400 && typeof data === 'string' && contentType.includes('text/html')) {
+    event.preventDefault()
+    document.dispatchEvent(new CustomEvent('inertia:finish', { detail: { visit: { completed: true } } }))
+    progress.remove()
+    document.open()
+    document.write(data)
+    document.close()
+  }
+})
 
 createInertiaApp({
   title: (title) => (title ? `${title} — ALALAY` : 'ALALAY'),

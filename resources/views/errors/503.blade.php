@@ -6,14 +6,19 @@
     <meta name="robots" content="noindex, nofollow">
     <title>ALALAY — Maintenance</title>
     <style>
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
         body {
             margin: 0;
-            min-height: 100dvh;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 2rem 1.5rem;
+            padding: clamp(1rem, 3vh, 2rem);
             font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
             color: #022c22;
             background:
                 radial-gradient(60rem 32rem at 50% -12%, rgba(16, 185, 129, 0.10), transparent 62%),
@@ -22,20 +27,21 @@
         }
         .wrapper {
             width: 100%;
-            max-width: 28rem;
+            max-width: 48rem;
+            margin: auto;
             text-align: center;
         }
         .logo {
-            height: 2rem;
+            height: 2.5rem;
             width: auto;
-            margin-bottom: 2.5rem;
+            margin-bottom: clamp(1.5rem, 4vh, 3rem);
             opacity: 0.92;
         }
         .ring {
             position: relative;
-            width: 5.25rem;
-            height: 5.25rem;
-            margin: 0 auto 2rem;
+            width: clamp(3.5rem, 12vh, 5.75rem);
+            height: clamp(3.5rem, 12vh, 5.75rem);
+            margin: 0 auto clamp(1.25rem, 3vh, 2rem);
             border-radius: 9999px;
             display: flex;
             align-items: center;
@@ -82,27 +88,33 @@
             font-weight: 700;
             letter-spacing: -0.02em;
             line-height: 1.15;
-            margin: 1.25rem 0 0;
+            margin: clamp(0.875rem, 2vh, 1.25rem) 0 0;
             color: #022c22;
         }
         .message {
-            font-size: 0.9375rem;
+            font-size: clamp(0.9375rem, 1vw + 0.5rem, 1.0625rem);
             line-height: 1.65;
             color: #047857;
-            margin: 0.9rem auto 0;
-            max-width: 34ch;
+            margin: clamp(0.625rem, 2vh, 0.9rem) auto 0;
+            max-width: 42ch;
+        }
+        .actions {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.875rem;
+            margin-top: clamp(1.5rem, 4vh, 2.25rem);
         }
         .cta {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            margin-top: 1.75rem;
-            padding: 0.7rem 1.5rem;
+            padding: 0.75rem 1.75rem;
             background: #059669;
             color: #ffffff;
             border: 0;
             border-radius: 0.75rem;
-            font-size: 0.875rem;
+            font-size: 0.9375rem;
             font-weight: 600;
             font-family: inherit;
             text-decoration: none;
@@ -120,11 +132,38 @@
             outline: 2px solid #059669;
             outline-offset: 3px;
         }
+        .ghost {
+            display: inline-block;
+            padding: 0.25rem;
+            background: none;
+            border: 0;
+            font-size: 0.875rem;
+            font-weight: 600;
+            font-family: inherit;
+            color: #047857;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .ghost:hover { color: #065f46; text-decoration: underline; }
+        .ghost:focus-visible {
+            outline: 2px solid #059669;
+            outline-offset: 3px;
+            border-radius: 0.25rem;
+        }
         .footer {
-            margin-top: 2rem;
+            margin-top: clamp(1.5rem, 4vh, 2rem);
             font-size: 0.75rem;
             color: #047857;
             opacity: 0.75;
+        }
+        @media (max-height: 600px) {
+            .logo { height: 2rem; margin-bottom: 1.25rem; }
+            .ring { width: 3rem; height: 3rem; margin-bottom: 1rem; }
+            .dot { width: 0.875rem; height: 0.875rem; }
+            h1 { font-size: 1.5rem; margin-top: 0.75rem; }
+            .message { margin-top: 0.5rem; }
+            .actions { margin-top: 1.25rem; gap: 0.625rem; }
+            .footer { margin-top: 1rem; }
         }
         @media (prefers-reduced-motion: reduce) {
             .ring::before,
@@ -142,12 +181,15 @@
         <span class="pill">Scheduled maintenance</span>
         <h1>We'll be back shortly.</h1>
         <p class="message">The ALALAY system is undergoing maintenance. Your applications and records are safe. Please check back in a few minutes.</p>
-        <button class="cta" type="button" onclick="window.location.reload()">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-            </svg>
-            Try again
-        </button>
+        <div class="actions">
+            <button class="cta" type="button" onclick="window.location.reload()">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+                Try again
+            </button>
+            <a class="ghost" href="{{ url('/') }}">Back to Home</a>
+        </div>
         <div class="footer">Municipality of General Mamerto Natividad, Nueva Ecija</div>
     </div>
 </body>
