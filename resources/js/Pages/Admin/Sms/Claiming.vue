@@ -33,6 +33,12 @@ const claimingForm = useForm({ claiming_date: '' })
 const today = new Date()
 const minDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
 
+function formatDateParam(date) {
+  if (!date) return ''
+  const d = new Date(date)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 const templatePlaceholders = '{reference_code}, {claimant_name}, {track_url}, {claiming_date}'
 
 watch(() => props.template, (value) => {
@@ -67,7 +73,7 @@ function saveTemplate() {
 function confirmTrigger() {
   if (!claimingDate.value) return
 
-  const dateStr = claimingDate.value.toISOString().split('T')[0]
+  const dateStr = formatDateParam(claimingDate.value)
   const count = props.readyCount
 
   confirm.require({

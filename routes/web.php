@@ -122,6 +122,8 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/sms/claiming', [SmsController::class, 'claiming'])->name('sms.claiming');
         Route::post('/sms/claiming/template', [SmsController::class, 'saveClaimingTemplate'])->name('sms.claiming.template');
         Route::post('/sms/claiming/trigger', [SmsController::class, 'triggerClaiming'])->name('sms.claiming.trigger');
+        Route::get('/sms/logs', [SmsController::class, 'logs'])->name('sms.logs');
+        Route::get('/sms/logs/export', [SmsController::class, 'logsExport'])->name('sms.logs.export');
         Route::resource('assistance-categories', AssistanceCategoryController::class);
         Route::resource('required-documents', RequiredDocumentController::class);
         Route::resource('assistance-code-references', AssistanceCodeReferenceController::class);

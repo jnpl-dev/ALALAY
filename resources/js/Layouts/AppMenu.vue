@@ -41,6 +41,7 @@ const model = computed(() => {
         items: [
           { label: 'Updates', icon: 'pi pi-fw pi-sync', to: route('admin.sms.updates') },
           { label: 'Claiming', icon: 'pi pi-fw pi-calendar', to: route('admin.sms.claiming') },
+          { label: 'Logs', icon: 'pi pi-fw pi-list', to: route('admin.sms.logs') },
         ],
       },
     ],
