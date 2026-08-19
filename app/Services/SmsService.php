@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\SmsNotification;
+use App\Models\SystemSetting;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -19,6 +21,20 @@ class SmsService
             'message_body' => $message,
             'status' => 'pending',
         ]);
+
+        if (! $this->isEnabled()) {
+            $notification->update([
+                'status' => 'failed',
+                'provider_response' => ['error' => 'SMS disabled by sms_enabled setting'],
+            ]);
+
+            Log::info('SmsService: SMS skipped (sms_enabled=false)', [
+                'notification_id' => $notification->id,
+                'trigger_event' => $triggerEvent,
+            ]);
+
+            return $notification->fresh();
+        }
 
         try {
             $driver = config('sms.driver');
@@ -41,6 +57,19 @@ class SmsService
         }
 
         return $notification->fresh();
+    }
+
+    protected function isEnabled(): bool
+    {
+        $value = Cache::remember('settings.sms_enabled', 1800, fn () =>
+            SystemSetting::byKey('sms_enabled')->first()?->setting_value
+        );
+
+        if ($value === null) {
+            return true;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 
     protected function formatPhoneNumber(string $phone): string

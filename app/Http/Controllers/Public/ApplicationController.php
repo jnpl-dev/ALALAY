@@ -204,17 +204,15 @@ class ApplicationController extends Controller
         $email = $application->claimant_email;
 
         if ($phone) {
-            try {
-                app(SmsService::class)->send(
-                    $phone,
-                    "ALALAY OTP: $code. Use this to track your application. Valid for 5 minutes.",
-                    $application->id,
-                    'track_otp',
-                );
-            } catch (\Exception $e) {
-                if ($email) {
-                    Mail::to($email)->send(new SendApplicationOtpMail($code, $application));
-                }
+            $notification = app(SmsService::class)->send(
+                $phone,
+                "ALALAY OTP: $code. Use this to track your application. Valid for 5 minutes.",
+                $application->id,
+                'track_otp',
+            );
+
+            if ($notification->status === 'failed' && $email) {
+                Mail::to($email)->send(new SendApplicationOtpMail($code, $application));
             }
         } elseif ($email) {
             Mail::to($email)->send(new SendApplicationOtpMail($code, $application));

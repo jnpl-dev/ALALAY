@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Models\Application;
 use App\Models\AssistanceCategory;
+use App\Models\SystemSetting;
 use App\Services\SmsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
@@ -101,6 +102,36 @@ class SmsServiceTest extends TestCase
         $this->assertEquals('failed', $notification->status);
         $this->assertEquals(
             'PHILSMS_API_TOKEN is not configured',
+            $notification->provider_response['error'],
+        );
+    }
+
+    public function test_send_skips_when_sms_enabled_is_false(): void
+    {
+        SystemSetting::create([
+            'id' => (string) Str::uuid(),
+            'setting_key' => 'sms_enabled',
+            'setting_value' => 'false',
+            'setting_group' => 'sms',
+        ]);
+
+        Log::shouldReceive('info')
+            ->once()
+            ->withArgs(fn ($msg, $ctx) =>
+                $msg === 'SmsService: SMS skipped (sms_enabled=false)'
+                && $ctx['trigger_event'] === 'test_disabled'
+            );
+
+        $notification = $this->service->send(
+            '09123456789',
+            'Test message',
+            $this->applicationId,
+            'test_disabled',
+        );
+
+        $this->assertEquals('failed', $notification->status);
+        $this->assertEquals(
+            'SMS disabled by sms_enabled setting',
             $notification->provider_response['error'],
         );
     }

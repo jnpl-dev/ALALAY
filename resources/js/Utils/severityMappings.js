@@ -53,3 +53,22 @@ export function actionSeverity(action) {
 export function statusSeverity(status) {
   return status === 'active' ? 'success' : 'danger'
 }
+
+export function smsStatusSeverity(status) {
+  return ({
+    sent: 'success',
+    failed: 'danger',
+    pending: 'warn',
+  }[status] || 'info')
+}
+
+export function smsEventSeverity(event) {
+  return ({
+    submission_complete: 'success',
+    application_under_review: 'info',
+    resubmission_needed: 'warn',
+    cheque_ready: 'info',
+    cheque_claiming: 'warn',
+    track_otp: 'info',
+  }[event] || 'info')
+}

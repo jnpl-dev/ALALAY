@@ -43,9 +43,11 @@ class SendSmsJob implements ShouldQueue
 
         $key = $templates[$this->triggerEvent] ?? 'sms_template_submission_complete';
 
-        return Cache::remember("settings.{$key}", 1800, fn () =>
+        $value = Cache::remember("settings.{$key}", 1800, fn () =>
             \App\Models\SystemSetting::byKey($key)->first()?->setting_value
-        ) ?? $this->getDefaultTemplate();
+        );
+
+        return blank($value) ? $this->getDefaultTemplate() : $value;
     }
 
     public function buildMessage(string $template): string
