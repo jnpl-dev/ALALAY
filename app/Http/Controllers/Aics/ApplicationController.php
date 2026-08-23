@@ -47,6 +47,7 @@ class ApplicationController extends Controller
         $applications = match ($tab) {
             'forwarded' => (clone $query)->where('status', 'mswdo_review'),
             'returned' => (clone $query)->where('status', 'returned_to_applicant'),
+            'claimed' => (clone $query)->where('status', 'claimed'),
             default => (clone $query)->where('status', 'submitted'),
         };
 
@@ -58,6 +59,7 @@ class ApplicationController extends Controller
             'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
             'submission_type' => $app->submission_type,
             'created_at' => $app->created_at,
+            'claimed_at' => $app->claimed_at,
         ])->values()->toArray();
     }
 
@@ -96,6 +98,7 @@ class ApplicationController extends Controller
         $applications = match ($tab) {
             'forwarded' => (clone $query)->where('status', 'mswdo_review'),
             'returned' => (clone $query)->where('status', 'returned_to_applicant'),
+            'claimed' => (clone $query)->where('status', 'claimed'),
             default => (clone $query)->where('status', 'submitted'),
         };
 
@@ -113,6 +116,7 @@ class ApplicationController extends Controller
                         'claimant_name' => $app->claimant_first_name . ' ' . $app->claimant_last_name,
                         'submission_type' => $app->submission_type,
                         'created_at' => $app->created_at,
+                        'claimed_at' => $app->claimed_at,
                     ])
             ),
             'filters' => request()->only(['search', 'category', 'from', 'to']),
@@ -190,6 +194,7 @@ class ApplicationController extends Controller
         $applications = (match ($tab) {
             'forwarded' => (clone $query)->where('status', 'mswdo_review'),
             'returned' => (clone $query)->where('status', 'returned_to_applicant'),
+            'claimed' => (clone $query)->where('status', 'claimed'),
             default => (clone $query)->where('status', 'submitted'),
         })->latest()->get();
 
@@ -202,7 +207,7 @@ class ApplicationController extends Controller
 
         $callback = function () use ($applications) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Reference Code', 'Beneficiary Name', 'Category', 'Submission Type', 'Status', 'Date Submitted']);
+            fputcsv($handle, ['Reference Code', 'Beneficiary Name', 'Category', 'Submission Type', 'Status', 'Date Submitted', 'Claimed At']);
 
             foreach ($applications as $app) {
                 fputcsv($handle, [
@@ -212,6 +217,7 @@ class ApplicationController extends Controller
                     $app->submission_type,
                     $app->status,
                     $app->created_at?->toDateTimeString(),
+                    $app->claimed_at?->toDateTimeString(),
                 ]);
             }
 

@@ -45,6 +45,7 @@ class ChequeController extends Controller
 
         $applications = match ($tab) {
             'ready' => (clone $query)->where('status', 'cheque_ready'),
+            'claimed' => (clone $query)->where('status', 'claimed'),
             default => (clone $query)->where('status', 'with_treasurer'),
         };
 
@@ -57,6 +58,7 @@ class ChequeController extends Controller
             'code_type' => $app->assistanceCode?->reference?->code_type,
             'amount' => $app->assistanceCode?->amount,
             'created_at' => $app->created_at,
+            'claimed_at' => $app->claimed_at,
         ])->values()->toArray();
     }
 
@@ -105,6 +107,7 @@ class ChequeController extends Controller
 
         $applications = match ($tab) {
             'ready' => (clone $query)->where('status', 'cheque_ready'),
+            'claimed' => (clone $query)->where('status', 'claimed'),
             default => (clone $query)->where('status', 'with_treasurer'),
         };
 
@@ -119,6 +122,7 @@ class ChequeController extends Controller
                 'code_type' => $app->assistanceCode?->reference?->code_type,
                 'amount' => $app->assistanceCode?->amount,
                 'created_at' => $app->created_at,
+                'claimed_at' => $app->claimed_at,
             ]);
     }
 
@@ -155,6 +159,7 @@ class ChequeController extends Controller
 
         $applications = (match ($tab) {
             'ready' => (clone $query)->where('status', 'cheque_ready'),
+            'claimed' => (clone $query)->where('status', 'claimed'),
             default => (clone $query)->where('status', 'with_treasurer'),
         })->latest()->get();
 
@@ -167,7 +172,7 @@ class ChequeController extends Controller
 
         $callback = function () use ($applications) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Reference Code', 'Beneficiary Name', 'Category', 'Code Type', 'Amount', 'Status', 'Date Submitted']);
+            fputcsv($handle, ['Reference Code', 'Beneficiary Name', 'Category', 'Code Type', 'Amount', 'Status', 'Date Submitted', 'Claimed At']);
 
             foreach ($applications as $app) {
                 fputcsv($handle, [
@@ -178,6 +183,7 @@ class ChequeController extends Controller
                     $app->assistanceCode?->amount,
                     $app->status,
                     $app->created_at?->toDateTimeString(),
+                    $app->claimed_at?->toDateTimeString(),
                 ]);
             }
 
