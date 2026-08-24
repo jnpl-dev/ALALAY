@@ -15,6 +15,8 @@ const badgeLabelMap = {
   Vouchers: 'vouchers',
   Cheques: 'cheques',
   Analytics: 'analytics',
+  'Coding Review': 'applications',
+  'Assistance Codes': 'assistance_codes',
 }
 
 const model = computed(() => {

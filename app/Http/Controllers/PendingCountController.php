@@ -16,6 +16,7 @@ class PendingCountController extends Controller
         match ($user->role) {
             'aics_staff' => [
                 $counts['applications'] = Application::where('status', 'submitted')->count(),
+                $counts['assistance_codes'] = Application::whereIn('status', ['assistance_coding', 'returned_assistance_coding'])->count(),
             ],
             'mswdo' => [
                 $counts['applications'] = Application::whereIn('status', ['submitted', 'mswdo_review'])->count(),
@@ -31,7 +32,7 @@ class PendingCountController extends Controller
                 $counts['applications'] = Application::where('status', 'internal_audit_review')->count(),
             ],
             'budget_officer' => [
-                $counts['applications'] = Application::whereIn('status', ['budget_checking', 'voucher_on_hold'])->count(),
+                $counts['vouchers'] = Application::whereIn('status', ['budget_checking', 'voucher_on_hold'])->count(),
             ],
             'admin' => [
                 $counts['applications'] = Application::where('status', 'submitted')->count(),
