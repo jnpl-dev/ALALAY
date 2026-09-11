@@ -13,7 +13,6 @@ import Tag from 'primevue/tag'
 import Paginator from 'primevue/paginator'
 import Popover from 'primevue/popover'
 import Skeleton from 'primevue/skeleton'
-import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
 import { formatDate } from '@/Utils/formatDate'
 import { roleSeverity, statusSeverity } from '@/Utils/severityMappings'
@@ -29,7 +28,6 @@ const props = defineProps({
   filters: { type: Object, default: () => ({}) },
 })
 
-const toast = useToast()
 const confirm = useConfirm()
 const selectedUser = ref(null)
 const op = ref(null)
@@ -112,8 +110,6 @@ const confirmDelete = (user) => {
       router.delete(window.route('admin.users.destroy', user.id), {
         preserveState: true,
         preserveScroll: true,
-        onSuccess: () => toast.success('User deleted'),
-        onError: () => toast.error('Delete failed'),
       })
     },
   })
@@ -133,8 +129,6 @@ const confirmToggleStatus = (user) => {
       router.patch(window.route('admin.users.toggle-status', user.id), {}, {
         preserveState: true,
         preserveScroll: true,
-        onSuccess: () => toast.success('Status updated'),
-        onError: () => toast.error('Status update failed'),
       })
     },
   })
@@ -153,8 +147,6 @@ const confirmRevokeSessions = (user) => {
       router.delete(window.route('admin.users.revoke-sessions', user.id), {
         preserveState: true,
         preserveScroll: true,
-        onSuccess: () => toast.success('Sessions revoked'),
-        onError: () => toast.error('Revoke failed'),
       })
     },
   })

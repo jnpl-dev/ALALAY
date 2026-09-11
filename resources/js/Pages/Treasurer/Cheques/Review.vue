@@ -9,7 +9,6 @@ import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
 import Button from 'primevue/button'
 import Divider from 'primevue/divider'
 import Fieldset from 'primevue/fieldset'
-import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
 import { ref, computed } from 'vue'
 import { formatCurrency } from '@/Utils/formatCurrency'
@@ -26,7 +25,6 @@ const props = defineProps({
   voucher: { type: Object, default: null },
 })
 
-const toast = useToast()
 const confirm = useConfirm()
 const route = window.route
 
@@ -57,9 +55,7 @@ function confirmReady() {
       form.post(route('treasurer.cheques.acknowledge', props.application.id), {
         preserveState: true,
         preserveScroll: true,
-        onSuccess: () => toast.success('Voucher acknowledged. Cheque marked as ready for claiming.'),
         onError: () => {
-          toast.error('Failed to acknowledge')
           acknowledgeLoading.value = false
         },
         onFinish: () => { acknowledgeLoading.value = false },
@@ -80,9 +76,7 @@ function confirmClaim() {
       form.post(route('treasurer.cheques.claim', props.application.id), {
         preserveState: true,
         preserveScroll: true,
-        onSuccess: () => toast.success('Cheque marked as completed'),
         onError: () => {
-          toast.error('Failed to mark as complete')
           claimLoading.value = false
         },
         onFinish: () => { claimLoading.value = false },

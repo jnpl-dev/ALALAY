@@ -17,6 +17,7 @@ import DatePicker from 'primevue/datepicker'
 import Paginator from 'primevue/paginator'
 import Skeleton from 'primevue/skeleton'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
+import { toPascalCase } from '@/Utils/toPascalCase'
 
 defineOptions({ layout: AppLayout })
 
@@ -47,8 +48,8 @@ const status = ref(props.filters.status || '')
 const from = ref(parseDate(props.filters.from))
 const to = ref(parseDate(props.filters.to))
 
-const eventOptions = [{ label: 'All Events', value: '' }, ...props.events.map(e => ({ label: e, value: e }))]
-const statusOptions = [{ label: 'All Statuses', value: '' }, ...props.statuses.map(s => ({ label: s.charAt(0).toUpperCase() + s.slice(1), value: s }))]
+const eventOptions = [{ label: 'All Events', value: '' }, ...props.events.map(e => ({ label: toPascalCase(e), value: e }))]
+const statusOptions = [{ label: 'All Statuses', value: '' }, ...props.statuses.map(s => ({ label: toPascalCase(s), value: s }))]
 
 const route = window.route
 

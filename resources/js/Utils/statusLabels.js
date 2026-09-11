@@ -5,7 +5,7 @@ export const STATUS_LABELS = {
   social_case_study_uploaded: { label: 'Case Study Uploaded', severity: 'info' },
   assistance_coding:     { label: 'Assistance Coding',     severity: 'warn' },
   internal_audit_review: { label: 'Internal Audit Review', severity: 'warn' },
-  returned_assistance_coding: { label: 'Returned for Coding', severity: 'danger' },
+  returned_assistance_coding: { label: 'Returned For Coding', severity: 'danger' },
   voucher_creation:      { label: 'Voucher Creation',      severity: 'warn' },
   budget_checking:       { label: 'Budget Checking',       severity: 'warn' },
   voucher_on_hold:       { label: 'Voucher On Hold',       severity: 'danger' },

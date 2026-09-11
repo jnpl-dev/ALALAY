@@ -55,7 +55,7 @@ const categoryData = computed(() => {
 const submissionTypeData = computed(() => {
   const data = props.dashboardData?.submission_type_distribution ?? []
   return {
-    labels: data.map(d => d.submission_type === 'online' ? 'Online' : 'Walk-in'),
+    labels: data.map(d => d.submission_type === 'online' ? 'Online' : 'Walk-In'),
     datasets: [{
       data: data.map(d => d.count),
       backgroundColor: data.map(d => d.submission_type === 'online' ? CHART_COLORS.primary : CHART_COLORS.muted),
