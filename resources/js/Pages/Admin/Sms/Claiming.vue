@@ -7,13 +7,10 @@ import Textarea from 'primevue/textarea'
 import DatePicker from 'primevue/datepicker'
 import { useConfirm } from '@/Composables/useConfirm'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
-import { useToast } from '@/Composables/useToast'
 
 defineOptions({ layout: AppLayout })
 
 useBreadcrumb([{ label: 'Admin' }, { label: 'Settings' }, { label: 'SMS Claiming' }])
-
-const toast = useToast()
 
 const route = window.route
 const confirm = useConfirm()
@@ -65,7 +62,6 @@ function saveTemplate() {
     preserveScroll: true,
     onSuccess: () => {
       isEditingTemplate.value = false
-      toast.success('Saved', 'Claiming template updated successfully.')
     },
   })
 }
@@ -89,7 +85,6 @@ function confirmTrigger() {
         onSuccess: () => {
           claimingDate.value = null
           claimingForm.claiming_date = ''
-          toast.success('Sent', 'Claiming notification sent successfully.')
         },
       })
     },

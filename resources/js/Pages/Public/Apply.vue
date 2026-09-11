@@ -485,12 +485,12 @@ async function submitApplication() {
 
 const statusLabel = (status) => ({
   submitted: 'Submitted',
-  returned_to_applicant: 'Returned for Revision',
+  returned_to_applicant: 'Returned For Revision',
   resubmitted: 'Resubmitted',
   aics_review: 'Under AICS Review',
   mswdo_review: 'Under MSWDO Review',
   approved: 'Approved',
-  claim_ready: 'Ready for Claiming',
+  claim_ready: 'Ready For Claiming',
   claimed: 'Claimed',
 }[status] || status)
 </script>

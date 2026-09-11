@@ -12,7 +12,6 @@ import InputNumber from 'primevue/inputnumber'
 import Button from 'primevue/button'
 import Divider from 'primevue/divider'
 import Fieldset from 'primevue/fieldset'
-import { useToast } from '@/Composables/useToast'
 import { formatCurrency } from '@/Utils/formatCurrency'
 import { ref, computed } from 'vue'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
@@ -33,7 +32,6 @@ const props = defineProps({
   code_references: { type: Array, default: () => [] },
 })
 
-const toast = useToast()
 const route = window.route
 
 const viewerUrl = ref(null)
@@ -94,8 +92,6 @@ function submit() {
   form.post(route('aics.assistance-codes.store', props.application.id), {
     preserveState: true,
     preserveScroll: true,
-    onSuccess: () => toast.success('Code assigned'),
-    onError: () => toast.error('Validation error'),
   })
 }
 </script>

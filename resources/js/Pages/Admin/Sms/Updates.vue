@@ -6,13 +6,10 @@ import Button from 'primevue/button'
 import Textarea from 'primevue/textarea'
 import Skeleton from 'primevue/skeleton'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
-import { useToast } from '@/Composables/useToast'
 
 defineOptions({ layout: AppLayout })
 
 useBreadcrumb([{ label: 'Admin' }, { label: 'Settings' }, { label: 'SMS Updates' }])
-
-const toast = useToast()
 
 const route = window.route
 const isEditing = ref(false)
@@ -61,7 +58,6 @@ function submit() {
     preserveScroll: true,
     onSuccess: () => {
       isEditing.value = false
-      toast.success('Saved', 'SMS templates updated successfully.')
     },
   })
 }

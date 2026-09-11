@@ -10,7 +10,6 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Paginator from 'primevue/paginator'
 import Skeleton from 'primevue/skeleton'
-import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
 import { ref, toRaw } from 'vue'
 import { formatCurrency } from '@/Utils/formatCurrency'
@@ -29,7 +28,6 @@ const props = defineProps({
   filters: { type: Object, default: () => ({}) },
 })
 
-const toast = useToast()
 const confirm = useConfirm()
 
 const search = ref(props.filters.search || '')
@@ -54,8 +52,6 @@ function confirmDelete(data) {
     router.delete(route('admin.assistance-code-references.destroy', data.id), {
       preserveState: true,
       preserveScroll: true,
-      onSuccess: () => toast.success('Code reference deleted'),
-      onError: () => toast.error('Delete failed'),
     })
   })
 }

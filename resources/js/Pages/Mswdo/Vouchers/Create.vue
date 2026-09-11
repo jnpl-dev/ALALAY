@@ -10,7 +10,6 @@ import AppStatusBadge from '@/Components/Common/AppStatusBadge.vue'
 import Button from 'primevue/button'
 import Divider from 'primevue/divider'
 import Fieldset from 'primevue/fieldset'
-import { useToast } from '@/Composables/useToast'
 import { useConfirm } from '@/Composables/useConfirm'
 import { ref, computed } from 'vue'
 import { formatCurrency } from '@/Utils/formatCurrency'
@@ -29,7 +28,6 @@ const props = defineProps({
   canEdit: { type: Boolean, default: true },
 })
 
-const toast = useToast()
 const confirm = useConfirm()
 const route = window.route
 
@@ -65,8 +63,6 @@ function confirmSubmit() {
       form.post(route('mswdo.vouchers.store', props.application.id), {
         preserveState: true,
         preserveScroll: true,
-        onSuccess: () => toast.success('Voucher submitted'),
-        onError: () => toast.error('Validation error'),
       })
     },
   })

@@ -5,7 +5,6 @@ import InputText from 'primevue/inputtext'
 import InputTextarea from 'primevue/textarea'
 import ToggleSwitch from 'primevue/toggleswitch'
 import Button from 'primevue/button'
-import { useToast } from 'primevue/usetoast'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
@@ -21,7 +20,6 @@ const props = defineProps({
   category: { type: Object, required: true },
 })
 
-const toast = useToast()
 const route = window.route
 
 const form = useForm({
@@ -35,11 +33,7 @@ const submit = () => {
     preserveState: true,
     preserveScroll: true,
     onSuccess: () => {
-      toast.add({ severity: 'success', summary: 'Category updated', life: 3000 })
       router.get(route('admin.assistance-categories.index'))
-    },
-    onError: () => {
-      toast.add({ severity: 'error', summary: 'Validation error', life: 3000 })
     },
   })
 }

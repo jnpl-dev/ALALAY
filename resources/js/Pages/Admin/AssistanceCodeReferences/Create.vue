@@ -6,7 +6,6 @@ import InputTextarea from 'primevue/textarea'
 import ToggleSwitch from 'primevue/toggleswitch'
 import InputNumber from 'primevue/inputnumber'
 import Button from 'primevue/button'
-import { useToast } from 'primevue/usetoast'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
 
 defineOptions({ layout: AppLayout })
@@ -18,7 +17,6 @@ useBreadcrumb([
   { label: 'Add Reference' },
 ])
 
-const toast = useToast()
 const route = window.route
 
 const form = useForm({
@@ -33,11 +31,7 @@ const submit = () => {
     preserveState: true,
     preserveScroll: true,
     onSuccess: () => {
-      toast.add({ severity: 'success', summary: 'Code reference created', life: 3000 })
       router.get(route('admin.assistance-code-references.index'))
-    },
-    onError: () => {
-      toast.add({ severity: 'error', summary: 'Validation error', life: 3000 })
     },
   })
 }

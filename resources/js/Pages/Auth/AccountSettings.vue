@@ -8,7 +8,6 @@ import Avatar from 'primevue/avatar'
 import Dialog from 'primevue/dialog'
 import Divider from 'primevue/divider'
 import Skeleton from 'primevue/skeleton'
-import { useToast } from 'primevue/usetoast'
 import { useFieldValidation } from '@/Composables/useFieldValidation'
 import { useConfirm } from '@/Composables/useConfirm'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
@@ -34,7 +33,6 @@ watch(() => props.userData, (data) => {
 })
 
 const authUser = computed(() => usePage().props.auth?.user)
-const toast = useToast()
 const confirm = useConfirm()
 const isEditing = ref(false)
 const fileInput = ref(null)
@@ -89,10 +87,6 @@ const submit = () => {
       previewUrl.value = null
       form.reset('current_password', 'password', 'password_confirmation', 'profile_picture')
       isEditing.value = false
-      toast.add({ severity: 'success', summary: 'Account updated', life: 3000 })
-    },
-    onError: () => {
-      toast.add({ severity: 'error', summary: 'Validation error', life: 3000 })
     },
   })
 }
