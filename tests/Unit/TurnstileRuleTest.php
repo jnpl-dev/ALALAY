@@ -108,4 +108,46 @@ class TurnstileRuleTest extends TestCase
 
         $this->assertTrue($validator->fails());
     }
+
+    public function test_strict_missing_token_fails_validation(): void
+    {
+        $validator = Validator::make(
+            ['cf-turnstile-response' => ''],
+            ['cf-turnstile-response' => ['nullable', Turnstile::strict()]]
+        );
+
+        $this->assertTrue($validator->fails());
+        $this->assertEquals('Please complete the security check.', $validator->errors()->first('cf-turnstile-response'));
+    }
+
+    public function test_strict_missing_token_still_logs_bypass(): void
+    {
+        $validator = Validator::make(
+            ['cf-turnstile-response' => ''],
+            ['cf-turnstile-response' => ['nullable', Turnstile::strict()]]
+        );
+
+        $validator->fails();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'module' => 'security',
+            'action' => 'turnstile_bypass',
+        ]);
+    }
+
+    public function test_strict_valid_token_passes(): void
+    {
+        Http::fake([
+            'https://challenges.cloudflare.com/turnstile/v0/siteverify' => Http::response([
+                'success' => true,
+            ]),
+        ]);
+
+        $validator = Validator::make(
+            ['cf-turnstile-response' => 'valid-token'],
+            ['cf-turnstile-response' => ['nullable', Turnstile::strict()]]
+        );
+
+        $this->assertFalse($validator->fails());
+    }
 }

@@ -11,6 +11,16 @@ class Turnstile implements ValidationRule
 {
     public $implicit = true;
 
+    public bool $failOnMissing = false;
+
+    public static function strict(): static
+    {
+        $instance = new static();
+        $instance->failOnMissing = true;
+
+        return $instance;
+    }
+
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
         if (! config('turnstile.enabled')) {
@@ -19,6 +29,11 @@ class Turnstile implements ValidationRule
 
         if (empty($value)) {
             $this->logBypass('Token was not provided.');
+
+            if ($this->failOnMissing) {
+                $fail('Please complete the security check.');
+            }
+
             return;
         }
 

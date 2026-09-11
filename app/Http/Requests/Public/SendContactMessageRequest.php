@@ -18,7 +18,7 @@ class SendContactMessageRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255'],
             'message' => ['required', 'string', 'min:10', 'max:5000'],
-            'cf-turnstile-response' => ['nullable', new Turnstile],
+            'cf-turnstile-response' => ['nullable', Turnstile::strict()],
             'company_website' => ['nullable', 'string'],
         ];
     }
