@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import TurnstileWidget from '@/Components/TurnstileWidget.vue'
 
 const form = useForm({
@@ -11,8 +11,10 @@ const form = useForm({
 })
 
 const showPassword = ref(false)
+const turnstileRef = ref(null)
 
 const pageErrors = computed(() => usePage().props.errors || {})
+const flash = computed(() => usePage().props.flash || {})
 
 const homeUrl = route('home')
 const forgotUrl = route('password.request')
@@ -21,11 +23,54 @@ const onTurnstileToken = (token) => {
   form['cf-turnstile-response'] = token
 }
 
+const onTurnstileExpired = () => {
+  form['cf-turnstile-response'] = ''
+}
+
+const onTurnstileError = () => {
+  form['cf-turnstile-response'] = ''
+}
+
+const resetTurnstile = () => {
+  form['cf-turnstile-response'] = ''
+  turnstileRef.value?.reset()
+}
+
 const submit = () => {
   form.post(route('login'), {
     onSuccess: () => { form['cf-turnstile-response'] = '' },
+    onFinish: () => {
+      if (Object.keys(form.errors).length > 0) {
+        resetTurnstile()
+      }
+    },
   })
 }
+
+const cooldownRemaining = ref(0)
+let cooldownTimer = null
+
+const startCooldown = (seconds) => {
+  cooldownRemaining.value = seconds
+  if (cooldownTimer) clearInterval(cooldownTimer)
+  cooldownTimer = setInterval(() => {
+    cooldownRemaining.value--
+    if (cooldownRemaining.value <= 0) {
+      clearInterval(cooldownTimer)
+      cooldownTimer = null
+    }
+  }, 1000)
+}
+
+watch(flash, (val) => {
+  if (val.login_rate_limited?.retry_after) {
+    startCooldown(val.login_rate_limited.retry_after)
+  }
+}, { immediate: true })
+
+onBeforeUnmount(() => {
+  if (cooldownTimer) clearInterval(cooldownTimer)
+})
 </script>
 
 <template>
@@ -42,6 +87,12 @@ const submit = () => {
       </div>
 
       <div class="bg-white rounded-2xl shadow-lg border border-emerald-100 p-8">
+        <div v-if="cooldownRemaining > 0" class="mb-5 p-3 rounded-lg bg-amber-50 border border-amber-200 text-center">
+          <p class="text-sm text-amber-700 font-medium">
+            Too many login attempts. Please wait {{ cooldownRemaining }}s.
+          </p>
+        </div>
+
         <form @submit.prevent="submit" class="space-y-5">
 
           <div>
@@ -52,7 +103,8 @@ const submit = () => {
               type="email"
               autocomplete="email"
               placeholder="you@example.com"
-              class="w-full px-4 py-2.5 rounded-lg border text-emerald-900 placeholder-emerald-400 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              :disabled="cooldownRemaining > 0"
+              class="w-full px-4 py-2.5 rounded-lg border text-emerald-900 placeholder-emerald-400 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
               :class="form.errors.email || pageErrors.email ? 'border-red-300 bg-red-50' : 'border-emerald-200 bg-emerald-50/50'"
               @input="form.errors.email = null"
             />
@@ -70,7 +122,8 @@ const submit = () => {
                 v-model="form.password"
                 autocomplete="current-password"
                 placeholder="Enter your password"
-                class="w-full px-4 py-2.5 pr-11 rounded-lg border text-emerald-900 placeholder-emerald-400 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                :disabled="cooldownRemaining > 0"
+                class="w-full px-4 py-2.5 pr-11 rounded-lg border text-emerald-900 placeholder-emerald-400 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 :class="form.errors.password ? 'border-red-300 bg-red-50' : 'border-emerald-200 bg-emerald-50/50'"
                 @input="form.errors.password = null"
               />
@@ -98,6 +151,7 @@ const submit = () => {
               <input
                 type="checkbox"
                 v-model="form.remember"
+                :disabled="cooldownRemaining > 0"
                 class="w-4 h-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
               />
               <span class="text-sm text-emerald-700">Remember me</span>
@@ -110,13 +164,23 @@ const submit = () => {
             </Link>
           </div>
 
-          <TurnstileWidget action="login" @token="onTurnstileToken" />
+          <TurnstileWidget
+            ref="turnstileRef"
+            action="login"
+            @token="onTurnstileToken"
+            @expired="onTurnstileExpired"
+            @error="onTurnstileError"
+          />
+
+          <p v-if="form.errors['cf-turnstile-response']" class="text-xs text-red-600 text-center">
+            {{ form.errors['cf-turnstile-response'] }}
+          </p>
 
           <button
             type="submit"
-            :disabled="form.processing"
+            :disabled="form.processing || cooldownRemaining > 0"
             class="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition-all"
-            :class="form.processing ? 'opacity-60 cursor-not-allowed' : 'hover:bg-emerald-700 active:bg-emerald-800 shadow-lg shadow-emerald-200'"
+            :class="(form.processing || cooldownRemaining > 0) ? 'opacity-60 cursor-not-allowed' : 'hover:bg-emerald-700 active:bg-emerald-800 shadow-lg shadow-emerald-200'"
           >
             <svg v-if="form.processing" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />

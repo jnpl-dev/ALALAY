@@ -46,7 +46,7 @@ class FortifyServiceProvider extends ServiceProvider
         RateLimiter::for('login', function (Request $request) {
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
 
-            return Limit::perMinute(5)->by($throttleKey)->response(function (Request $request) {
+            return Limit::perMinute(5)->by($throttleKey)->response(function (Request $request) use ($throttleKey) {
                 AuditLog::create([
                     'user_id' => null,
                     'role' => null,
@@ -58,8 +58,11 @@ class FortifyServiceProvider extends ServiceProvider
                     'created_at' => now(),
                 ]);
 
-                return back()->withErrors([
-                    'email' => 'Too many login attempts. Please try again in 60 seconds.',
+                $retryAfter = 60;
+
+                return back()->with('login_rate_limited', [
+                    'message' => 'Too many login attempts. Please try again in ' . $retryAfter . ' seconds.',
+                    'retry_after' => $retryAfter,
                 ]);
             });
         });

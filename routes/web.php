@@ -55,7 +55,7 @@ Route::post('/apply', [ApplicationController::class, 'store'])->middleware('thro
 Route::get('/track', [ApplicationController::class, 'track'])->name('track');
 Route::get('/track/poll', [ApplicationController::class, 'trackPoll'])->name('track.poll')->middleware('throttle:track_poll');
 Route::get('/track/{referenceCode}', [ApplicationController::class, 'show'])->name('track.show')->middleware('throttle:track_show');
-Route::post('/track/{referenceCode}/send-otp', [ApplicationController::class, 'sendTrackOtp'])->name('track.send-otp')->middleware('throttle:3,5');
+    Route::post('/track/{referenceCode}/send-otp', [ApplicationController::class, 'sendTrackOtp'])->name('track.send-otp')->middleware('throttle:track_send_otp');
 Route::post('/track/{referenceCode}/verify-otp', [ApplicationController::class, 'verifyTrackOtp'])->name('track.verify-otp')->middleware('throttle:10,5');
 Route::post('/track/{referenceCode}/resubmit', [ApplicationController::class, 'resubmit'])->name('track.resubmit')->middleware('throttle:resubmit');
 
