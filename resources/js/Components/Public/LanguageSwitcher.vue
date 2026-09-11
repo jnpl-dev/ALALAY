@@ -21,13 +21,13 @@ const vClickOutside = {
 
 function switchLanguage(lang) {
   locale.value = lang
-  try { localStorage.setItem('locale', lang) } catch {}
+  try { sessionStorage.setItem('locale', lang) } catch {}
   open.value = false
 }
 </script>
 
 <template>
-  <div class="relative">
+  <div class="relative" v-click-outside="() => open = false">
     <button
       @click="open = !open"
       class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-colors"
@@ -45,7 +45,6 @@ function switchLanguage(lang) {
     >
       <div
         v-if="open"
-        v-click-outside="() => open = false"
         class="absolute right-0 mt-1 w-36 bg-white rounded-xl shadow-lg border border-emerald-100 py-1 overflow-hidden z-50"
       >
         <button

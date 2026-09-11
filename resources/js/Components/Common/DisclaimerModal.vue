@@ -7,11 +7,16 @@ const show = ref(false)
 const agreed = ref(false)
 
 onMounted(() => {
+  if (sessionStorage.getItem('disclaimer_agreed')) {
+    emit('close')
+    return
+  }
   show.value = true
 })
 
 function proceed() {
   if (!agreed.value) return
+  try { sessionStorage.setItem('disclaimer_agreed', 'true') } catch {}
   show.value = false
   emit('close')
 }

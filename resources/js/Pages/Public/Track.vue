@@ -6,6 +6,7 @@ import { usePolling } from '@/Composables/usePolling'
 import { useFieldValidation } from '@/Composables/useFieldValidation'
 import DocumentScanner from '@/Components/Application/DocumentScanner.vue'
 import TurnstileWidget from '@/Components/TurnstileWidget.vue'
+import LanguageSwitcher from '@/Components/Public/LanguageSwitcher.vue'
 
 const { t } = useI18n()
 
@@ -349,10 +350,13 @@ const timelineSteps = computed(() => {
               <img src="/images/logo/AICS.png" alt="AICS" class="h-6 opacity-60">
             </div>
           </div>
-          <Link :href="homeUrl" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+          <div class="flex items-center gap-3">
+            <LanguageSwitcher />
+            <Link :href="homeUrl" class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" /></svg>
             {{ $t('track.back') }}
           </Link>
+          </div>
         </div>
       </div>
     </div>

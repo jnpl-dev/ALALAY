@@ -11,14 +11,14 @@ const { locale } = useI18n()
 const show = ref(false)
 
 watch(() => props.autoShow, (enabled) => {
-  if (enabled && !localStorage.getItem('locale')) {
+  if (enabled && !sessionStorage.getItem('locale')) {
     show.value = true
   }
 }, { immediate: true })
 
 function select(lang) {
   locale.value = lang
-  try { localStorage.setItem('locale', lang) } catch {}
+  try { sessionStorage.setItem('locale', lang) } catch {}
   show.value = false
   emit('close')
 }
