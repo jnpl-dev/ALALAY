@@ -4,7 +4,7 @@ import fil from './locales/fil.json'
 
 function getInitialLocale() {
   try {
-    const stored = localStorage.getItem('locale')
+    const stored = sessionStorage.getItem('locale')
     if (stored === 'en' || stored === 'fil') return stored
   } catch {}
   return 'en'
