@@ -1,6 +1,6 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { Head, Link, useForm } from '@inertiajs/vue3'
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import { useI18n } from 'vue-i18n'
 import PublicLayout from '@/Layouts/PublicLayout.vue'
 import { useScrollReveal } from '@/Composables/useScrollReveal.js'
@@ -59,6 +59,16 @@ const onContactTurnstileToken = (token) => {
   contactForm['cf-turnstile-response'] = token
 }
 
+const turnstileRef = ref(null)
+
+const onContactTurnstileExpired = () => {
+  contactForm['cf-turnstile-response'] = ''
+}
+
+const onContactTurnstileError = () => {
+  contactForm['cf-turnstile-response'] = ''
+}
+
 const submitContact = () => {
   contactForm.post(route('contact.send'), {
     preserveScroll: true,
@@ -66,8 +76,41 @@ const submitContact = () => {
       contactForm.reset()
       contactForm['cf-turnstile-response'] = ''
     },
+    onFinish: () => {
+      if (Object.keys(contactForm.errors).length > 0) {
+        contactForm['cf-turnstile-response'] = ''
+        turnstileRef.value?.reset()
+      }
+    },
   })
 }
+
+const flash = computed(() => usePage().props.flash || {})
+
+const contactCooldown = ref(0)
+let contactCooldownTimer = null
+
+const startContactCooldown = (seconds) => {
+  contactCooldown.value = seconds
+  if (contactCooldownTimer) clearInterval(contactCooldownTimer)
+  contactCooldownTimer = setInterval(() => {
+    contactCooldown.value--
+    if (contactCooldown.value <= 0) {
+      clearInterval(contactCooldownTimer)
+      contactCooldownTimer = null
+    }
+  }, 1000)
+}
+
+watch(flash, (val) => {
+  if (val.rate_limited?.retry_after) {
+    startContactCooldown(val.rate_limited.retry_after)
+  }
+}, { immediate: true })
+
+onBeforeUnmount(() => {
+  if (contactCooldownTimer) clearInterval(contactCooldownTimer)
+})
 
 const heroMounted = ref(false)
 
@@ -364,6 +407,11 @@ const trackUrl = route('track')
           </div>
           <div class="p-8 border bg-emerald-50 rounded-2xl border-emerald-200 animate-reveal animate-stagger-2">
             <h3 class="mb-4 text-lg font-bold text-emerald-900">{{ $t('contact.form_title') }}</h3>
+            <div v-if="contactCooldown > 0" class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-center">
+              <p class="text-sm text-amber-700 font-medium">
+                Too many requests. Please wait {{ contactCooldown }}s.
+              </p>
+            </div>
             <form @submit.prevent="submitContact" class="space-y-4">
               <div>
                 <label for="contact-name" class="block text-sm font-medium text-emerald-800 mb-1.5">{{ $t('contact.form_name') }}</label>
@@ -371,7 +419,8 @@ const trackUrl = route('track')
                   id="contact-name"
                   v-model="contactForm.name"
                   type="text"
-                  class="w-full px-4 py-2.5 rounded-lg border border-emerald-200 bg-white text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                  :disabled="contactCooldown > 0"
+                  class="w-full px-4 py-2.5 rounded-lg border border-emerald-200 bg-white text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
                   :placeholder="$t('contact.form_name_placeholder')"
                 />
               </div>
@@ -381,7 +430,8 @@ const trackUrl = route('track')
                   id="contact-email"
                   v-model="contactForm.email"
                   type="email"
-                  class="w-full px-4 py-2.5 rounded-lg border border-emerald-200 bg-white text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400"
+                  :disabled="contactCooldown > 0"
+                  class="w-full px-4 py-2.5 rounded-lg border border-emerald-200 bg-white text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
                   :placeholder="$t('contact.form_email_placeholder') + '@' + $t('contact.form_email_domain')"
                 />
               </div>
@@ -391,7 +441,8 @@ const trackUrl = route('track')
                   id="contact-message"
                   v-model="contactForm.message"
                   rows="4"
-                  class="w-full px-4 py-2.5 rounded-lg border border-emerald-200 bg-white text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 resize-none"
+                  :disabled="contactCooldown > 0"
+                  class="w-full px-4 py-2.5 rounded-lg border border-emerald-200 bg-white text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
                   :placeholder="$t('contact.form_message_placeholder')"
                 ></textarea>
               </div>
@@ -405,12 +456,22 @@ const trackUrl = route('track')
                   autocomplete="off"
                 />
               </div>
-              <TurnstileWidget action="contact" @token="onContactTurnstileToken" class="flex justify-center" />
+              <TurnstileWidget
+                ref="turnstileRef"
+                action="contact"
+                @token="onContactTurnstileToken"
+                @expired="onContactTurnstileExpired"
+                @error="onContactTurnstileError"
+                class="flex justify-center"
+              />
+              <p v-if="contactForm.errors['cf-turnstile-response']" class="text-xs text-red-600 text-center mt-1">
+                {{ contactForm.errors['cf-turnstile-response'] }}
+              </p>
               <button
                 type="submit"
-                :disabled="contactForm.processing"
+                :disabled="contactForm.processing || contactCooldown > 0"
                 class="w-full bg-emerald-500 text-white px-6 py-2.5 rounded-xl font-semibold text-sm hover:bg-emerald-600 active:bg-emerald-600 transition-[background,transform] duration-150 press-feedback"
-                :class="contactForm.processing ? 'opacity-60 cursor-not-allowed' : ''"
+                :class="(contactForm.processing || contactCooldown > 0) ? 'opacity-60 cursor-not-allowed' : ''"
               >
                 {{ contactForm.processing ? $t('contact.form_sending') : $t('contact.form_submit') }}
               </button>

@@ -77,7 +77,13 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('contact', function (Request $request) {
             return Limit::perMinutes(15, 5)
                 ->by($request->ip())
-                ->response(fn (Request $r) => $this->rateLimitResponse($r, 'Contact form limit reached for IP: ' . $r->ip()));
+                ->response(fn (Request $r) => $this->rateLimitResponse($r, 'Contact form limit reached for IP: ' . $r->ip(), 900));
+        });
+
+        RateLimiter::for('track_send_otp', function (Request $request) {
+            return Limit::perMinutes(5, 3)
+                ->by($request->route('referenceCode') . '|' . $request->ip())
+                ->response(fn (Request $r) => $this->rateLimitResponse($r, 'Track OTP send limit reached for reference: ' . $r->route('referenceCode'), 300));
         });
 
         RateLimiter::for('application_submit', function (Request $request) {
@@ -149,7 +155,7 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
-    protected function rateLimitResponse(Request $request, string $description): \Symfony\Component\HttpFoundation\Response
+    protected function rateLimitResponse(Request $request, string $description, int $retryAfter = 60): \Symfony\Component\HttpFoundation\Response
     {
         AuditLog::create([
             'user_id' => $request->user()?->id,
@@ -163,7 +169,10 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         if ($request->header('X-Inertia')) {
-            return back()->with('error', 'Too many requests. Please try again later.');
+            return back()->with('rate_limited', [
+                'message' => 'Too many requests. Please try again in ' . $retryAfter . ' seconds.',
+                'retry_after' => $retryAfter,
+            ]);
         }
 
         return response()->json([

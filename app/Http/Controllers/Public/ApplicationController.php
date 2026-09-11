@@ -228,12 +228,6 @@ class ApplicationController extends Controller
             'otp_code' => 'required|string|size:6',
         ]);
 
-        if (config('turnstile.enabled')) {
-            $request->validate([
-                'cf-turnstile-response' => ['nullable', Turnstile::strict()],
-            ]);
-        }
-
         $stored = $request->session()->get('track_otp_' . $referenceCode);
 
         if (!$stored || now() > $stored['expires_at']) {

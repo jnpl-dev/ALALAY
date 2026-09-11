@@ -41,6 +41,8 @@ class HandleInertiaRequests extends Middleware
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
                 'reference_code' => $request->session()->get('reference_code'),
+                'login_rate_limited' => $request->session()->get('login_rate_limited'),
+                'rate_limited' => $request->session()->get('rate_limited'),
             ],
             'utils' => [
                 'turnstile_site_key' => config('turnstile.site_key'),

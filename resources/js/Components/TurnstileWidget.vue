@@ -67,6 +67,8 @@ onMounted(async () => {
   render()
 })
 
+defineExpose({ reset })
+
 onBeforeUnmount(() => {
   if (window.turnstile && widgetId.value) {
     window.turnstile.remove(widgetId.value)

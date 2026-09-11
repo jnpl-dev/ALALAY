@@ -68,9 +68,18 @@ function clearOtpError() {
 }
 
 const turnstileToken = ref('')
+const turnstileRef = ref(null)
 
 function onTurnstileToken(token) {
   turnstileToken.value = token
+}
+
+function onTurnstileExpired() {
+  turnstileToken.value = ''
+}
+
+function onTurnstileError() {
+  turnstileToken.value = ''
 }
 
 function sendOtp() {
@@ -84,6 +93,12 @@ function sendOtp() {
       clearOtpError()
       nowTs.value = Date.now()
       turnstileToken.value = ''
+    },
+    onFinish: () => {
+      if (Object.keys(usePage().props.errors || {}).length > 0) {
+        turnstileToken.value = ''
+        turnstileRef.value?.reset()
+      }
     },
   })
 }
@@ -122,9 +137,32 @@ watch(() => [props.otp_resend_available_at, props.otp_sent], () => {
   cooldownTimer.value = setInterval(() => { nowTs.value = Date.now() }, 1000)
 }, { immediate: true })
 
+const flash = computed(() => usePage().props.flash || {})
+const sendOtpCooldown = ref(0)
+let sendOtpCooldownTimer = null
+
+const startSendOtpCooldown = (seconds) => {
+  sendOtpCooldown.value = seconds
+  if (sendOtpCooldownTimer) clearInterval(sendOtpCooldownTimer)
+  sendOtpCooldownTimer = setInterval(() => {
+    sendOtpCooldown.value--
+    if (sendOtpCooldown.value <= 0) {
+      clearInterval(sendOtpCooldownTimer)
+      sendOtpCooldownTimer = null
+    }
+  }, 1000)
+}
+
+watch(flash, (val) => {
+  if (val.rate_limited?.retry_after) {
+    startSendOtpCooldown(val.rate_limited.retry_after)
+  }
+}, { immediate: true })
+
 onBeforeUnmount(() => {
   clearTimeout(toastTimer)
   if (cooldownTimer.value) clearInterval(cooldownTimer.value)
+  if (sendOtpCooldownTimer) clearInterval(sendOtpCooldownTimer)
 })
 
 function submitOtp() {
@@ -374,11 +412,26 @@ const timelineSteps = computed(() => {
         </div>
 
         <div v-if="!otp_sent" class="text-center">
-          <TurnstileWidget action="track_otp" @token="onTurnstileToken" class="mb-4" />
+          <div v-if="sendOtpCooldown > 0" class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200">
+            <p class="text-sm text-amber-700 font-medium">
+              Too many requests. Please wait {{ sendOtpCooldown }}s.
+            </p>
+          </div>
+          <TurnstileWidget
+            ref="turnstileRef"
+            action="track_otp"
+            @token="onTurnstileToken"
+            @expired="onTurnstileExpired"
+            @error="onTurnstileError"
+            class="mb-4"
+          />
+          <p v-if="otpForm.errors['cf-turnstile-response']" class="text-xs text-red-600 text-center mb-3">
+            {{ otpForm.errors['cf-turnstile-response'] }}
+          </p>
           <button
             @click="sendOtp"
-            :disabled="otpForm.processing"
-            class="px-8 py-3 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50"
+            :disabled="otpForm.processing || sendOtpCooldown > 0"
+            class="px-8 py-3 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {{ otpForm.processing ? $t('track.otp_sending') : $t('track.otp_send') }}
           </button>
