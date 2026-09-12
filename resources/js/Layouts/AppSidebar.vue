@@ -28,8 +28,7 @@ const logout = () => {
 watch(
   () => page.url,
   (newUrl) => {
-    if (isDesktop()) layoutState.activePath = null
-    else layoutState.activePath = newUrl
+    layoutState.activePath = newUrl
 
     layoutState.overlayMenuActive = false
     layoutState.mobileMenuActive = false

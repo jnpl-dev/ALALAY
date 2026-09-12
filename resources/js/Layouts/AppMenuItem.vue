@@ -26,10 +26,24 @@ const fullPath = computed(() => (props.item.path ? (props.parentPath ? props.par
 const isActiveRoute = computed(() => {
   if (!props.item.to) return false
   const currentPath = page.url.split('?')[0]
-  return currentPath === props.item.to || currentPath.startsWith(props.item.to + '/')
+  const itemPath = props.item.to.startsWith('http') ? new URL(props.item.to).pathname : props.item.to
+  return currentPath === itemPath || currentPath.startsWith(itemPath + '/')
+})
+
+const isManuallyExpanded = computed(() => {
+  return fullPath.value && layoutState.activePath === fullPath.value
 })
 
 const isActive = computed(() => {
+  if (props.item.items) {
+    const currentPath = page.url.split('?')[0]
+    const childActive = props.item.items.some((child) => {
+      if (!child.to) return false
+      const childPath = child.to.startsWith('http') ? new URL(child.to).pathname : child.to
+      return currentPath === childPath || currentPath.startsWith(childPath + '/')
+    })
+    return childActive || isManuallyExpanded.value
+  }
   return props.item.path ? layoutState.activePath?.startsWith(fullPath.value) : layoutState.activePath === props.item.to
 })
 
@@ -45,7 +59,7 @@ const itemClick = (event, item) => {
 
   if (item.items) {
     if (isActive.value) {
-      layoutState.activePath = layoutState.activePath.replace(item.path, '')
+      layoutState.activePath = ''
     } else {
       layoutState.activePath = fullPath.value
       layoutState.menuHoverActive = true

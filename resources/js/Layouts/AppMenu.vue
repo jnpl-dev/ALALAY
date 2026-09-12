@@ -88,7 +88,7 @@ const model = computed(() => {
     {
       label: 'Home',
       items: [
-        { label: 'Dashboard', icon: 'pi pi-fw pi-home', to: route('dashboard') },
+        { label: 'Dashboard', icon: 'pi pi-fw pi-home', to: route(roleRoutes[role] ? `${role === 'aics_staff' ? 'aics' : role === 'budget_officer' ? 'budget-office' : role === 'internal_audit' ? 'internal-audit' : role}.dashboard` : 'dashboard') },
         { label: 'Account Settings', icon: 'pi pi-fw pi-user-edit', to: route('account.edit') },
       ],
     },
