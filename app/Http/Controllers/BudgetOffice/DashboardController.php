@@ -12,17 +12,34 @@ class DashboardController extends Controller
     public function index()
     {
         $today = today();
+        $yesterday = today()->subDay();
         $weekStart = now()->subDays(6)->startOfDay();
+        $lastWeekStart = now()->subDays(13)->startOfDay();
+        $lastWeekEnd = now()->subDays(7)->endOfDay();
 
         return Inertia::render('BudgetOffice/Dashboard', [
-            'dashboardData' => Inertia::defer(function () use ($today, $weekStart) {
+            'dashboardData' => Inertia::defer(function () use ($today, $yesterday, $weekStart, $lastWeekStart, $lastWeekEnd) {
                 $reviews = Review::byStage('budget_checking');
 
                 return [
                     'pending_budget_checks' => Application::where('status', 'budget_checking')->count(),
+                    'pending_budget_checks_change' => Review::where('to_status', 'budget_checking')
+                        ->where('created_at', '>=', $weekStart)->count()
+                        - Review::where('to_status', 'budget_checking')
+                            ->where('created_at', '>=', $lastWeekStart)->where('created_at', '<', $weekStart)->count(),
                     'on_hold' => Application::where('status', 'voucher_on_hold')->count(),
+                    'on_hold_change' => Review::where('to_status', 'voucher_on_hold')
+                        ->where('created_at', '>=', $weekStart)->count()
+                        - Review::where('to_status', 'voucher_on_hold')
+                            ->where('created_at', '>=', $lastWeekStart)->where('created_at', '<', $weekStart)->count(),
                     'forwarded_today' => (clone $reviews)
                         ->where('decision', 'approved')->whereDate('created_at', $today)->count(),
+                    'forwarded_yesterday' => (clone $reviews)
+                        ->where('decision', 'approved')->whereDate('created_at', $yesterday)->count(),
+                    'forwarded_change' => (clone $reviews)->where('decision', 'approved')
+                        ->whereDate('created_at', $today)->count()
+                        - (clone $reviews)->where('decision', 'approved')
+                            ->whereDate('created_at', $yesterday)->count(),
 
                     'decision_trend' => (clone $reviews)
                         ->where('created_at', '>=', $weekStart)

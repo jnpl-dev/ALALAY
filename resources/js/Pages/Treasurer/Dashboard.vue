@@ -10,7 +10,7 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Skeleton from 'primevue/skeleton'
 import { CHART_COLORS, baseChartOptions } from '@/Utils/chartColors'
-import { generateWeekLabels } from '@/Utils/chartDates'
+import { generateWeekLabels, generateWeekDates } from '@/Utils/chartDates'
 import { formatDate } from '@/Utils/formatDate'
 import { formatCurrency } from '@/Utils/formatCurrency'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
@@ -31,6 +31,7 @@ const claimedCount = computed(() => {
 })
 
 const weekLabels = generateWeekLabels()
+const weekDates = generateWeekDates()
 
 const trendData = computed(() => {
   const raw = props.dashboardData?.weekly_status_trend ?? []
@@ -43,7 +44,7 @@ const trendData = computed(() => {
     labels: weekLabels,
     datasets: ['with_treasurer', 'cheque_ready', 'claimed'].map(status => ({
       label: statusLabels[status] || status,
-      data: weekLabels.map(d => grouped[status]?.[d] ?? 0),
+      data: weekDates.map(d => grouped[status]?.[d] ?? 0),
       borderColor: statusColors[status] || CHART_COLORS.muted,
       backgroundColor: statusColors[status] || CHART_COLORS.muted,
       tension: 0.4,
@@ -132,45 +133,33 @@ const horizontalBarOptions = baseChartOptions({
   <Deferred data="dashboardData">
     <div class="grid grid-cols-12 gap-8">
       <div class="col-span-12 lg:col-span-4">
-        <AppKpiCard title="Pending Cheques" :value="dashboardData?.pending_cheques ?? 0" icon="pi pi-clock" color="warn" subtitle="needs treasurer action" />
+        <AppKpiCard title="Pending Cheques" :value="dashboardData?.pending_cheques ?? 0" :change="dashboardData?.pending_cheques_change" change-label="vs last week" icon="pi pi-clock" color="warn" />
       </div>
       <div class="col-span-12 lg:col-span-4">
-        <AppKpiCard title="Ready Today" :value="dashboardData?.ready_today ?? 0" icon="pi pi-check-circle" color="success" subtitle="cheque ready for releasing" />
+        <AppKpiCard title="Ready Today" :value="dashboardData?.ready_today ?? 0" :change="dashboardData?.ready_change" change-label="vs yesterday" icon="pi pi-check-circle" color="success" />
       </div>
       <div class="col-span-12 lg:col-span-4">
-        <AppKpiCard title="Total Claimed" :value="claimedCount" icon="pi pi-verified" color="primary" subtitle="released to beneficiary" />
+        <AppKpiCard title="Total Claimed" :value="claimedCount" :change="dashboardData?.claimed_change" change-label="vs last claiming" icon="pi pi-verified" color="primary" />
       </div>
 
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Cheque Status This Week</div>
-          <Chart v-if="trendData?.labels?.length" type="line" :data="trendData" :options="baseChartOptions()" class="h-72" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-line text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="line" :data="trendData" :options="baseChartOptions()" class="h-72" />
         </div>
       </div>
 
       <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Status Breakdown</div>
-          <Chart v-if="statusData?.labels?.length" type="bar" :data="statusData" :options="horizontalBarOptions" class="h-72" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="bar" :data="statusData" :options="horizontalBarOptions" class="h-72" />
         </div>
       </div>
 
       <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Amount by Category</div>
-          <Chart v-if="categoryAmountData?.labels?.length" type="bar" :data="categoryAmountData" :options="categoryAmountOptions" class="h-72" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="bar" :data="categoryAmountData" :options="categoryAmountOptions" class="h-72" />
         </div>
       </div>
 

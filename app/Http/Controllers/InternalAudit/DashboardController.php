@@ -12,10 +12,13 @@ class DashboardController extends Controller
     public function index()
     {
         $today = today();
+        $yesterday = today()->subDay();
         $weekStart = now()->subDays(6)->startOfDay();
+        $lastWeekStart = now()->subDays(13)->startOfDay();
+        $lastWeekEnd = now()->subDays(7)->endOfDay();
 
         return Inertia::render('InternalAudit/Dashboard', [
-            'dashboardData' => Inertia::defer(function () use ($today, $weekStart) {
+            'dashboardData' => Inertia::defer(function () use ($today, $yesterday, $weekStart, $lastWeekStart, $lastWeekEnd) {
                 $reviews = Review::byStage('internal_audit_review');
 
                 $approvedIds = (clone $reviews)->where('decision', 'approved')
@@ -24,10 +27,26 @@ class DashboardController extends Controller
 
                 return [
                     'pending_reviews' => Application::where('status', 'internal_audit_review')->count(),
+                    'pending_reviews_change' => Review::where('to_status', 'internal_audit_review')
+                        ->where('created_at', '>=', $weekStart)->count()
+                        - Review::where('to_status', 'internal_audit_review')
+                            ->where('created_at', '>=', $lastWeekStart)->where('created_at', '<', $weekStart)->count(),
                     'approved_today' => (clone $reviews)
                         ->where('decision', 'approved')->whereDate('created_at', $today)->count(),
+                    'approved_yesterday' => (clone $reviews)
+                        ->where('decision', 'approved')->whereDate('created_at', $yesterday)->count(),
+                    'approved_change' => (clone $reviews)->where('decision', 'approved')
+                        ->whereDate('created_at', $today)->count()
+                        - (clone $reviews)->where('decision', 'approved')
+                            ->whereDate('created_at', $yesterday)->count(),
                     'returned_today' => (clone $reviews)
                         ->where('decision', 'returned')->whereDate('created_at', $today)->count(),
+                    'returned_yesterday' => (clone $reviews)
+                        ->where('decision', 'returned')->whereDate('created_at', $yesterday)->count(),
+                    'returned_change' => (clone $reviews)->where('decision', 'returned')
+                        ->whereDate('created_at', $today)->count()
+                        - (clone $reviews)->where('decision', 'returned')
+                            ->whereDate('created_at', $yesterday)->count(),
 
                     'decision_trend' => (clone $reviews)
                         ->where('created_at', '>=', $weekStart)

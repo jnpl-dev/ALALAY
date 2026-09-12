@@ -281,6 +281,10 @@ class VoucherController extends Controller
             return redirect()->back()->with('error', 'A voucher can only be created after Internal Audit approval.');
         }
 
+        if (!$application->assistanceCode) {
+            return redirect()->back()->with('error', 'No assistance code assigned. Cannot create voucher.');
+        }
+
         $file = $request->file('voucher_file');
 
         $existingVoucher = $application->vouchers()->latest()->first();

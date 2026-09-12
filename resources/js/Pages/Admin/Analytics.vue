@@ -164,55 +164,35 @@ const horizontalBarOptions = baseChartOptions({
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Application Trend</div>
-          <Chart v-if="trendData?.labels?.length" type="line" :data="trendData" :options="baseChartOptions()" class="h-80" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-line text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="line" :data="trendData" :options="baseChartOptions()" class="h-80" />
         </div>
       </div>
 
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Applications by Status</div>
-          <Chart v-if="statusData?.labels?.length" type="bar" :data="statusData" :options="horizontalBarOptions" class="h-80" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="bar" :data="statusData" :options="horizontalBarOptions" class="h-80" />
         </div>
       </div>
 
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
           <div class="font-semibold text-xl mb-4">User Registration Trend</div>
-          <Chart v-if="userRegData?.labels?.length" type="line" :data="userRegData" :options="baseChartOptions()" class="h-80" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-line text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="line" :data="userRegData" :options="baseChartOptions()" class="h-80" />
         </div>
       </div>
 
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Users by Role</div>
-          <Chart v-if="roleData?.labels?.length" type="bar" :data="roleData" :options="horizontalBarOptions" class="h-80" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="bar" :data="roleData" :options="horizontalBarOptions" class="h-80" />
         </div>
       </div>
 
       <div class="col-span-12">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Monthly Disbursement Trend</div>
-          <Chart v-if="disbursementData?.labels?.length" type="bar" :data="disbursementData" :options="baseChartOptions()" class="h-80" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="bar" :data="disbursementData" :options="baseChartOptions()" class="h-80" />
         </div>
       </div>
     </div>

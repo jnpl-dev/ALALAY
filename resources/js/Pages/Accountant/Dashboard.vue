@@ -40,15 +40,19 @@ const trendData = computed(() => {
   }
 })
 
+const VOUCHER_STATUSES = [
+  { key: 'voucher_recording', label: 'Pending', color: CHART_COLORS.warning },
+  { key: 'with_treasurer', label: 'Approved', color: CHART_COLORS.success },
+]
+
 const voucherStatusData = computed(() => {
-  const data = props.dashboardData?.voucher_statuses ?? []
-  const labels = { voucher_recording: 'Pending', with_treasurer: 'Approved' }
-  const colors = { voucher_recording: CHART_COLORS.warning, with_treasurer: CHART_COLORS.success }
+  const raw = props.dashboardData?.voucher_statuses ?? []
+  const map = Object.fromEntries(raw.map(d => [d.status, d.count]))
   return {
-    labels: data.map(d => labels[d.status] || d.status),
+    labels: VOUCHER_STATUSES.map(s => s.label),
     datasets: [{
-      data: data.map(d => d.count),
-      backgroundColor: data.map(d => colors[d.status] || CHART_COLORS.muted),
+      data: VOUCHER_STATUSES.map(s => map[s.key] ?? 0),
+      backgroundColor: VOUCHER_STATUSES.map(s => s.color),
       borderWidth: 2,
       borderColor: '#FFFFFF',
     }],
@@ -56,7 +60,11 @@ const voucherStatusData = computed(() => {
 })
 
 const voucherStatusPercent = computed(() => {
-  const counts = (props.dashboardData?.voucher_statuses ?? []).map(d => d.count)
+  const counts = VOUCHER_STATUSES.map(s => {
+    const raw = props.dashboardData?.voucher_statuses ?? []
+    const found = raw.find(d => d.status === s.key)
+    return found?.count ?? 0
+  })
   const total = counts.reduce((sum, n) => sum + n, 0)
   return total === 0 ? counts.map(() => 0) : counts.map(n => Math.round((n / total) * 100))
 })
@@ -105,27 +113,23 @@ const categoryAmountOptions = baseChartOptions({
   <Deferred data="dashboardData">
     <div class="grid grid-cols-12 gap-8">
       <div class="col-span-12 lg:col-span-6">
-        <AppKpiCard title="Pending Vouchers" :value="dashboardData?.pending_vouchers ?? 0" icon="pi pi-receipt" color="warn" subtitle="needs recording" />
+        <AppKpiCard title="Pending Vouchers" :value="dashboardData?.pending_vouchers ?? 0" :change="dashboardData?.pending_vouchers_change" change-label="vs last week" icon="pi pi-receipt" color="warn" />
       </div>
       <div class="col-span-12 lg:col-span-6">
-        <AppKpiCard title="Approved Today" :value="dashboardData?.approved_today ?? 0" icon="pi pi-check-circle" color="success" subtitle="sent to treasurer" />
+        <AppKpiCard title="Approved Today" :value="dashboardData?.approved_today ?? 0" :change="dashboardData?.approved_change" change-label="vs yesterday" icon="pi pi-check-circle" color="success" />
       </div>
 
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Voucher Trend This Week</div>
-          <Chart v-if="trendData?.labels?.length" type="line" :data="trendData" :options="baseChartOptions()" class="h-72" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-line text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="line" :data="trendData" :options="baseChartOptions()" class="h-72" />
         </div>
       </div>
 
       <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Voucher Status</div>
-          <div v-if="voucherStatusData?.labels?.length" class="flex flex-col gap-4 py-2">
+          <div class="flex flex-col gap-4 py-2">
             <div v-for="(item, index) in voucherStatusData.labels" :key="item" class="flex flex-col gap-1">
               <div class="flex items-center justify-between text-sm">
                 <span class="font-medium text-color">{{ item }}</span>
@@ -133,7 +137,7 @@ const categoryAmountOptions = baseChartOptions({
                   {{ voucherStatusData.datasets[0].data[index] }} · {{ voucherStatusPercent[index] }}%
                 </span>
               </div>
-              <div class="h-2 w-full rounded-full bg-surface-200 overflow-hidden">
+              <div class="h-3 w-full rounded-full overflow-hidden" style="background-color: var(--p-surface-200)">
                 <div
                   class="h-full rounded-full transition-all duration-500"
                   :style="{ width: (voucherStatusPercent[index] || 0) + '%', backgroundColor: voucherStatusData.datasets[0].backgroundColor[index] }"
@@ -141,21 +145,13 @@ const categoryAmountOptions = baseChartOptions({
               </div>
             </div>
           </div>
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
         </div>
       </div>
 
       <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Amount by Category</div>
-          <Chart v-if="categoryAmountData?.labels?.length" type="bar" :data="categoryAmountData" :options="categoryAmountOptions" class="h-72" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="bar" :data="categoryAmountData" :options="categoryAmountOptions" class="h-72" />
         </div>
       </div>
 

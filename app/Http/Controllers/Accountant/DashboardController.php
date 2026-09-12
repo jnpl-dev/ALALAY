@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Accountant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Application;
+use App\Models\Review;
 use App\Models\Voucher;
 use Inertia\Inertia;
 
@@ -12,20 +13,35 @@ class DashboardController extends Controller
     public function index()
     {
         $today = today();
+        $yesterday = today()->subDay();
         $weekStart = now()->subDays(6)->startOfDay();
+        $lastWeekStart = now()->subDays(13)->startOfDay();
+        $lastWeekEnd = now()->subDays(7)->endOfDay();
 
         return Inertia::render('Accountant/Dashboard', [
-            'dashboardData' => Inertia::defer(function () use ($today, $weekStart) {
+            'dashboardData' => Inertia::defer(function () use ($today, $yesterday, $weekStart, $lastWeekStart, $lastWeekEnd) {
                 $accountantStatuses = ['voucher_recording', 'budget_checking', 'with_treasurer'];
 
                 return [
                     'pending_vouchers' => Application::where('status', 'voucher_recording')->count(),
-                    'approved_today' => Application::where('status', 'with_treasurer')
-                        ->whereDate('updated_at', $today)->count(),
+                    'pending_vouchers_change' => Review::where('to_status', 'voucher_recording')
+                        ->where('created_at', '>=', $weekStart)->count()
+                        - Review::where('to_status', 'voucher_recording')
+                            ->where('created_at', '>=', $lastWeekStart)->where('created_at', '<', $weekStart)->count(),
+                    'approved_today' => Review::where('to_status', 'with_treasurer')
+                        ->whereDate('created_at', $today)->count(),
+                    'approved_yesterday' => Review::where('to_status', 'with_treasurer')
+                        ->whereDate('created_at', $yesterday)->count(),
+                    'approved_change' => Review::where('to_status', 'with_treasurer')
+                        ->whereDate('created_at', $today)->count()
+                        - Review::where('to_status', 'with_treasurer')
+                            ->whereDate('created_at', $yesterday)->count(),
 
-                    'weekly_voucher_trend' => Voucher::where('created_at', '>=', $weekStart)
-                        ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
-                        ->groupBy('date')->orderBy('date')->get(),
+                    'weekly_voucher_trend' => $this->fillWeekDates($weekStart,
+                        Voucher::where('created_at', '>=', $weekStart)
+                            ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+                            ->groupBy('date')->get()
+                    ),
 
                     'voucher_statuses' => [
                         ['status' => 'voucher_recording', 'count' => Application::where('status', 'voucher_recording')->count()],

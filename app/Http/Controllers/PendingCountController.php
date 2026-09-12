@@ -19,7 +19,7 @@ class PendingCountController extends Controller
                 $counts['assistance_codes'] = Application::whereIn('status', ['assistance_coding', 'returned_assistance_coding'])->count(),
             ],
             'mswdo' => [
-                $counts['applications'] = Application::whereIn('status', ['submitted', 'mswdo_review'])->count(),
+                $counts['applications'] = Application::where('status', 'mswdo_review')->count(),
                 $counts['vouchers'] = Application::where('status', 'voucher_creation')->count(),
             ],
             'accountant' => [
