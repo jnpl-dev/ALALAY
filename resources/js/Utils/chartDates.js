@@ -8,6 +8,16 @@ export function generateWeekLabels() {
   return labels
 }
 
+export function generateWeekDates() {
+  const dates = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    dates.push(d.toISOString().slice(0, 10))
+  }
+  return dates
+}
+
 export function fillMissingDates(data, dateFrom, dateTo) {
   const map = {}
   for (const row of data) {

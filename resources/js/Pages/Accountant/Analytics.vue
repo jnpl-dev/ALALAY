@@ -140,33 +140,21 @@ const categoryAmountOptions = baseChartOptions({
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Voucher Volume</div>
-          <Chart v-if="trendData?.labels?.length" type="line" :data="trendData" :options="baseChartOptions()" class="h-72" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-line text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="line" :data="trendData" :options="baseChartOptions()" class="h-72" />
         </div>
       </div>
 
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Approved Amount Over Time</div>
-          <Chart v-if="amountTrendData?.labels?.length" type="bar" :data="amountTrendData" :options="amountTrendOptions" class="h-72" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="bar" :data="amountTrendData" :options="amountTrendOptions" class="h-72" />
         </div>
       </div>
 
       <div class="col-span-12">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Approved Amount by Category</div>
-          <Chart v-if="categoryAmountData?.labels?.length" type="bar" :data="categoryAmountData" :options="categoryAmountOptions" class="h-72" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="bar" :data="categoryAmountData" :options="categoryAmountOptions" class="h-72" />
         </div>
       </div>
     </div>

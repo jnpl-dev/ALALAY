@@ -9,6 +9,10 @@ import ConfirmationService from 'primevue/confirmationservice'
 import StyleClass from 'primevue/styleclass'
 import Tooltip from 'primevue/tooltip'
 import Chart from 'primevue/chart'
+import { Chart as ChartJS } from 'chart.js'
+import { emptyChartPlugin } from '@/Utils/chartColors'
+
+ChartJS.register(emptyChartPlugin)
 import { i18n } from './i18n'
 import 'primeicons/primeicons.css'
 import '../css/app.css'

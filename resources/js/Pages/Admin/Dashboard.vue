@@ -65,22 +65,18 @@ const horizontalBarOptions = baseChartOptions({
   <Deferred data="dashboardData">
     <div class="grid grid-cols-12 gap-8">
       <div class="col-span-12 lg:col-span-6 xl:col-span-4">
-        <AppKpiCard title="Total Users" :value="dashboardData?.total_users ?? 0" icon="pi pi-users" color="info" subtitle="registered accounts" />
+        <AppKpiCard title="Total Users" :value="dashboardData?.total_users ?? 0" :change="dashboardData?.total_users_change" change-label="vs last month" icon="pi pi-users" color="info" />
       </div>
       <div class="col-span-12 lg:col-span-6 xl:col-span-4">
-        <AppKpiCard title="Active Users" :value="dashboardData?.active_users ?? 0" icon="pi pi-check-circle" color="success" subtitle="active accounts" />
+        <AppKpiCard title="Active Users" :value="dashboardData?.active_users ?? 0" :change="dashboardData?.active_users_change" change-label="vs last month" icon="pi pi-check-circle" color="success" />
       </div>
       <div class="col-span-12 lg:col-span-6 xl:col-span-4">
-        <AppKpiCard title="Inactive Users" :value="dashboardData?.inactive_users ?? 0" icon="pi pi-ban" color="warn" subtitle="deactivated accounts" />
+        <AppKpiCard title="Inactive Users" :value="dashboardData?.inactive_users ?? 0" :change="dashboardData?.inactive_users_change" change-label="vs last month" icon="pi pi-ban" color="warn" />
       </div>
       <div class="col-span-12 xl:col-span-4">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Users by Role</div>
-          <Chart v-if="roleData?.labels?.length" type="bar" :data="roleData" :options="horizontalBarOptions" class="h-80" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-pie text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="bar" :data="roleData" :options="horizontalBarOptions" class="h-80" />
         </div>
       </div>
 

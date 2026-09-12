@@ -9,6 +9,7 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Skeleton from 'primevue/skeleton'
 import { CHART_COLORS, baseChartOptions } from '@/Utils/chartColors'
+import { generateWeekDates } from '@/Utils/chartDates'
 import { formatDate } from '@/Utils/formatDate'
 import { formatCurrency } from '@/Utils/formatCurrency'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
@@ -23,10 +24,10 @@ const props = defineProps({
 
 const decisionTrendData = computed(() => {
   const raw = props.dashboardData?.decision_trend ?? []
-  const labels = [...new Set(raw.map(d => d.date))].sort()
-  const byDecision = (decision) => labels.map(date => raw.find(r => r.date === date && r.decision === decision)?.count ?? 0)
+  const allDates = generateWeekDates()
+  const byDecision = (decision) => allDates.map(date => raw.find(r => r.date === date && r.decision === decision)?.count ?? 0)
   return {
-    labels,
+    labels: allDates,
     datasets: [
       {
         label: 'Approved',
@@ -131,44 +132,36 @@ const horizontalAmountOptions = baseChartOptions({
   <Deferred data="dashboardData">
     <div class="grid grid-cols-12 gap-8">
       <div class="col-span-12 lg:col-span-6 xl:col-span-4">
-        <AppKpiCard title="Pending Reviews" :value="dashboardData?.pending_reviews ?? 0" icon="pi pi-clock" color="primary" subtitle="needs coding review" />
+        <AppKpiCard title="Pending Reviews" :value="dashboardData?.pending_reviews ?? 0" :change="dashboardData?.pending_reviews_change" change-label="vs last week" icon="pi pi-clock" color="primary" />
       </div>
       <div class="col-span-12 lg:col-span-6 xl:col-span-4">
-        <AppKpiCard title="Approved Today" :value="dashboardData?.approved_today ?? 0" icon="pi pi-check-circle" color="success" subtitle="ready for voucher creation" />
+        <AppKpiCard title="Approved Today" :value="dashboardData?.approved_today ?? 0" :change="dashboardData?.approved_change" change-label="vs yesterday" icon="pi pi-check-circle" color="success" />
       </div>
       <div class="col-span-12 lg:col-span-6 xl:col-span-4">
-        <AppKpiCard title="Returned Today" :value="dashboardData?.returned_today ?? 0" icon="pi pi-undo" color="danger" subtitle="sent back to AICS" />
+        <AppKpiCard title="Returned Today" :value="dashboardData?.returned_today ?? 0" :change="dashboardData?.returned_change" change-label="vs yesterday" icon="pi pi-undo" color="danger" />
       </div>
 
       <div class="col-span-12 xl:col-span-6">
         <div class="card">
           <div class="font-semibold text-xl mb-4">Coding Decisions This Week</div>
-          <Chart v-if="decisionTrendData?.labels?.length" type="bar" :data="decisionTrendData" :options="stackedBarOptions" class="h-72" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="bar" :data="decisionTrendData" :options="stackedBarOptions" class="h-72" />
         </div>
       </div>
 
       <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Approval Rate This Week</div>
-          <div v-if="approvedRateBar.length" class="flex flex-col gap-5 py-2">
+          <div class="flex flex-col gap-5 py-2">
             <div v-for="item in approvedRateBar" :key="item.label" class="flex flex-col gap-1">
               <div class="flex items-center justify-between text-sm">
                 <span class="font-medium text-color">{{ item.label }}</span>
                 <span class="text-muted-color">{{ item.count }} · {{ item.pct }}%</span>
               </div>
-              <div class="h-2 w-full rounded-full bg-surface-200 overflow-hidden">
+              <div class="h-3 w-full rounded-full overflow-hidden" style="background-color: var(--p-surface-200)">
                 <div class="h-full rounded-full transition-all duration-500" :style="{ width: item.pct + '%', backgroundColor: item.color }"></div>
               </div>
             </div>
             <div class="text-3xl font-bold mt-2" :style="{ color: CHART_COLORS.success }">{{ approvalRate }}%</div>
-          </div>
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
           </div>
         </div>
       </div>
@@ -176,11 +169,7 @@ const horizontalAmountOptions = baseChartOptions({
       <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Approved Amount by Category</div>
-          <Chart v-if="amountByCategoryData?.labels?.length" type="bar" :data="amountByCategoryData" :options="horizontalAmountOptions" class="h-72" />
-          <div v-else class="flex flex-col items-center justify-center py-8 text-muted-color">
-            <i class="pi pi-chart-bar text-4xl mb-3 text-muted-color"></i>
-            <span>No data available</span>
-          </div>
+          <Chart type="bar" :data="amountByCategoryData" :options="horizontalAmountOptions" class="h-72" />
         </div>
       </div>
 

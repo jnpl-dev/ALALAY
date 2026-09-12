@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Mswdo;
 
 use App\Http\Controllers\Controller;
 use App\Models\Application;
+use App\Models\Review;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -11,25 +12,52 @@ class DashboardController extends Controller
     public function index()
     {
         $today = today();
+        $yesterday = today()->subDay();
         $weekStart = now()->subDays(6)->startOfDay();
+        $lastWeekStart = now()->subDays(13)->startOfDay();
+        $lastWeekEnd = now()->subDays(7)->endOfDay();
 
         return Inertia::render('Mswdo/Dashboard', [
-            'dashboardData' => Inertia::defer(function () use ($today, $weekStart) {
-                $excluded = ['submitted'];
-                $mswdoFlow = Application::whereNotIn('status', $excluded)
-                    ->where('applications.created_at', '>=', $weekStart);
+            'dashboardData' => Inertia::defer(function () use ($today, $yesterday, $weekStart, $lastWeekStart, $lastWeekEnd) {
+                $mswdoFlowIds = Review::where('to_status', 'mswdo_review')
+                    ->where('created_at', '>=', $weekStart)
+                    ->pluck('application_id');
+                $mswdoFlow = Application::whereIn('applications.id', $mswdoFlowIds);
 
                 return [
                     'pending_applications' => Application::where('status', 'mswdo_review')->count(),
-                    'approved_today' => Application::where('status', 'social_case_study_uploaded')
-                        ->whereDate('updated_at', $today)->count(),
+                    'pending_applications_change' => Review::where('to_status', 'mswdo_review')
+                        ->where('created_at', '>=', $weekStart)->count()
+                        - Review::where('to_status', 'mswdo_review')
+                            ->where('created_at', '>=', $lastWeekStart)->where('created_at', '<', $weekStart)->count(),
+                    'approved_today' => Review::where('to_status', 'assistance_coding')
+                        ->whereDate('created_at', $today)->count(),
+                    'approved_yesterday' => Review::where('to_status', 'assistance_coding')
+                        ->whereDate('created_at', $yesterday)->count(),
+                    'approved_change' => Review::where('to_status', 'assistance_coding')
+                        ->whereDate('created_at', $today)->count()
+                        - Review::where('to_status', 'assistance_coding')
+                            ->whereDate('created_at', $yesterday)->count(),
                     'pending_voucher_creation' => Application::where('status', 'voucher_creation')->count(),
-                    'vouchers_created_today' => Application::where('status', 'budget_checking')
-                        ->whereDate('updated_at', $today)->count(),
+                    'pending_voucher_creation_change' => Review::where('to_status', 'voucher_creation')
+                        ->where('created_at', '>=', $weekStart)->count()
+                        - Review::where('to_status', 'voucher_creation')
+                            ->where('created_at', '>=', $lastWeekStart)->where('created_at', '<', $weekStart)->count(),
+                    'vouchers_created_today' => Review::where('to_status', 'budget_checking')
+                        ->whereDate('created_at', $today)->count(),
+                    'vouchers_created_yesterday' => Review::where('to_status', 'budget_checking')
+                        ->whereDate('created_at', $yesterday)->count(),
+                    'vouchers_created_change' => Review::where('to_status', 'budget_checking')
+                        ->whereDate('created_at', $today)->count()
+                        - Review::where('to_status', 'budget_checking')
+                            ->whereDate('created_at', $yesterday)->count(),
 
-                    'weekly_trend' => (clone $mswdoFlow)
-                        ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
-                        ->groupBy('date')->orderBy('date')->get(),
+                    'weekly_trend' => $this->fillWeekDates($weekStart,
+                        Review::where('to_status', 'mswdo_review')
+                            ->where('created_at', '>=', $weekStart)
+                            ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+                            ->groupBy('date')->get()
+                    ),
 
                     'category_distribution' => (clone $mswdoFlow)
                         ->selectRaw('assistance_categories.category_name, COUNT(*) as count')
@@ -48,7 +76,7 @@ class DashboardController extends Controller
                         ->orderByDesc('count')->limit(10)->get(),
 
                     'recent_applications' => Application::with('category')
-                        ->whereNotIn('status', $excluded)
+                        ->whereIn('applications.id', $mswdoFlowIds)
                         ->orderByDesc('updated_at')->limit(5)
                         ->get(['id', 'reference_code', 'beneficiary_first_name',
                             'beneficiary_last_name', 'category_id',

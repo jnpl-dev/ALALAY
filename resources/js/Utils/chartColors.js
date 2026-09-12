@@ -33,6 +33,18 @@ export function chartFont() {
 }
 
 export function baseChartOptions(extra = {}) {
+  const { scales: extraScales, ...rest } = extra
+
+  const baseX = {
+    grid: { display: false },
+    ticks: { font: chartFont(), maxRotation: 45, precision: 0 },
+  }
+  const baseY = {
+    beginAtZero: true,
+    grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
+    ticks: { font: chartFont(), padding: 8, precision: 0 },
+  }
+
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -60,27 +72,17 @@ export function baseChartOptions(extra = {}) {
     },
     scales: {
       x: {
-        grid: {
-          display: false,
-        },
-        ticks: {
-          font: chartFont(),
-          maxRotation: 45,
-        },
+        ...baseX,
+        ...(extraScales?.x ?? {}),
+        ticks: { ...baseX.ticks, ...(extraScales?.x?.ticks ?? {}) },
       },
       y: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.06)',
-          drawBorder: false,
-        },
-        ticks: {
-          font: chartFont(),
-          padding: 8,
-        },
+        ...baseY,
+        ...(extraScales?.y ?? {}),
+        ticks: { ...baseY.ticks, ...(extraScales?.y?.ticks ?? {}) },
       },
     },
-    ...extra,
+    ...rest,
   }
 }
 
@@ -95,3 +97,45 @@ export const paletteColors = [
   '#065f46',
   '#a7f3d0',
 ]
+
+export const ALL_CATEGORIES = ['Medical Assistance', 'Hospital Assistance', 'Burial Assistance']
+export const ALL_CATEGORY_COLORS = [CHART_COLORS.primary, CHART_COLORS.primaryLight, CHART_COLORS.accent]
+
+export const ALL_SUBMISSION_TYPES = [
+  { key: 'online', label: 'Online', color: CHART_COLORS.primary },
+  { key: 'walk-in', label: 'Walk-In', color: CHART_COLORS.muted },
+]
+
+export function getCategoryTagSeverity(categoryName) {
+  const map = {
+    'Medical Assistance': 'info',
+    'Hospital Assistance': 'warn',
+    'Burial Assistance': 'danger',
+  }
+  return map[categoryName] ?? 'secondary'
+}
+
+export function getTypeTagSeverity(submissionType) {
+  return submissionType === 'online' ? 'success' : 'secondary'
+}
+
+export function getTypeLabel(submissionType) {
+  return submissionType === 'online' ? 'Online' : 'Walk-In'
+}
+
+export const emptyChartPlugin = {
+  id: 'emptyChart',
+  afterDraw(chart) {
+    const { ctx, data } = chart
+    const hasData = data.datasets.some(ds => ds.data?.length > 0 && ds.data.some(v => v > 0))
+    if (hasData) return
+    const { left, top, right, bottom } = chart.chartArea
+    ctx.save()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = '#9CA3AF'
+    ctx.font = '14px Lato, sans-serif'
+    ctx.fillText('No data available', (left + right) / 2, (top + bottom) / 2)
+    ctx.restore()
+  },
+}

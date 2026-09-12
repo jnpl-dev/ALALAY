@@ -366,9 +366,15 @@ class ApplicationController extends Controller
     public function caseStudyUrl($id): JsonResponse
     {
         $application = Application::findOrFail($id);
-        $this->authorize('view', $application->socialCaseStudy);
+        $scs = $application->socialCaseStudy;
 
-        $url = $this->signedUrlService->generate($application->socialCaseStudy->file_path);
+        if (!$scs) {
+            return response()->json(['error' => 'No social case study found.'], 404);
+        }
+
+        $this->authorize('view', $scs);
+
+        $url = $this->signedUrlService->generate($scs->file_path);
 
         return response()->json(['url' => $url]);
     }
