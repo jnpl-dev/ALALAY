@@ -94,9 +94,19 @@ function confirmDelete(data) {
                 <span class="text-sm">{{ data.doc_description || '—' }}</span>
               </template>
             </Column>
+            <Column field="capture_type" header="Capture Type" sortable>
+              <template #body="{ data }">
+                <Tag :value="data.capture_type === 'double' ? 'Double-sided' : data.capture_type === 'multi' ? 'Multi-page' : 'Single-sided'" :severity="data.capture_type === 'multi' ? 'warn' : data.capture_type === 'double' ? 'info' : 'contrast'" />
+              </template>
+            </Column>
             <Column field="is_mandatory" header="Mandatory" sortable>
               <template #body="{ data }">
                 <Tag :value="data.is_mandatory ? 'Yes' : 'No'" :severity="data.is_mandatory ? 'info' : 'contrast'" />
+              </template>
+            </Column>
+            <Column field="is_representative_only" header="Rep. Only" sortable>
+              <template #body="{ data }">
+                <Tag :value="data.is_representative_only ? 'Yes' : 'No'" :severity="data.is_representative_only ? 'warn' : 'contrast'" />
               </template>
             </Column>
             <Column field="is_active" header="Status" sortable>

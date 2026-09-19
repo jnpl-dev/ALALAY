@@ -18,6 +18,7 @@ class RequiredDocument extends Model
         'doc_description',
         'is_mandatory',
         'is_active',
+        'is_representative_only',
         'capture_type',
         'scanner_size',
     ];
@@ -27,6 +28,7 @@ class RequiredDocument extends Model
         return [
             'is_mandatory' => 'boolean',
             'is_active' => 'boolean',
+            'is_representative_only' => 'boolean',
         ];
     }
 

@@ -26,12 +26,20 @@ const route = window.route
 
 const categoryOptions = props.categories.map(c => ({ label: c.category_name, value: c.id }))
 
+const captureTypeOptions = [
+  { label: 'Single-sided', value: 'single' },
+  { label: 'Double-sided', value: 'double' },
+  { label: 'Multi-page', value: 'multi' },
+]
+
 const form = useForm({
   category_id: props.document.category_id,
   doc_name: props.document.doc_name,
   doc_description: props.document.doc_description || '',
   is_mandatory: props.document.is_mandatory,
   is_active: props.document.is_active,
+  is_representative_only: props.document.is_representative_only,
+  capture_type: props.document.capture_type || 'single',
 })
 
 const submit = () => {
@@ -77,6 +85,14 @@ const submit = () => {
             <div class="flex items-center gap-3">
               <ToggleSwitch id="is_active" v-model="form.is_active" />
               <label for="is_active" class="font-medium">Active</label>
+            </div>
+            <div class="flex items-center gap-3">
+              <ToggleSwitch id="is_representative_only" v-model="form.is_representative_only" />
+              <label for="is_representative_only" class="font-medium">Representative Only</label>
+            </div>
+            <div class="sm:col-span-2">
+              <label for="capture_type" class="block text-muted-color font-medium mb-2">Capture Type</label>
+              <Select id="capture_type" v-model="form.capture_type" :options="captureTypeOptions" option-label="label" option-value="value" class="w-full" />
             </div>
           </div>
 
