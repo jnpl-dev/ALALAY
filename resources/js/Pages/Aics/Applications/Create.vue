@@ -193,7 +193,7 @@ const allMandatoryCaptured = computed(() => {
   const mandatory = allRequiredDocs.value.filter(d => d.is_mandatory)
   const captured = mandatory.every(d => form.document_ids.includes(d.id))
   if (isRepresentative.value) {
-    const authDoc = allRequiredDocs.value.find(d => d.doc_name === 'Authorization Letter')
+    const authDoc = allRequiredDocs.value.find(d => d.is_representative_only)
     if (authDoc) {
       return captured && form.document_ids.includes(authDoc.id)
     }
@@ -205,7 +205,7 @@ const allMandatoryCaptured = computed(() => {
 const currentDocIndex = ref(0)
 const visibleDocs = computed(() =>
   allRequiredDocs.value.filter(d =>
-    d.doc_name !== 'Authorization Letter' || isRepresentative.value
+    !d.is_representative_only || isRepresentative.value
   )
 )
 const currentDoc = computed(() => visibleDocs.value[currentDocIndex.value])
@@ -294,6 +294,14 @@ function onDocClear(docId) {
     form.document_ids.splice(idx, 1)
     form.documents.splice(idx, 1)
   }
+}
+
+const isCurrentDocCaptured = computed(() =>
+  currentDoc.value && form.document_ids.includes(currentDoc.value.id)
+)
+
+function recaptureCurrentDoc() {
+  onDocClear(currentDoc.value.id)
 }
 
 function goToDoc(i) {
@@ -755,11 +763,25 @@ async function submitApplication() {
         </div>
 
         <div v-if="currentDoc" class="space-y-4">
-          <div class="p-4 border border-gray-200 rounded-xl">
+          <div v-if="isCurrentDocCaptured" class="border border-emerald-200 rounded-lg p-4 bg-emerald-50">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-emerald-700">Captured</p>
+              </div>
+              <button @click="recaptureCurrentDoc" class="text-sm font-medium text-emerald-600 hover:text-emerald-800 transition-colors cursor-pointer">Recapture</button>
+            </div>
+            <img v-if="docPreviews[currentDoc.id]?.preview" :src="docPreviews[currentDoc.id].preview" class="mt-3 rounded-lg max-h-48 object-contain w-full" />
+          </div>
+          <div v-else class="p-4 border border-gray-200 rounded-xl">
             <DocumentScanner
               :key="currentDoc.id"
               :docName="currentDoc.doc_name"
-              :required="currentDoc.is_mandatory || (isRepresentative && currentDoc.doc_name === 'Authorization Letter')"
+              :required="currentDoc.is_mandatory || (isRepresentative && currentDoc.is_representative_only)"
               :captureType="currentDoc.capture_type || 'single'"
               @captured="(payload) => onDocCapture(currentDoc.id, payload)"
               @cleared="() => onDocClear(currentDoc.id)"

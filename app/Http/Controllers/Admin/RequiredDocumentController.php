@@ -31,6 +31,8 @@ class RequiredDocumentController extends Controller
                 'doc_description' => $doc->doc_description,
                 'is_mandatory' => $doc->is_mandatory,
                 'is_active' => $doc->is_active,
+                'is_representative_only' => $doc->is_representative_only,
+                'capture_type' => $doc->capture_type,
                 'category_id' => $doc->category_id,
                 'category_name' => $doc->category?->category_name,
                 'created_at' => $doc->created_at,
@@ -66,6 +68,8 @@ class RequiredDocumentController extends Controller
             'doc_description' => ['nullable', 'string'],
             'is_mandatory' => ['boolean'],
             'is_active' => ['boolean'],
+            'is_representative_only' => ['boolean'],
+            'capture_type' => ['nullable', 'string', 'in:single,double,multi'],
         ]);
 
         RequiredDocument::create($validated);
@@ -91,6 +95,8 @@ class RequiredDocumentController extends Controller
                 'doc_description' => $doc->doc_description,
                 'is_mandatory' => $doc->is_mandatory,
                 'is_active' => $doc->is_active,
+                'is_representative_only' => $doc->is_representative_only,
+                'capture_type' => $doc->capture_type,
             ],
             'categories' => $categories,
         ]);
@@ -107,6 +113,8 @@ class RequiredDocumentController extends Controller
             'doc_description' => ['nullable', 'string'],
             'is_mandatory' => ['boolean'],
             'is_active' => ['boolean'],
+            'is_representative_only' => ['boolean'],
+            'capture_type' => ['nullable', 'string', 'in:single,double,multi'],
         ]);
 
         $doc->update($validated);
