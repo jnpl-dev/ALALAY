@@ -80,10 +80,13 @@ const approveRate = computed(() => {
 
 const decisionColors = { approved: CHART_COLORS.success, hold: CHART_COLORS.warning }
 
-const approveVsHoldBars = computed(() => [
-  { label: 'Approved', count: decisionCounts.value.approved, pct: approveRate.value, color: decisionColors.approved },
-  { label: 'Held', count: decisionCounts.value.hold, pct: 100 - approveRate.value, color: decisionColors.hold },
-])
+const approveVsHoldBars = computed(() => {
+  const total = decisionCounts.value.approved + decisionCounts.value.hold
+  return [
+    { label: 'Approved', count: decisionCounts.value.approved, pct: approveRate.value, color: decisionColors.approved },
+    { label: 'Held', count: decisionCounts.value.hold, pct: total === 0 ? 0 : 100 - approveRate.value, color: decisionColors.hold },
+  ]
+})
 
 const underReviewAmountData = computed(() => {
   const data = props.dashboardData?.under_review_amount_by_category ?? []
