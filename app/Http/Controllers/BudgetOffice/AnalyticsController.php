@@ -63,7 +63,7 @@ class AnalyticsController extends Controller
                         ->selectRaw('assistance_categories.category_name, COUNT(*) as count')
                         ->groupBy('assistance_categories.category_name')->get(),
 
-                    'amount_by_category' => Application::whereIn('id', $approvedIds)
+                    'amount_by_category' => Application::whereIn('applications.id', $approvedIds)
                         ->join('assistance_codes', 'assistance_codes.application_id', '=', 'applications.id')
                         ->join('assistance_categories', 'assistance_categories.id', '=', 'applications.category_id')
                         ->selectRaw('assistance_categories.category_name, SUM(assistance_codes.amount) as total')
