@@ -149,27 +149,17 @@ const doughnutOptions = baseChartOptions({
   </div>
 
   <Deferred data="analyticsData">
-    <div class="flex flex-wrap gap-8 mt-8">
-      <div class="flex-1 min-w-[180px]">
-        <AppKpiCard title="Total Applications" :value="analyticsData?.total_applications ?? 0" icon="pi pi-file" color="primary" subtitle="in date range" />
-      </div>
-      <div class="flex-1 min-w-[180px]">
-        <AppKpiCard title="Average per Day" :value="analyticsData?.average_per_day ?? 0" icon="pi pi-calendar" color="info" subtitle="in date range" />
-      </div>
-      <div class="flex-1 min-w-[180px]">
-        <AppKpiCard title="Total Coded" :value="analyticsData?.total_coded ?? 0" icon="pi pi-qrcode" color="purple" subtitle="assistance codes" />
-      </div>
-      <div class="flex-1 min-w-[180px]">
-        <AppKpiCard title="Total Amount" :value="formatCurrency(analyticsData?.total_amount ?? 0)" icon="pi pi-money-bill" color="success" subtitle="in date range" />
-      </div>
-      <div class="flex-1 min-w-[180px]">
-        <AppKpiCard title="Average Amount" :value="formatCurrency(analyticsData?.average_amount ?? 0)" icon="pi pi-calculator" color="warn" subtitle="per assistance code" />
-      </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8 auto-rows-fr">
+      <AppKpiCard title="Total Applications" :value="analyticsData?.total_applications ?? 0" icon="pi pi-file" color="primary" subtitle="in date range" />
+      <AppKpiCard title="Average per Day" :value="analyticsData?.average_per_day ?? 0" icon="pi pi-calendar" color="info" subtitle="in date range" />
+      <AppKpiCard title="Total Coded" :value="analyticsData?.total_coded ?? 0" icon="pi pi-qrcode" color="purple" subtitle="assistance codes" />
+      <AppKpiCard title="Total Amount" :value="formatCurrency(analyticsData?.total_amount ?? 0)" icon="pi pi-money-bill" color="success" subtitle="in date range" />
+      <AppKpiCard title="Average Amount" :value="formatCurrency(analyticsData?.average_amount ?? 0)" icon="pi pi-calculator" color="warn" subtitle="per assistance code" />
     </div>
 
     <div class="grid grid-cols-12 gap-8 mt-8">
       <div class="col-span-12">
-        <div class="card">
+        <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Application Trend</div>
           <Chart type="line" :data="trendData" :options="baseChartOptions()" class="h-72" />
         </div>
@@ -185,7 +175,7 @@ const doughnutOptions = baseChartOptions({
       <div class="col-span-12 md:col-span-6 xl:col-span-4">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Online vs Walk-in</div>
-          <div class="flex flex-col gap-4 py-2">
+          <div class="flex flex-col gap-4 py-2 h-72">
             <div v-for="(item, index) in submissionTypeData.labels" :key="item" class="flex flex-col gap-1">
               <div class="flex items-center justify-between text-sm">
                 <span class="font-medium text-color">{{ item }}</span>
@@ -213,8 +203,8 @@ const doughnutOptions = baseChartOptions({
     </div>
 
     <template #fallback>
-      <div class="grid grid-cols-12 gap-8 mt-8">
-        <div v-for="i in 5" :key="i" class="col-span-12 lg:col-span-6 xl:col-span-3">
+    <div class="grid grid-cols-12 gap-8 mt-8 auto-rows-fr">
+        <div v-for="i in 5" :key="i" class="col-span-12 sm:col-span-6 lg:col-span-4">
           <div class="card">
             <div class="flex items-center gap-3">
               <Skeleton shape="circle" size="3rem" />

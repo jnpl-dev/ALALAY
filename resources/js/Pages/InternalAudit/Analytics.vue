@@ -150,30 +150,18 @@ const horizontalAmountOptions = baseChartOptions({
   </div>
 
   <Deferred data="analyticsData">
-    <div class="flex flex-wrap gap-8 mt-8">
-      <div class="flex-1 min-w-[180px]">
-        <AppKpiCard title="Total Reviewed" :value="analyticsData?.total_reviewed ?? 0" icon="pi pi-check-square" color="primary" subtitle="coding reviews in range" />
-      </div>
-      <div class="flex-1 min-w-[180px]">
-        <AppKpiCard title="Avg Reviewed / Day" :value="analyticsData?.average_reviewed_per_day ?? 0" icon="pi pi-calendar" color="info" subtitle="in date range" />
-      </div>
-      <div class="flex-1 min-w-[180px]">
-        <AppKpiCard title="Approved" :value="analyticsData?.approved ?? 0" icon="pi pi-check-circle" color="success" subtitle="moved to voucher creation" />
-      </div>
-      <div class="flex-1 min-w-[180px]">
-        <AppKpiCard title="Returned" :value="analyticsData?.returned ?? 0" icon="pi pi-undo" color="danger" subtitle="sent back to AICS" />
-      </div>
-      <div class="flex-1 min-w-[180px]">
-        <AppKpiCard title="Coded Amount" :value="formatCurrency(analyticsData?.coded_amount ?? 0)" icon="pi pi-money-bill" color="success" subtitle="approved in range" />
-      </div>
-      <div class="flex-1 min-w-[180px]">
-        <AppKpiCard title="Avg Coded Amount" :value="formatCurrency(analyticsData?.average_coded_amount ?? 0)" icon="pi pi-calculator" color="warn" subtitle="per approved code" />
-      </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8 auto-rows-fr">
+      <AppKpiCard title="Total Reviewed" :value="analyticsData?.total_reviewed ?? 0" icon="pi pi-check-square" color="primary" subtitle="coding reviews in range" />
+      <AppKpiCard title="Avg Reviewed / Day" :value="analyticsData?.average_reviewed_per_day ?? 0" icon="pi pi-calendar" color="info" subtitle="in date range" />
+      <AppKpiCard title="Approved" :value="analyticsData?.approved ?? 0" icon="pi pi-check-circle" color="success" subtitle="moved to voucher creation" />
+      <AppKpiCard title="Returned" :value="analyticsData?.returned ?? 0" icon="pi pi-undo" color="danger" subtitle="sent back to AICS" />
+      <AppKpiCard title="Coded Amount" :value="formatCurrency(analyticsData?.coded_amount ?? 0)" icon="pi pi-money-bill" color="success" subtitle="approved in range" />
+      <AppKpiCard title="Avg Coded Amount" :value="formatCurrency(analyticsData?.average_coded_amount ?? 0)" icon="pi pi-calculator" color="warn" subtitle="per approved code" />
     </div>
 
-    <div class="grid grid-cols-12 gap-8 mt-8">
+    <div class="grid grid-cols-12 gap-8 mt-8 auto-rows-fr">
       <div class="col-span-12">
-        <div class="card">
+        <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Coding Decisions Over Time</div>
           <Chart type="line" :data="decisionTrendData" :options="baseChartOptions()" class="h-72" />
         </div>
@@ -189,7 +177,7 @@ const horizontalAmountOptions = baseChartOptions({
       <div class="col-span-12 md:col-span-6 xl:col-span-4">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Approval vs Return</div>
-          <div class="flex flex-col gap-5 py-2">
+          <div class="flex flex-col gap-5 py-2 h-72">
             <div v-for="item in approveVsReturnBars" :key="item.label" class="flex flex-col gap-1">
               <div class="flex items-center justify-between text-sm">
                 <span class="font-medium text-color">{{ item.label }}</span>
@@ -199,7 +187,6 @@ const horizontalAmountOptions = baseChartOptions({
                 <div class="h-full rounded-full transition-all duration-500" :style="{ width: item.pct + '%', backgroundColor: item.color }"></div>
               </div>
             </div>
-            <div class="text-3xl font-bold mt-2" :style="{ color: CHART_COLORS.success }">{{ approvalRate }}%</div>
           </div>
         </div>
       </div>
@@ -214,7 +201,7 @@ const horizontalAmountOptions = baseChartOptions({
 
     <template #fallback>
       <div class="grid grid-cols-12 gap-8 mt-8">
-        <div v-for="i in 6" :key="i" class="col-span-12 lg:col-span-6 xl:col-span-3">
+        <div v-for="i in 6" :key="i" class="col-span-12 sm:col-span-6 lg:col-span-4">
           <div class="card">
             <div class="flex items-center gap-3">
               <Skeleton shape="circle" size="3rem" />

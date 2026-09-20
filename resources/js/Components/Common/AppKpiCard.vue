@@ -26,7 +26,7 @@ const trend = computed(() => {
 </script>
 
 <template>
-  <div class="card mb-0">
+  <div class="card mb-0 h-full">
     <div class="flex justify-between mb-4">
       <div>
         <span class="block text-muted-color font-medium mb-4">{{ title }}</span>

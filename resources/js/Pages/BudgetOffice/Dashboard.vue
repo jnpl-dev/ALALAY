@@ -144,7 +144,7 @@ const horizontalAmountOptions = baseChartOptions({
       </div>
 
       <div class="col-span-12 xl:col-span-6">
-        <div class="card">
+        <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Budget Decisions This Week</div>
           <Chart type="bar" :data="decisionTrendData" :options="stackedBarOptions" class="h-72" />
         </div>
@@ -153,7 +153,7 @@ const horizontalAmountOptions = baseChartOptions({
       <div class="col-span-12 md:col-span-6 xl:col-span-3">
         <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Approve vs Hold Rate</div>
-          <div class="flex flex-col gap-5 py-2">
+          <div class="flex flex-col gap-5 py-2 h-72">
             <div v-for="item in approveVsHoldBars" :key="item.label" class="flex flex-col gap-1">
               <div class="flex items-center justify-between text-sm">
                 <span class="font-medium text-color">{{ item.label }}</span>
@@ -163,7 +163,6 @@ const horizontalAmountOptions = baseChartOptions({
                 <div class="h-full rounded-full transition-all duration-500" :style="{ width: item.pct + '%', backgroundColor: item.color }"></div>
               </div>
             </div>
-            <div class="text-3xl font-bold mt-2" :style="{ color: CHART_COLORS.success }">{{ approveRate }}%</div>
           </div>
         </div>
       </div>
@@ -215,7 +214,7 @@ const horizontalAmountOptions = baseChartOptions({
     </div>
 
     <template #fallback>
-      <div class="grid grid-cols-12 gap-8">
+    <div class="grid grid-cols-12 gap-8 auto-rows-fr">
         <div v-for="i in 3" :key="i" class="col-span-12 lg:col-span-6 xl:col-span-4">
           <div class="card">
             <div class="flex items-center gap-3">

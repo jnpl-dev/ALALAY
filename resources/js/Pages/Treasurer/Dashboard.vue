@@ -143,7 +143,7 @@ const horizontalBarOptions = baseChartOptions({
       </div>
 
       <div class="col-span-12 xl:col-span-6">
-        <div class="card">
+        <div class="card h-full">
           <div class="font-semibold text-xl mb-4">Cheque Status This Week</div>
           <Chart type="line" :data="trendData" :options="baseChartOptions()" class="h-72" />
         </div>
@@ -198,7 +198,7 @@ const horizontalBarOptions = baseChartOptions({
     </div>
 
     <template #fallback>
-      <div class="grid grid-cols-12 gap-8">
+    <div class="grid grid-cols-12 gap-8 auto-rows-fr">
         <div v-for="i in 3" :key="i" class="col-span-12 lg:col-span-4">
           <div class="card">
             <div class="flex items-center gap-3">

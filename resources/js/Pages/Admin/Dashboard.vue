@@ -127,7 +127,7 @@ const horizontalBarOptions = baseChartOptions({
     </div>
 
     <template #fallback>
-      <div class="grid grid-cols-12 gap-8">
+    <div class="grid grid-cols-12 gap-8 auto-rows-fr">
         <div v-for="i in 3" :key="i" class="col-span-12 lg:col-span-6 xl:col-span-4">
           <div class="card">
             <div class="flex items-center gap-3">
