@@ -11,53 +11,19 @@ class SystemSettingsSeeder extends Seeder
     public function run(): void
     {
         $settings = [
-            // Branding
-            [
-                'id'            => Str::uuid()->toString(),
-                'setting_key'   => 'system_name',
-                'setting_value' => 'ALALAY',
-                'setting_group' => 'branding',
-                'created_at'    => now(),
-                'updated_at'    => now(),
-            ],
-            [
-                'id'            => Str::uuid()->toString(),
-                'setting_key'   => 'system_tagline',
-                'setting_value' => 'A Digital AICS Management and Notification System',
-                'setting_group' => 'branding',
-                'created_at'    => now(),
-                'updated_at'    => now(),
-            ],
-            [
-                'id'            => Str::uuid()->toString(),
-                'setting_key'   => 'municipality_name',
-                'setting_value' => 'General Mamerto Natividad, Nueva Ecija',
-                'setting_group' => 'branding',
-                'created_at'    => now(),
-                'updated_at'    => now(),
-            ],
-            [
-                'id'            => Str::uuid()->toString(),
-                'setting_key'   => 'primary_color',
-                'setting_value' => '#3B82F6',
-                'setting_group' => 'branding',
-                'created_at'    => now(),
-                'updated_at'    => now(),
-            ],
-
             // File Upload
             [
                 'id'            => Str::uuid()->toString(),
-                'setting_key'   => 'file_max_size_mb',
-                'setting_value' => '10',
+                'setting_key'   => 'max_file_size_kb',
+                'setting_value' => '5120',
                 'setting_group' => 'uploads',
                 'created_at'    => now(),
                 'updated_at'    => now(),
             ],
             [
                 'id'            => Str::uuid()->toString(),
-                'setting_key'   => 'allowed_file_types',
-                'setting_value' => 'jpg,jpeg,png,pdf',
+                'setting_key'   => 'allowed_mime_types',
+                'setting_value' => 'image/jpeg,image/png,application/pdf',
                 'setting_group' => 'uploads',
                 'created_at'    => now(),
                 'updated_at'    => now(),
@@ -68,14 +34,6 @@ class SystemSettingsSeeder extends Seeder
                 'id'            => Str::uuid()->toString(),
                 'setting_key'   => 'sms_enabled',
                 'setting_value' => 'true',
-                'setting_group' => 'sms',
-                'created_at'    => now(),
-                'updated_at'    => now(),
-            ],
-            [
-                'id'            => Str::uuid()->toString(),
-                'setting_key'   => 'sms_sender_name',
-                'setting_value' => 'ALALAY',
                 'setting_group' => 'sms',
                 'created_at'    => now(),
                 'updated_at'    => now(),
@@ -132,6 +90,11 @@ class SystemSettingsSeeder extends Seeder
             ['setting_value', 'setting_group', 'updated_at']
         );
 
-        $this->command->info('System settings seeded successfully.');
+        $validKeys = array_column($settings, 'setting_key');
+        $deleted = DB::table('system_settings')
+            ->whereNotIn('setting_key', $validKeys)
+            ->delete();
+
+        $this->command->info('System settings seeded successfully.' . ($deleted ? " Removed {$deleted} obsolete setting(s)." : ''));
     }
 }

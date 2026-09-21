@@ -7,19 +7,13 @@ use Illuminate\Foundation\Http\FormRequest;
 class UpdateSystemSettingRequest extends FormRequest
 {
     protected array $allowedKeys = [
-        'system_name',
-        'system_tagline',
-        'municipality_name',
-        'primary_color',
-        'file_max_size_mb',
         'max_file_size_kb',
-        'allowed_file_types',
         'allowed_mime_types',
         'sms_enabled',
-        'sms_sender_name',
         'sms_template_submission_complete',
         'sms_template_under_review',
         'sms_template_resubmission_needed',
+        'sms_template_cheque_ready',
         'sms_template_cheque_claiming',
     ];
 
