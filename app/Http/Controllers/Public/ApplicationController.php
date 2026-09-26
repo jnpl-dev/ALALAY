@@ -178,7 +178,8 @@ class ApplicationController extends Controller
             'mswdo' => 'MSWDO',
             'accountant' => 'Accountant',
             'treasurer' => 'Treasurer',
-            'mayors_office' => "Mayor's Office",
+            'internal_audit' => 'Internal Audit',
+            'budget_officer' => 'Budget Office',
         ];
 
         return Inertia::render('Public/Track', [

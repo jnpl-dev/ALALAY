@@ -75,10 +75,17 @@ class UserFactory extends Factory
         ]);
     }
 
-    public function mayorsOffice(): static
+    public function internalAudit(): static
     {
         return $this->state(fn (array $attributes) => [
-            'role' => 'mayors_office',
+            'role' => 'internal_audit',
+        ]);
+    }
+
+    public function budgetOfficer(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'budget_officer',
         ]);
     }
 

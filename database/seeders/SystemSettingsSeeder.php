@@ -126,6 +126,12 @@ class SystemSettingsSeeder extends Seeder
             ],
         ];
 
-        DB::table('system_settings')->insert($settings);
+        DB::table('system_settings')->upsert(
+            $settings,
+            ['setting_key'],
+            ['setting_value', 'setting_group', 'updated_at']
+        );
+
+        $this->command->info('System settings seeded successfully.');
     }
 }

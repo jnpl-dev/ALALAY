@@ -50,7 +50,7 @@ const route = window.route
 
 let filterTimer = null
 
-const tabIndex = ['pending', 'ready', 'hold'].indexOf(props.tab)
+const tabIndex = ['pending', 'ready'].indexOf(props.tab)
 const search = ref(props.filters.search || '')
 const category = ref(props.filters.category || '')
 const from = ref(parseDate(props.filters.from))
@@ -107,7 +107,7 @@ function applyFilters() {
 }
 
 function onTabChange(event) {
-  const tabValues = ['pending', 'ready', 'hold']
+  const tabValues = ['pending', 'ready']
   router.get(route('treasurer.cheques.index'), {
     tab: tabValues[event.index],
     search: search.value || null,
@@ -244,58 +244,6 @@ function onPage(event) {
               </Column>
               <template #empty>
                 <AppEmptyState icon="pi pi-check-circle" message="No ready cheques" />
-              </template>
-            </DataTable>
-
-            <Paginator
-              v-if="total > (props.applications?.per_page ?? 10)"
-              :first="((props.applications?.current_page ?? 1) - 1) * (props.applications?.per_page ?? 10)"
-              :rows="props.applications?.per_page ?? 10"
-              :total-records="total"
-              @page="onPage"
-              template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
-              class="mt-4"
-            />
-
-            <template #fallback>
-              <div class="space-y-3">
-                <Skeleton width="100%" height="2.5rem" />
-                <Skeleton width="100%" height="2rem" v-for="i in 5" :key="i" />
-              </div>
-            </template>
-            </Deferred>
-          </TabPanel>
-
-          <TabPanel header="On Hold">
-            <Deferred data="applications">
-            <DataTable :value="toRaw(tableData)" striped-rows class="w-full">
-              <Column field="reference_code" header="Reference" sortable />
-              <Column field="claimant_name" header="Claimant" sortable />
-              <Column field="category_name" header="Category" sortable />
-              <Column field="code_type" header="Code" sortable />
-              <Column field="amount" header="Amount" sortable>
-                <template #body="{ data }">
-                  {{ data.amount ? formatCurrency(data.amount) : '—' }}
-                </template>
-              </Column>
-              <Column field="status" header="Status" sortable>
-                <template #body="{ data }">
-                  <AppStatusBadge status="on_hold" />
-                </template>
-              </Column>
-              <Column field="created_at" header="Submitted" sortable>
-                <template #body="{ data }">
-                  {{ formatDate(data.created_at) }}
-                </template>
-              </Column>
-              <Column header="Actions" style="width: 6rem">
-                <template #body="{ data }">
-                  <Button icon="pi pi-eye" severity="info" text rounded size="small" v-tooltip.left="'View details'"
-                    @click="router.get(route('treasurer.cheques.show', data.id))" />
-                </template>
-              </Column>
-              <template #empty>
-                <AppEmptyState icon="pi pi-pause-circle" message="No applications on hold" />
               </template>
             </DataTable>
 

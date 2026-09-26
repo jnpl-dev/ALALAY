@@ -41,8 +41,8 @@ const trendData = computed(() => {
 
 const voucherStatusData = computed(() => {
   const data = props.dashboardData?.voucher_statuses ?? []
-  const labels = { voucher_checking: 'Pending', with_treasurer: 'Approved', returned: 'Returned' }
-  const colors = { voucher_checking: CHART_COLORS.warning, with_treasurer: CHART_COLORS.success, returned: CHART_COLORS.danger }
+  const labels = { voucher_recording: 'Pending', with_treasurer: 'Approved' }
+  const colors = { voucher_recording: CHART_COLORS.warning, with_treasurer: CHART_COLORS.success }
   return {
     labels: data.map(d => labels[d.status] || d.status),
     datasets: [{
@@ -109,14 +109,11 @@ const doughnutOptions = baseChartOptions({
 
   <Deferred data="dashboardData">
     <div class="grid grid-cols-12 gap-8">
-      <div class="col-span-12 lg:col-span-4">
-        <AppKpiCard title="Pending Vouchers" :value="dashboardData?.pending_vouchers ?? 0" icon="pi pi-receipt" color="warn" subtitle="needs accountant review" />
+      <div class="col-span-12 lg:col-span-6">
+        <AppKpiCard title="Pending Vouchers" :value="dashboardData?.pending_vouchers ?? 0" icon="pi pi-receipt" color="warn" subtitle="needs recording" />
       </div>
-      <div class="col-span-12 lg:col-span-4">
+      <div class="col-span-12 lg:col-span-6">
         <AppKpiCard title="Approved Today" :value="dashboardData?.approved_today ?? 0" icon="pi pi-check-circle" color="success" subtitle="sent to treasurer" />
-      </div>
-      <div class="col-span-12 lg:col-span-4">
-        <AppKpiCard title="Returned Today" :value="dashboardData?.returned_today ?? 0" icon="pi pi-undo" color="danger" subtitle="sent back to MSWDO" />
       </div>
 
       <div class="col-span-12 xl:col-span-6">
@@ -176,11 +173,6 @@ const doughnutOptions = baseChartOptions({
             <Column field="prepared_at" header="Prepared">
               <template #body="{ data }">
                 {{ data.prepared_at ? formatDate(data.prepared_at) : '—' }}
-              </template>
-            </Column>
-            <Column field="returned_at" header="Returned">
-              <template #body="{ data }">
-                {{ data.returned_at ? formatDate(data.returned_at) : '—' }}
               </template>
             </Column>
             <template #empty>

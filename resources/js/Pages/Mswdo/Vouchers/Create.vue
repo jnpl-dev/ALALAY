@@ -41,7 +41,6 @@ const showExistingVoucher = ref(false)
 const form = useForm({
   voucher_file: null,
   page_count: 1,
-  adjustment_remarks: '',
 })
 
 const isRecreation = computed(() => !!props.existingVoucher)
@@ -57,7 +56,7 @@ function confirmSubmit() {
   confirm.require({
     message: isRecreation.value
       ? `Re-create Voucher v${props.existingVoucher.version}? Previous version will be replaced.`
-      : 'Submit this voucher for Accountant review?',
+      : 'Submit this voucher for Budget Office review?',
     header: 'Confirm Voucher',
     icon: 'pi pi-receipt',
     rejectProps: { label: 'Cancel', outlined: true },
@@ -134,9 +133,6 @@ function confirmSubmit() {
               :page-count="existingVoucher.page_count"
               :file-size="existingVoucher.file_size_label"
               :version="existingVoucher.version"
-              :returned-by="existingVoucher.returned_by"
-              :returned-at="existingVoucher.returned_at"
-              :return-remarks="existingVoucher.adjustment_remarks"
             />
             <div class="mt-3">
               <Button icon="pi pi-eye" label="View Previous Voucher" severity="secondary" outlined @click="viewerUrl = existingVoucher.signed_url; viewerTitle = 'Voucher v' + existingVoucher.version" />

@@ -41,6 +41,7 @@ const viewerTitle = ref('')
 const viewerIdx = ref(0)
 const viewerDocuments = ref([])
 const hasScs = computed(() => !!props.socialCaseStudy)
+const canAssign = computed(() => ['assistance_coding', 'returned_assistance_coding'].includes(props.application.status))
 
 const codeOptions = props.code_references.map(c => ({
   label: `${c.code_type} — ${c.description || ''}`.trim(),
@@ -157,27 +158,7 @@ function submit() {
           </div>
         </div>
 
-        <template v-if="!application.assistance_code">
-          <Divider />
-
-          <Fieldset legend="Assign Assistance Code">
-            <form @submit.prevent="submit" class="space-y-4">
-              <div>
-                <label class="block text-muted-color font-medium mb-2">Code Type <span class="text-red-400">*</span></label>
-                <Select v-model="selectedCode" :options="codeOptions" option-label="label" placeholder="Select code type" class="w-full" :invalid="!!form.errors.assistance_code_reference_id" />
-                <p v-if="form.errors.assistance_code_reference_id" class="text-xs text-red-400 mt-1">{{ form.errors.assistance_code_reference_id }}</p>
-              </div>
-              <div>
-                <label class="block text-muted-color font-medium mb-2">Amount <span class="text-red-400">*</span></label>
-                <InputNumber v-model="form.amount" :min="0" :step="100" placeholder="0.00" inputClass="w-full" class="w-full" :invalid="!!form.errors.amount" mode="currency" currency="PHP" locale="en-PH" />
-                <p v-if="form.errors.amount" class="text-xs text-red-400 mt-1">{{ form.errors.amount }}</p>
-              </div>
-              <Button type="submit" label="Assign Code" icon="pi pi-check" :loading="form.processing" />
-            </form>
-          </Fieldset>
-        </template>
-
-        <div v-else class="mt-6 p-4 bg-surface-section rounded-lg border border-surface">
+        <div v-if="application.assistance_code" class="mt-6 p-4 bg-surface-section rounded-lg border border-surface">
           <h3 class="font-semibold text-surface-900 mb-2 text-sm uppercase tracking-wide text-muted-color">Assigned Code</h3>
           <div class="grid grid-cols-2 gap-3 text-sm">
             <div>
@@ -194,6 +175,26 @@ function submit() {
             </div>
           </div>
         </div>
+
+        <template v-if="canAssign">
+          <Divider />
+
+          <Fieldset legend="Assign Assistance Code">
+            <form @submit.prevent="submit" class="space-y-4">
+              <div>
+                <label class="block text-muted-color font-medium mb-2">Code Type <span class="text-red-400">*</span></label>
+                <Select v-model="selectedCode" :options="codeOptions" option-label="label" placeholder="Select code type" class="w-full" :invalid="!!form.errors.assistance_code_reference_id" />
+                <p v-if="form.errors.assistance_code_reference_id" class="text-xs text-red-400 mt-1">{{ form.errors.assistance_code_reference_id }}</p>
+              </div>
+              <div>
+                <label class="block text-muted-color font-medium mb-2">Amount <span class="text-red-400">*</span></label>
+                <InputNumber v-model="form.amount" :min="0" :step="100" placeholder="0.00" inputClass="w-full" class="w-full" :invalid="!!form.errors.amount" mode="currency" currency="PHP" locale="en-PH" />
+                <p v-if="form.errors.amount" class="text-xs text-red-400 mt-1">{{ form.errors.amount }}</p>
+              </div>
+              <Button type="submit" :label="application.assistance_code ? 'Re-assign Code' : 'Assign Code'" icon="pi pi-check" :loading="form.processing" />
+            </form>
+          </Fieldset>
+        </template>
       </div>
     </div>
 

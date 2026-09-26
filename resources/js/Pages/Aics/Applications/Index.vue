@@ -45,12 +45,12 @@ function formatDateParam(date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-const total = props.applications?.total ?? 0
+const total = computed(() => props.applications?.total ?? 0)
 const route = window.route
 
 let filterTimer = null
 
-const tabIndex = ['pending', 'screening', 'returned'].indexOf(props.tab)
+const tabIndex = ['pending', 'forwarded', 'returned'].indexOf(props.tab)
 const search = ref(props.filters.search || '')
 const category = ref(props.filters.category || '')
 const from = ref(parseDate(props.filters.from))
@@ -104,7 +104,7 @@ function applyFilters() {
 }
 
 function onTabChange(event) {
-  const tabValues = ['pending', 'screening', 'returned']
+  const tabValues = ['pending', 'forwarded', 'returned']
   router.get(route('aics.applications.index'), {
     tab: tabValues[event.index],
     search: search.value || null,
@@ -214,7 +214,7 @@ function onPage(event) {
             </Deferred>
           </TabPanel>
 
-          <TabPanel header="Screened">
+          <TabPanel header="Forwarded">
             <Deferred data="applications">
               <DataTable :value="toRaw(tableData)" striped-rows class="w-full">
                 <Column field="reference_code" header="Reference" sortable />

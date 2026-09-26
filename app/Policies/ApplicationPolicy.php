@@ -9,12 +9,17 @@ class ApplicationPolicy
 {
     public function viewAny(User $user): bool
     {
-        return in_array($user->role, ['aics_staff', 'mswdo', 'accountant', 'treasurer', 'mayors_office']);
+        return in_array($user->role, ['aics_staff', 'mswdo', 'accountant', 'treasurer', 'internal_audit', 'budget_officer']);
     }
 
     public function view(User $user, Application $application): bool
     {
-        return in_array($user->role, ['aics_staff', 'mswdo', 'accountant', 'treasurer', 'mayors_office']);
+        return in_array($user->role, ['aics_staff', 'mswdo', 'accountant', 'treasurer', 'internal_audit', 'budget_officer']);
+    }
+
+    public function reviewCoding(User $user, Application $application): bool
+    {
+        return $user->role === 'internal_audit' && $application->status === 'internal_audit_review';
     }
 
     public function documentUrl(User $user, Application $application): bool

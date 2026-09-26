@@ -281,9 +281,12 @@ class RequiredDocumentSeeder extends Seeder
             ],
         ];
 
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
-        DB::table('required_documents')->truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1');
-        DB::table('required_documents')->insert($documents);
+        DB::table('required_documents')->upsert(
+            $documents,
+            ['category_id', 'doc_name'],
+            ['doc_description', 'is_mandatory', 'is_active', 'capture_type', 'scanner_size', 'updated_at']
+        );
+
+        $this->command->info('Required documents seeded successfully.');
     }
 }

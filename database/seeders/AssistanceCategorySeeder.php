@@ -37,6 +37,12 @@ class AssistanceCategorySeeder extends Seeder
             ],
         ];
 
-        DB::table('assistance_categories')->insert($categories);
+        DB::table('assistance_categories')->upsert(
+            $categories,
+            ['category_name'],
+            ['category_description', 'is_active', 'updated_at']
+        );
+
+        $this->command->info('Assistance categories seeded successfully.');
     }
 }

@@ -5,7 +5,8 @@ export function roleSeverity(role) {
     mswdo: 'success',
     accountant: 'warn',
     treasurer: 'contrast',
-    mayors_office: 'info',
+    internal_audit: 'info',
+    budget_officer: 'warn',
   }[role] || 'info')
 }
 
@@ -18,7 +19,8 @@ export function moduleSeverity(module) {
     mswdo: 'success',
     accountant: 'warn',
     treasurer: 'contrast',
-    mayors_office: 'info',
+    'internal-audit': 'info',
+    'budget-office': 'warn',
     applications: 'info',
   }[module] || 'info')
 }

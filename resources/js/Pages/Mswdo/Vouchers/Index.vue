@@ -45,7 +45,7 @@ function formatDateParam(date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-const total = props.applications?.total ?? 0
+const total = computed(() => props.applications?.total ?? 0)
 const route = window.route
 
 let filterTimer = null

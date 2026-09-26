@@ -27,18 +27,15 @@ class LoginController extends Controller
         $user = User::where('email', $validated['email'])->first();
 
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
-            return Inertia::render('Auth/Login', [
-                'email' => $validated['email'],
-                'password' => $validated['password'],
-                'errors' => (object) ['email' => 'The provided credentials are incorrect.'],
-            ]);
+            return back()->withErrors([
+                'email' => 'The provided credentials are incorrect.',
+            ])->withInput($request->only('email'));
         }
 
         if ($user->status !== 'active') {
-            return Inertia::render('Auth/Login', [
-                'email' => $validated['email'],
-                'errors' => (object) ['email' => 'This account has been deactivated.'],
-            ]);
+            return back()->withErrors([
+                'email' => 'This account has been deactivated.',
+            ])->withInput($request->only('email'));
         }
 
         $otpService->generate($user);

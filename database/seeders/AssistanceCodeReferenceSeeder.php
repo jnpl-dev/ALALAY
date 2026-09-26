@@ -67,6 +67,12 @@ class AssistanceCodeReferenceSeeder extends Seeder
             ],
         ];
 
-        DB::table('assistance_code_references')->insert($codes);
+        DB::table('assistance_code_references')->upsert(
+            $codes,
+            ['code_type'],
+            ['default_amount', 'description', 'is_active', 'updated_at']
+        );
+
+        $this->command->info('Assistance code references seeded successfully.');
     }
 }

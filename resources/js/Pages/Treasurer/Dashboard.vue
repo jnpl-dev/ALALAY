@@ -22,8 +22,12 @@ const props = defineProps({
   dashboardData: { type: Object, default: () => ({}) },
 })
 
-const statusColors = { with_treasurer: CHART_COLORS.warning, cheque_ready: CHART_COLORS.success, on_hold: CHART_COLORS.danger }
-const statusLabels = { with_treasurer: 'Pending', cheque_ready: 'Ready', on_hold: 'On Hold' }
+const statusColors = { with_treasurer: CHART_COLORS.warning, cheque_ready: CHART_COLORS.success, claimed: CHART_COLORS.primary }
+const statusLabels = { with_treasurer: 'Pending', cheque_ready: 'Ready', claimed: 'Claimed' }
+
+const claimedCount = computed(() => {
+  return (props.dashboardData?.status_distribution ?? []).find(d => d.status === 'claimed')?.count ?? 0
+})
 
 const weekLabels = generateWeekLabels()
 
@@ -36,7 +40,7 @@ const trendData = computed(() => {
   }
   return {
     labels: weekLabels,
-    datasets: ['with_treasurer', 'cheque_ready', 'on_hold'].map(status => ({
+    datasets: ['with_treasurer', 'cheque_ready', 'claimed'].map(status => ({
       label: statusLabels[status] || status,
       data: weekLabels.map(d => grouped[status]?.[d] ?? 0),
       borderColor: statusColors[status] || CHART_COLORS.muted,
@@ -123,7 +127,7 @@ const doughnutOptions = baseChartOptions({
         <AppKpiCard title="Ready Today" :value="dashboardData?.ready_today ?? 0" icon="pi pi-check-circle" color="success" subtitle="cheque ready for releasing" />
       </div>
       <div class="col-span-12 lg:col-span-4">
-        <AppKpiCard title="On Hold Today" :value="dashboardData?.on_hold_today ?? 0" icon="pi pi-pause-circle" color="danger" subtitle="placed on hold" />
+        <AppKpiCard title="Total Claimed" :value="claimedCount" icon="pi pi-verified" color="primary" subtitle="released to beneficiary" />
       </div>
 
       <div class="col-span-12 xl:col-span-6">

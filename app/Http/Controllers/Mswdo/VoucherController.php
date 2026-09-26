@@ -45,8 +45,8 @@ class VoucherController extends Controller
         }
 
         $applications = match ($tab) {
-            'completed' => (clone $query)->where('status', 'voucher_checking'),
-            default => (clone $query)->whereIn('status', ['voucher_creation', 'voucher_returned']),
+            'completed' => (clone $query)->where('status', 'budget_checking'),
+            default => (clone $query)->where('status', 'voucher_creation'),
         };
 
         return $applications->latest()->get()->map(fn ($app) => [
@@ -93,8 +93,8 @@ class VoucherController extends Controller
         }
 
         $applications = match ($tab) {
-            'completed' => (clone $query)->where('status', 'voucher_checking'),
-            default => (clone $query)->whereIn('status', ['voucher_creation', 'voucher_returned']),
+            'completed' => (clone $query)->where('status', 'budget_checking'),
+            default => (clone $query)->where('status', 'voucher_creation'),
         };
 
         $categories = \App\Models\AssistanceCategory::where('is_active', true)->pluck('category_name');
@@ -152,8 +152,8 @@ class VoucherController extends Controller
         }
 
         $applications = (match ($tab) {
-            'completed' => (clone $query)->where('status', 'voucher_checking'),
-            default => (clone $query)->whereIn('status', ['voucher_creation', 'voucher_returned']),
+            'completed' => (clone $query)->where('status', 'budget_checking'),
+            default => (clone $query)->where('status', 'voucher_creation'),
         })->latest()->get();
 
         $filename = 'alalay-mswdo-vouchers-' . $tab . '-' . now()->format('Y-m-d') . '.csv';
@@ -228,13 +228,10 @@ class VoucherController extends Controller
             'page_count' => $existingVoucher->page_count,
             'prepared_at' => $existingVoucher->prepared_at,
             'prepared_by' => $existingVoucher->preparedBy?->full_name,
-            'returned_at' => $existingVoucher->returned_at,
-            'returned_by' => $existingVoucher->returnedBy?->full_name,
-            'adjustment_remarks' => $existingVoucher->adjustment_remarks,
             'signed_url' => $this->signedUrlService->generate($existingVoucher->file_path),
         ] : null;
 
-        $canEdit = in_array($application->status, ['voucher_creation', 'voucher_returned']);
+        $canEdit = $application->status === 'voucher_creation';
 
         return Inertia::render('Mswdo/Vouchers/Create', [
             'canEdit' => $canEdit,
@@ -280,8 +277,8 @@ class VoucherController extends Controller
         $application = Application::findOrFail($id);
         $this->authorize('create', \App\Models\Voucher::class);
 
-        if (!in_array($application->status, ['voucher_creation', 'voucher_returned'])) {
-            return redirect()->back()->with('error', 'A voucher can only be created after an assistance code has been assigned or returned for revision.');
+        if ($application->status !== 'voucher_creation') {
+            return redirect()->back()->with('error', 'A voucher can only be created after Internal Audit approval.');
         }
 
         $file = $request->file('voucher_file');
@@ -305,11 +302,10 @@ class VoucherController extends Controller
             'version' => $version,
             'page_count' => $request->input('page_count', 1),
             'prepared_at' => now(),
-            'adjustment_remarks' => $request->input('adjustment_remarks'),
         ]);
 
         $application->update([
-            'status' => 'voucher_checking',
+            'status' => 'budget_checking',
             'reviewed_by' => $request->user()->id,
             'reviewed_at' => now(),
         ]);
@@ -319,9 +315,8 @@ class VoucherController extends Controller
             'reviewed_by' => $request->user()->id,
             'stage' => 'voucher_creation',
             'decision' => 'voucher_created',
-            'from_status' => $application->status === 'voucher_returned' ? 'voucher_returned' : 'voucher_creation',
-            'to_status' => 'voucher_checking',
-            'remarks' => $request->input('adjustment_remarks'),
+            'from_status' => 'voucher_creation',
+            'to_status' => 'budget_checking',
             'created_at' => now(),
         ]);
 
@@ -329,7 +324,7 @@ class VoucherController extends Controller
 
         return redirect()
             ->route('mswdo.vouchers.index')
-            ->with('success', "Voucher v{$version} submitted for Accountant review.");
+            ->with('success', "Voucher v{$version} submitted for Budget Office review.");
     }
 
     public function voucherUrl($id): \Illuminate\Http\JsonResponse

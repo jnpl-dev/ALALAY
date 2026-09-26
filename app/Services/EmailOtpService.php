@@ -12,8 +12,6 @@ class EmailOtpService
 {
     public function generate(User $user): EmailOtp
     {
-        $this->invalidatePrevious($user);
-
         $code = str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
 
         $otp = EmailOtp::create([
@@ -29,37 +27,34 @@ class EmailOtpService
 
     public function verify(User $user, string $code): bool
     {
-        $otp = EmailOtp::where('user_id', $user->id)
+        $otps = EmailOtp::where('user_id', $user->id)
             ->pending()
             ->latest()
-            ->first();
+            ->get();
 
-        if (! $otp) {
+        if ($otps->isEmpty()) {
             return false;
         }
 
-        if ($otp->attempts >= 5) {
+        $matched = $otps->first(fn ($otp) => $otp->attempts < 5
+            && Hash::check($code, $otp->otp_code));
+
+        if (! $matched) {
+            $otps->first()->increment('attempts');
             return false;
         }
 
-        if (! Hash::check($code, $otp->otp_code)) {
-            $otp->increment('attempts');
-            return false;
-        }
-
-        $otp->update([
+        $matched->update([
             'used_at' => now(),
-            'attempts' => $otp->attempts + 1,
+            'attempts' => $matched->attempts + 1,
         ]);
 
-        return true;
-    }
-
-    public function invalidatePrevious(User $user): void
-    {
         EmailOtp::where('user_id', $user->id)
+            ->where('id', '!=', $matched->id)
             ->whereNull('used_at')
             ->where('expires_at', '>', now())
             ->update(['expires_at' => now()]);
+
+        return true;
     }
 }

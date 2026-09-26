@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
 import InputTextarea from 'primevue/textarea'
@@ -14,6 +14,9 @@ const emit = defineEmits(['update:visible', 'confirmed'])
 
 const remarks = ref('')
 const selectedDocs = ref([])
+
+const charCount = computed(() => remarks.value.trim().length)
+const canSubmit = computed(() => charCount.value >= 10)
 
 function confirm() {
   emit('confirmed', {
@@ -42,6 +45,7 @@ function close() {
       <div>
         <label class="block text-sm font-medium text-surface-700 mb-2">Reason for return <span class="text-red-500">*</span></label>
         <InputTextarea v-model="remarks" rows="3" placeholder="Explain what needs to be revised..." class="w-full" />
+        <p v-if="charCount > 0 && !canSubmit" class="text-xs text-amber-500 mt-1">At least 10 characters required ({{ charCount }}/10).</p>
       </div>
 
       <div v-if="submittedDocuments.length">
@@ -64,7 +68,7 @@ function close() {
 
     <template #footer>
       <Button label="Cancel" severity="secondary" outlined @click="close" />
-      <Button label="Return Application" severity="warn" @click="confirm" :disabled="!remarks.trim()" />
+      <Button label="Return Application" severity="warn" @click="confirm" :disabled="!canSubmit" />
     </template>
   </Dialog>
 </template>

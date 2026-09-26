@@ -42,8 +42,8 @@ class AssistanceCodeController extends Controller
         }
 
         $applications = match ($tab) {
-            'coded' => (clone $query)->where('status', 'voucher_creation'),
-            default => (clone $query)->where('status', 'assistance_coding'),
+            'coded' => (clone $query)->where('status', 'internal_audit_review'),
+            default => (clone $query)->whereIn('status', ['assistance_coding', 'returned_assistance_coding']),
         };
 
         return $applications->latest()->get()->map(fn ($app) => [
@@ -91,8 +91,8 @@ class AssistanceCodeController extends Controller
         }
 
         $applications = match ($tab) {
-            'coded' => (clone $query)->where('status', 'voucher_creation'),
-            default => (clone $query)->where('status', 'assistance_coding'),
+            'coded' => (clone $query)->where('status', 'internal_audit_review'),
+            default => (clone $query)->whereIn('status', ['assistance_coding', 'returned_assistance_coding']),
         };
 
         $categories = Cache::remember('categories.active_names', 3600, fn () =>
@@ -153,8 +153,8 @@ class AssistanceCodeController extends Controller
         }
 
         $applications = (match ($tab) {
-            'coded' => (clone $query)->where('status', 'voucher_creation'),
-            default => (clone $query)->where('status', 'assistance_coding'),
+            'coded' => (clone $query)->where('status', 'internal_audit_review'),
+            default => (clone $query)->whereIn('status', ['assistance_coding', 'returned_assistance_coding']),
         })->latest()->get();
 
         $filename = 'alalay-assistance-codes-' . $tab . '-' . now()->format('Y-m-d') . '.csv';
@@ -289,7 +289,7 @@ class AssistanceCodeController extends Controller
         $application = Application::findOrFail($id);
         $this->authorize('create', AssistanceCode::class);
 
-        if ($application->status !== 'assistance_coding') {
+        if (! in_array($application->status, ['assistance_coding', 'returned_assistance_coding'])) {
             return redirect()->back()->with('error', 'Application is not ready for assistance coding.');
         }
 
@@ -297,15 +297,27 @@ class AssistanceCodeController extends Controller
 
         $reference = AssistanceCodeReference::findOrFail($validated['assistance_code_reference_id']);
 
-        AssistanceCode::create([
-            'application_id' => $application->id,
-            'assistance_code_reference_id' => $reference->id,
-            'amount' => $validated['amount'],
-            'assigned_by' => $request->user()->id,
-        ]);
+        $assistanceCode = AssistanceCode::where('application_id', $application->id)->first();
+
+        if ($assistanceCode) {
+            $assistanceCode->update([
+                'assistance_code_reference_id' => $reference->id,
+                'amount' => $validated['amount'],
+                'assigned_by' => $request->user()->id,
+            ]);
+        } else {
+            AssistanceCode::create([
+                'application_id' => $application->id,
+                'assistance_code_reference_id' => $reference->id,
+                'amount' => $validated['amount'],
+                'assigned_by' => $request->user()->id,
+            ]);
+        }
+
+        $fromStatus = $application->status;
 
         $application->update([
-            'status' => 'voucher_creation',
+            'status' => 'internal_audit_review',
             'reviewed_by' => $request->user()->id,
             'reviewed_at' => now(),
         ]);
@@ -315,8 +327,8 @@ class AssistanceCodeController extends Controller
             'reviewed_by' => $request->user()->id,
             'stage' => 'assistance_coding',
             'decision' => 'coded',
-            'from_status' => 'assistance_coding',
-            'to_status' => 'voucher_creation',
+            'from_status' => $fromStatus,
+            'to_status' => 'internal_audit_review',
             'created_at' => now(),
         ]);
 
