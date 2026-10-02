@@ -40,6 +40,7 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
+                'backup_result' => $request->session()->get('backup_result'),
                 'reference_code' => $request->session()->get('reference_code'),
                 'login_rate_limited' => $request->session()->get('login_rate_limited'),
                 'rate_limited' => $request->session()->get('rate_limited'),

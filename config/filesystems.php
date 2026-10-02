@@ -72,6 +72,18 @@ return [
             'report' => false,
         ],
 
+        'supabase-backups' => [
+            'driver' => 's3',
+            'key' => env('SUPABASE_KEY'),
+            'secret' => env('SUPABASE_SECRET'),
+            'region' => env('SUPABASE_STORAGE_REGION', 'ap-southeast-1'),
+            'bucket' => env('SUPABASE_BACKUP_BUCKET', 'alalay-backups'),
+            'endpoint' => env('SUPABASE_STORAGE_ENDPOINT'),
+            'use_path_style_endpoint' => true,
+            'throw' => false,
+            'report' => false,
+        ],
+
     ],
 
     /*

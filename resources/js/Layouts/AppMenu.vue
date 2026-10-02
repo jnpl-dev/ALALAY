@@ -25,6 +25,7 @@ const model = computed(() => {
       { label: 'Analytics', icon: 'pi pi-fw pi-chart-bar', to: route('admin.analytics') },
       { label: 'Users', icon: 'pi pi-fw pi-users', to: route('admin.users.index') },
       { label: 'Audit Logs', icon: 'pi pi-fw pi-history', to: route('admin.audit-logs') },
+      { label: 'Backup & Restore', icon: 'pi pi-fw pi-database', to: route('admin.backups.index') },
       {
         label: 'Settings',
         icon: 'pi pi-fw pi-cog',

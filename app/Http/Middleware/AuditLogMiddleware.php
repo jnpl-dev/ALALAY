@@ -25,6 +25,9 @@ class AuditLogMiddleware
         'otp.verify',
         'aup.accept',
         'admin.maintenance.toggle',
+        'admin.backups.run',
+        'admin.backups.restore',
+        'admin.backups.destroy',
     ];
 
     private const ENTITY_MODEL_MAP = [

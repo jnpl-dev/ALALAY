@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import LanguageSwitcher from '@/Components/Public/LanguageSwitcher.vue'
 import LanguageModal from '@/Components/Public/LanguageModal.vue'
 import DisclaimerModal from '@/Components/Common/DisclaimerModal.vue'
+import PrivacyPolicyModal from '@/Components/Common/PrivacyPolicyModal.vue'
 
 const { t } = useI18n()
 const page = usePage()
@@ -19,6 +20,7 @@ const mobileMenuOpen = ref(false)
 const activeSection = ref('home')
 const showLangModal = ref(false)
 const disclaimerDone = ref(false)
+const showPrivacyPolicy = ref(false)
 
 const sections = [
   { id: 'home', label: () => t('nav.home') },
@@ -225,7 +227,13 @@ onUnmounted(() => {
             &copy; {{ new Date().getFullYear() }} {{ $t('footer.copyright') }}
           </p>
           <div class="flex items-center gap-4 text-xs text-emerald-400">
-            <span>{{ $t('footer.privacy') }}</span>
+            <button
+              type="button"
+              class="text-xs text-emerald-400 hover:text-white transition-colors cursor-pointer underline-offset-2 hover:underline"
+              @click="showPrivacyPolicy = true"
+            >
+              {{ $t('footer.privacy') }}
+            </button>
           </div>
         </div>
       </div>
@@ -233,5 +241,6 @@ onUnmounted(() => {
 
     <DisclaimerModal @close="disclaimerDone = true" />
     <LanguageModal :autoShow="disclaimerDone" @close="showLangModal = false" />
+    <PrivacyPolicyModal v-model:visible="showPrivacyPolicy" />
   </div>
 </template>
