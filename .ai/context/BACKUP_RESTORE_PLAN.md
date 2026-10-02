@@ -196,7 +196,7 @@ All 7 hardening items done and verified: A1 binary resolution (plain-shell run+v
 
 ---
 
-## Part F — Production readiness (deploy: user pushes + merges to dev themselves; deployment instructions TBD)
+## Part F — Production readiness (deploy: user pushes + merges to dev themselves)
 
 **Pre-push scan (2026-10-02) — all clean:**
 - Static: no secrets in incoming files (Supabase/Resend/DB keys/emails), no debug leftovers (`dd`/`console.log`/`TODO`), `php -l` clean on all changed/new PHP, `en.json`/`fil.json` valid + en↔fil key parity 0 mismatch, no live refs to deleted `scripts/backup.sh`, gitignore covers `public/build`/`.env`/`node_modules`/`vendor`, modal emit contracts match consumers, full diff reviewed — `routes/web.php` diff is purely backup routes (no hunk-splitting).
@@ -207,18 +207,27 @@ All 7 hardening items done and verified: A1 binary resolution (plain-shell run+v
 - [x] **F1. `railpack.json` created** at repo root (2026-10-02) — JSON validated; Railpack's PHP image ships neither binary, without it prod backups fail nightly:
   ```json
   { "$schema": "https://schema.railpack.com",
-    "deploy": { "aptPackages": ["default-mysql-client", "openssl"] } }
+    "deploy": { "aptPackages": ["...", "default-mysql-client", "openssl"] } }
   ```
-  `railway.json` already sets `"builder": "RAILPACK"` → picked up automatically, **no Railway dashboard change needed**. Risk: if the base distro rejects `default-mysql-client`, retry with `mysql-client` during the first prod build.
+  **Corrected 2026-10-02 before deploy**: added `"..."` — per Railpack docs, an `aptPackages` list *without* `"..."` **replaces** all of Railpack's default runtime packages (would break PHP). `railway.json` already sets `"builder": "RAILPACK"` → picked up automatically, **no Railway dashboard change needed**. `default-mysql-client` confirmed to exist in Debian 13 trixie (madison: mysql-defaults 1.1.1, main/all); first prod build resolved it fine → MariaDB 11.8.6 client, ships both `/usr/bin/mysqldump` and `/usr/bin/mysql`.
 - [x] **F2. Prod env vars confirmed on web + cron + worker** — verified via `railway variables` (2026-10-02): `BACKUP_ENCRYPT_PASS`, `SUPABASE_KEY/SECRET`, `SUPABASE_STORAGE_ENDPOINT` (= `https://urouwnyhopfbhfrmklgv.storage.supabase.co/storage/v1/s3`), `SUPABASE_BACKUP_BUCKET`, `SUPABASE_STORAGE_REGION=ap-northeast-2`, `BACKUP_RETENTION_DAYS=30`, `BACKUP_TEST_DATABASE` all present on **all three services**; `QUEUE_CONNECTION=database` on worker. Start commands (`cron.sh`/`worker.sh`) + `preDeployCommand` already configured.
-- [~] **F3. Commit + push consent** — **re-scoped (2026-10-02): user pushes + merges to dev themselves.** Agent does NOT commit/push. Deployment instructions to come from user.
-- [ ] **F4. Deploy web + cron + worker** — pending user's deployment instructions (`railway up --service <name> --detach --yes` per service).
-- [ ] **F5. Post-deploy smoke checks** — `mysqldump` exists in container, config cache picked up `BACKUP_ENCRYPT_PASS`, 02:00 scheduled run succeeds (check logs), page loads, Backup Now works in prod.
-  - [ ] **Prod verify drill**: run `php artisan backup:verify` **inside the prod (cron) container** — exercises offsite download + restore-to-test-DB without touching the live DB (safe substitute for a prod restore rehearsal; A7 cleans the test DB after). Railway has no SSH → temporarily override the service Start Command, read logs, revert (or rely on nightly logs; same image serves all services).
-  - [x] ~~Confirm Supabase bucket lifecycle rule is active (from C7)~~ — **superseded (C7): no bucket lifecycle rule possible; verify `backup:prune` schedule fires instead** (Sundays 04:00).
+- [x] **F3. Commit + push consent** — **re-scoped (2026-10-02): user pushes + merges to dev themselves.** Agent does NOT commit/push. User pushed the railpack `"..."` fix (`5edf6e7`) and the backup PR #51 merge (`f8bf4f2`) themselves.
+- [x] **F4. Deploy web + cron + worker — DONE (2026-10-02 ~09:56–10:00 +0800)** — diagnosis-first pass (user directive: "diagnose railway project first to avoid mistakes") found 1 real bug pre-deploy (missing `"..."`, see F1) + confirmed no auto-deploy (`repo: null`), all 3 services deployed via `railway up --service <name> --detach --yes`, all reached **SUCCESS** (web `1f4fa9f7`, cron `3666147c`, worker `0b3e31ed`).
+- [x] **F5. Post-deploy smoke checks — ALL PASS (2026-10-02)**:
+  - `railway ssh --service cron` **works** (correction: Railway *does* support CLI exec — no Start Command override needed; user's SSH key `railway-tunnel` already registered).
+  - Binaries in cron container: `/usr/bin/mysqldump` + `/usr/bin/mysql` (MariaDB 11.8.6) — **fixes the old nightly-failure root cause** (pre-deploy diagnosis: all 10 prior prod backup files were 48-byte garbage, `mysql: not found` in laravel.log; offsite bucket had none of them — uploads never succeeded; local garbage gone with the fresh container).
+  - Prod smoke: `/`, `/up`, `/login` all **200**; cron scheduler loop alive; worker restarted clean ("Configuration cached successfully").
+  - **Scheduled 02:00 UTC run succeeded on its own** with the new image: `alalay_2026-10-02_02-00-33.sql.gz.enc` 49,328 bytes + audit row "local + Supabase".
+  - Backup Now equivalent (`php artisan backup:run --destination=both` via ssh): **53,152 bytes**, offsite upload complete, exit 0, audit row present.
+  - **Prod verify drill**: bare `php artisan backup:verify` → decrypt → decompress → import to `alalay_backup_test` → **22 tables restored** → test DB dropped, exit 0, audit row `backup_verified`.
+  - Offsite bucket listing: 22 objects, all real sizes (49–56 KB), no 48-byte garbage.
+  - **Note (schedule timezone)**: app timezone is UTC → nightly backups fire **02:00 UTC = 10:00 Manila** (verify Sun 03:00 UTC, prune Sun 04:00 UTC) — same as old behavior.
+  - [x] ~~Confirm Supabase bucket lifecycle rule is active (from C7)~~ — **superseded (C7): no bucket lifecycle rule possible; verify `backup:prune` schedule fires instead** (Sundays 04:00 — first natural occurrence 2026-10-04).
 - [x] **F6. Production `system_settings` cleanup SQL** — **done by user directly in production DB (2026-10-02)**: dead keys deleted manually; no SQL handoff needed anymore.
 
-**Railway dashboard answer (2026-10-02): no configuration required.** Env vars, builder (RAILPACK), start commands, and preDeployCommand are all already set. Only user-side dashboard actions during F: read logs (first deploy + nightly 02:00), run the F6 SQL in the MySQL console, and (optionally) a temporary Start Command override to execute one-off container commands since Railway has no shell. FYI: `railway.json` Config-as-Code is deprecated → migrate to `.railway/railway.ts` before **2026-12-01** (separate task).
+**Railway dashboard answer (2026-10-02): no configuration required.** Env vars, builder (RAILPACK), start commands, and preDeployCommand are all already set. **Correction: `railway ssh --service <name> "<cmd>"` works** (used throughout F5 for one-off container commands — no Start Command override needed). FYI: `railway.json` Config-as-Code is deprecated → migrate to `.railway/railway.ts` before **2026-12-01** (separate task).
+
+**Open flags (user decisions, no action taken):** (1) `MAIL_TEST_RECIPIENT=johnpaullaureano.neust@gmail.com` still set on all 3 prod services — every OTP mail routes to that inbox (documented as intentional Resend sandbox in `.railway/RAILWAY_DEPLOYMENT_GUIDE.md`); remove when real recipients wanted. (2) UTC schedule times (see F5 note).
 
 ---
 

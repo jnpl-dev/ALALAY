@@ -23,6 +23,7 @@ const props = defineProps({
   otp_resend_available_at: [String, null],
   otp_resend_limit: Number,
   otp_cooldown_seconds: Number,
+  otp_bypass: Boolean,
   reference_code: String,
 })
 
@@ -451,6 +452,10 @@ const timelineSteps = computed(() => {
 
           <div v-else>
             <p class="text-sm text-gray-600 text-center mb-6">{{ $t('track.otp_enter') }}</p>
+
+            <p v-if="otp_bypass" class="text-xs text-center text-amber-600 font-medium mb-4">
+              {{ $t('track.otp_bypass_hint') }}
+            </p>
 
             <div class="flex justify-center gap-2 sm:gap-3 mb-6">
               <input

@@ -226,6 +226,7 @@
   "track.otp_resend": "Resend Code",
   "track.otp_expired": "Your OTP has expired.",
   "track.otp_different_code": "← Use a different reference code",
+  "track.otp_bypass_hint": "OTP bypass active — use the code provided by the developer.",
 
   "language.select": "Select Language",
   "language.english": "English",

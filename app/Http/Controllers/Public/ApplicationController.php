@@ -11,6 +11,7 @@ use App\Models\Review;
 use App\Mail\SendApplicationOtpMail;
 use App\Services\ApplicationSubmissionService;
 use App\Services\FileUploadService;
+use App\Services\OtpBypass;
 use App\Services\SignedUrlService;
 use App\Services\SmsService;
 use App\Rules\Turnstile;
@@ -81,6 +82,7 @@ class ApplicationController extends Controller
                 'otp_resend_available_at' => $resendData['available_at'] ?? null,
                 'otp_resend_limit' => 3,
                 'otp_cooldown_seconds' => 300,
+                'otp_bypass' => OtpBypass::enabled(),
                 'reference_code' => $referenceCode,
             ]);
         }
@@ -228,26 +230,30 @@ class ApplicationController extends Controller
             'otp_code' => 'required|string|size:6',
         ]);
 
-        $stored = $request->session()->get('track_otp_' . $referenceCode);
+        $bypassed = OtpBypass::matches($request->otp_code);
 
-        if (!$stored || now() > $stored['expires_at']) {
-            throw ValidationException::withMessages([
-                'otp_code' => ['The verification code is invalid.'],
-            ]);
-        }
+        if (! $bypassed) {
+            $stored = $request->session()->get('track_otp_' . $referenceCode);
 
-        if ($stored['attempts'] >= 5) {
-            throw ValidationException::withMessages([
-                'otp_code' => ['Too many incorrect attempts. Request a new OTP.'],
-            ]);
-        }
+            if (!$stored || now() > $stored['expires_at']) {
+                throw ValidationException::withMessages([
+                    'otp_code' => ['The verification code is invalid.'],
+                ]);
+            }
 
-        if (!Hash::check($request->otp_code, $stored['code'])) {
-            $stored['attempts']++;
-            $request->session()->put('track_otp_' . $referenceCode, $stored);
-            throw ValidationException::withMessages([
-                'otp_code' => ['The verification code is invalid.'],
-            ]);
+            if ($stored['attempts'] >= 5) {
+                throw ValidationException::withMessages([
+                    'otp_code' => ['Too many incorrect attempts. Request a new OTP.'],
+                ]);
+            }
+
+            if (!Hash::check($request->otp_code, $stored['code'])) {
+                $stored['attempts']++;
+                $request->session()->put('track_otp_' . $referenceCode, $stored);
+                throw ValidationException::withMessages([
+                    'otp_code' => ['The verification code is invalid.'],
+                ]);
+            }
         }
 
         $request->session()->put('track_verified_' . $referenceCode, true);

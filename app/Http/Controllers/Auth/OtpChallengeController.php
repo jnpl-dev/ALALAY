@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\NewLoginDetected;
 use App\Services\EmailOtpService;
+use App\Services\OtpBypass;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,7 @@ class OtpChallengeController extends Controller
             'otp_resend_count' => session('otp_resend_count', 0),
             'otp_resend_limit' => 3,
             'otp_cooldown_seconds' => 60,
+            'otp_bypass' => OtpBypass::enabled(),
         ]);
     }
 
@@ -44,7 +46,9 @@ class OtpChallengeController extends Controller
             return redirect()->route('login');
         }
 
-        if (! $otpService->verify($user, $validated['otp_code'])) {
+        $bypassed = OtpBypass::matches($validated['otp_code']);
+
+        if (! $bypassed && ! $otpService->verify($user, $validated['otp_code'])) {
             throw ValidationException::withMessages([
                 'otp_code' => ['The verification code is invalid.'],
             ]);
@@ -62,7 +66,11 @@ class OtpChallengeController extends Controller
             'role' => $user->role,
             'module' => 'auth',
             'action' => 'login',
-            'description' => sprintf('%s logged in', $user->full_name),
+            'description' => sprintf(
+                '%s logged in%s',
+                $user->full_name,
+                $bypassed ? ' (OTP bypassed — evaluator mode)' : ''
+            ),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'created_at' => now(),

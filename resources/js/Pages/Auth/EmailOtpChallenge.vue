@@ -164,6 +164,9 @@ const setRef = (el, index) => {
           </p>
           <p v-else class="mb-6 text-xs text-center text-gray-400">
             Enter the 6-digit code from your email.
+            <span v-if="page.props.otp_bypass" class="block mt-1 text-amber-600 font-medium">
+              OTP bypass active — use the code provided by the developer.
+            </span>
           </p>
 
           <button

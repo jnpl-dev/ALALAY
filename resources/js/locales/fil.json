@@ -226,6 +226,7 @@
   "track.otp_resend": "Ipadala Muli ang Code",
   "track.otp_expired": "Ang iyong OTP ay nag-expire na.",
   "track.otp_different_code": "← Gumamit ng ibang reference code",
+  "track.otp_bypass_hint": "Aktibo ang OTP bypass — gamitin ang code na ibinigay ng developer.",
 
   "language.select": "Pumili ng Wika",
   "language.english": "English",
