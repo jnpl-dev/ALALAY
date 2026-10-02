@@ -47,6 +47,13 @@ export function actionSeverity(action) {
     export: 'warn',
     verify: 'info',
     accept: 'success',
+    backup_created: 'success',
+    backup_verified: 'success',
+    backup_restored: 'success',
+    backup_deleted: 'warn',
+    backup_failed: 'danger',
+    backup_verify_failed: 'danger',
+    backup_restore_failed: 'danger',
   }[action] || 'info')
 }
 

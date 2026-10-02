@@ -6,10 +6,15 @@ import axios from 'axios'
 import DocumentScanner from '@/Components/Application/DocumentScanner.vue'
 import TurnstileWidget from '@/Components/TurnstileWidget.vue'
 import LanguageSwitcher from '@/Components/Public/LanguageSwitcher.vue'
+import PrivacyNoticeModal from '@/Components/Common/PrivacyNoticeModal.vue'
+import PrivacyPolicyModal from '@/Components/Common/PrivacyPolicyModal.vue'
 import { usePsgcAddress } from '@/Composables/usePsgcAddress.js'
 import { jsPDF } from 'jspdf'
 
 const { t } = useI18n()
+
+const showPrivacyPolicy = ref(false)
+const privacyNoticeDone = ref(!!sessionStorage.getItem('privacy_notice_agreed'))
 
 
 const props = defineProps({
@@ -506,7 +511,13 @@ const statusLabel = (status) => ({
 <template>
   <Head :title="$t('apply.title')" />
 
-  <div class="min-h-screen bg-white">
+  <PrivacyNoticeModal
+    @close="privacyNoticeDone = true"
+    @open-policy="showPrivacyPolicy = true"
+  />
+  <PrivacyPolicyModal v-model:visible="showPrivacyPolicy" />
+
+  <div class="min-h-screen bg-white" :class="{ 'pointer-events-none select-none': !privacyNoticeDone }" :aria-hidden="!privacyNoticeDone">
     <div class="sticky top-0 z-50 border-b border-emerald-100 bg-white/95 backdrop-blur-md">
       <div class="max-w-5xl px-4 mx-auto sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">

@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AssistanceCategoryController;
 use App\Http\Controllers\Admin\AssistanceCodeReferenceController;
 use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\BackupController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\RequiredDocumentController;
 use App\Http\Controllers\Admin\SmsController;
@@ -114,6 +115,10 @@ Route::middleware(['auth', 'aup.accepted'])->group(function () {
         Route::get('/users/{user}/profile-picture', [UserController::class, 'profilePicture'])->name('users.profile-picture');
         Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs');
         Route::get('/audit-logs/export', [AuditLogController::class, 'export'])->name('audit-logs.export');
+        Route::get('/backups', [BackupController::class, 'index'])->name('backups.index');
+        Route::post('/backups/run', [BackupController::class, 'run'])->name('backups.run');
+        Route::post('/backups/restore', [BackupController::class, 'restore'])->name('backups.restore');
+        Route::delete('/backups/{file}', [BackupController::class, 'destroy'])->name('backups.destroy');
         Route::get('/settings', [SystemSettingController::class, 'index'])->name('settings');
         Route::put('/settings', [SystemSettingController::class, 'update'])->name('settings.update');
         Route::post('/maintenance/toggle', [SystemSettingController::class, 'toggleMaintenance'])->name('maintenance.toggle');

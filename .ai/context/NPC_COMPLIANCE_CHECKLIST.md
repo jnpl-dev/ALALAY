@@ -7,9 +7,9 @@ Excludes external/organizational requirements (DPAs, NDAs, DPO designation, form
 
 ## Privacy Notice & Consent
 
-- [ ] **Privacy Notice Screen** — Display before the Apply form: what data is collected, purposes, scope, recipients, storage period, and data subject rights
-- [ ] **Consent Recording** — Store proof that data subjects consented to data processing (timestamp + IP address)
-- [ ] **Privacy Policy Page** — Public-facing page accessible from the Apply page footer/header
+- [x] **Privacy Notice Screen** — Display before the Apply form: what data is collected, purposes, scope, recipients, storage period, and data subject rights
+- [~] **Consent Recording** — Store proof that data subjects consented to data processing (timestamp + IP address) — *Intentionally skipped: privacy notice gate blocks form until agreed; no server-side proof stored per user decision*
+- [x] **Privacy Policy Page** — Public-facing page accessible from the Apply page footer/header
 
 ## Data Subject Rights
 

@@ -8,12 +8,14 @@ import ToggleSwitch from 'primevue/toggleswitch'
 import Fieldset from 'primevue/fieldset'
 import Skeleton from 'primevue/skeleton'
 import { useBreadcrumb } from '@/Composables/useBreadcrumb'
+import { useConfirm } from '@/Composables/useConfirm'
 
 defineOptions({ layout: AppLayout })
 
 useBreadcrumb([{ label: 'Admin' }, { label: 'Settings' }, { label: 'System Settings' }])
 
 const route = window.route
+const confirm = useConfirm()
 const isEditing = ref(false)
 
 function formatGroupName(name) {
@@ -44,9 +46,24 @@ watch(() => props.groups, (newGroups) => {
 })
 
 function toggleMaintenance() {
-  form.post(route('admin.maintenance.toggle'), {
-    preserveState: true,
-    preserveScroll: true,
+  const enabling = !props.isDownForMaintenance
+
+  confirm.require({
+    header: enabling ? 'Enable Maintenance Mode' : 'Bring System Online',
+    icon: enabling ? 'pi pi-exclamation-triangle' : 'pi pi-check-circle',
+    message: enabling
+      ? 'The public site will go offline and visitors will see a maintenance page. Queued jobs (such as OTP emails) will not send while maintenance mode is active. Staff access continues using the maintenance bypass link. Continue?'
+      : 'The system will go back online and public access will be restored. Queued jobs will start sending again. Continue?',
+    rejectLabel: 'Cancel',
+    acceptLabel: enabling ? 'Enable Maintenance' : 'Bring Online',
+    rejectClass: 'p-button-outlined',
+    acceptClass: enabling ? 'p-button-danger' : 'p-button-success',
+    accept: () => {
+      form.post(route('admin.maintenance.toggle'), {
+        preserveState: true,
+        preserveScroll: true,
+      })
+    },
   })
 }
 

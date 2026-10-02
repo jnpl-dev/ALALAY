@@ -2,116 +2,114 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Commands\Traits\LogsAudit;
+use App\Services\BackupFileRepository;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class BackupDatabase extends Command
 {
-    protected $signature = 'backup:run';
+    use LogsAudit;
+
+    protected $signature = 'backup:run {--destination=both : Backup destination: local, offsite, or both}';
 
     protected $description = 'Create encrypted database backup and upload to Supabase';
 
-    public function handle(): void
+    public function __construct(private readonly BackupFileRepository $repo)
     {
+        parent::__construct();
+    }
+
+    public function handle(): int
+    {
+        $destination = (string) $this->option('destination');
+        if (!in_array($destination, ['local', 'offsite', 'both'], true)) {
+            $this->error("Invalid destination \"{$destination}\" — expected local, offsite, or both.");
+            return self::FAILURE;
+        }
+
         $backupPath = config('backup.path');
         $encryptPass = config('backup.encrypt_pass');
 
         if (!$encryptPass) {
             $this->error('BACKUP_ENCRYPT_PASS is not set');
-            return;
+            $this->logAudit('backup_failed', 'Database backup failed: BACKUP_ENCRYPT_PASS is not set.');
+            return self::FAILURE;
         }
 
-        $db = config('database.connections.mysql');
-        $filename = 'alalay_' . now()->format('Y-m-d_H-i-s') . '.sql.gz.enc';
-        $filepath = rtrim($backupPath, '/\\') . DIRECTORY_SEPARATOR . $filename;
+        $lock = Cache::lock('backup', 600);
 
-        if (!is_dir(dirname($filepath))) {
-            mkdir(dirname($filepath), 0755, true);
+        if (!$lock->get()) {
+            $this->warn('Another backup or restore is already in progress — skipping.');
+            Log::info('Backup skipped: lock held by another process.');
+            return self::SUCCESS;
         }
 
-        $this->info('Dumping database...');
-
-        $command = sprintf(
-            'mysqldump --single-transaction --routines --triggers --events -u %s %s %s',
-            escapeshellarg($db['username']),
-            $db['password'] ? '-p' . escapeshellarg($db['password']) : '',
-            escapeshellarg($db['database'])
-        );
-
-        $fullCommand = $command
-            . ' | gzip'
-            . ' | openssl enc -aes-256-cbc -pbkdf2 -pass pass:' . escapeshellarg($encryptPass)
-            . ' > ' . escapeshellarg($filepath);
-
-        $output = null;
-        $exitCode = null;
-        exec($fullCommand, $output, $exitCode);
-
-        if ($exitCode !== 0) {
-            $this->error('Backup failed (exit code: ' . $exitCode . ')');
-            Log::error('Database backup failed.', ['exit_code' => $exitCode]);
-            return;
+        try {
+            return $this->runBackup($backupPath, $encryptPass, $destination);
+        } finally {
+            $lock->release();
         }
-
-        $this->info('Local backup saved: ' . $filename);
-
-        // Upload to Supabase
-        $this->uploadToSupabase($filepath, $filename);
-
-        // Prune old backups
-        $this->pruneOldBackups($backupPath);
-
-        Log::info('Database backup completed.', ['file' => $filename]);
-        $this->info('Backup complete.');
     }
 
-    protected function uploadToSupabase(string $filepath, string $filename): void
+    protected function runBackup(string $backupPath, string $encryptPass, string $destination = 'both'): int
     {
-        $bucket = config('backup.supabase_bucket');
-        $endpoint = env('SUPABASE_STORAGE_ENDPOINT');
-        $key = env('SUPABASE_KEY');
-        $secret = env('SUPABASE_SECRET');
+        $this->info('Dumping database...');
 
-        if (!$endpoint || !$key || !$secret) {
-            $this->warn('Supabase credentials not configured — skipping offsite upload.');
-            return;
+        try {
+            $snapshot = $this->repo->snapshot($destination);
+        } catch (\Throwable $e) {
+            $this->error('Backup failed: ' . $e->getMessage());
+            Log::error('Database backup failed.', ['error' => $e->getMessage()]);
+            $this->logAudit('backup_failed', 'Database backup failed: ' . $e->getMessage());
+            return self::FAILURE;
         }
 
-        $this->info('Uploading to Supabase...');
+        $filename = $snapshot['file'];
+        $uploaded = $snapshot['uploaded'];
 
-        $resource = '/' . $bucket . '/db/' . $filename;
-        $s3Endpoint = rtrim($endpoint, '/') . '/storage/v1/s3';
-        $contentType = 'application/octet-stream';
-        $date = gmdate('D, d M Y H:i:s T');
-        $stringToSign = "PUT\n\n{$contentType}\n{$date}\n{$resource}";
-        $signature = base64_encode(
-            hash_hmac('sha256', $stringToSign, $secret, true)
-        );
+        if ($destination !== 'local' && !$uploaded && config('backup.supabase_key')) {
+            $this->warn('Offsite upload failed: ' . ($snapshot['upload_error'] ?? 'unknown error'));
+            Log::error('Supabase backup upload failed.', ['file' => $filename, 'error' => $snapshot['upload_error']]);
+        }
 
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $s3Endpoint . $resource,
-            CURLOPT_PUT => true,
-            CURLOPT_INFILE => fopen($filepath, 'r'),
-            CURLOPT_INFILESIZE => filesize($filepath),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
-                'Host: ' . parse_url($s3Endpoint, PHP_URL_HOST),
-                'Date: ' . $date,
-                'Content-Type: ' . $contentType,
-                'Authorization: AWS ' . $key . ':' . $signature,
-            ],
-        ]);
-        curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode === 200) {
-            $this->info('Offsite upload complete.');
+        if ($destination === 'offsite' && $uploaded) {
+            $this->info('Offsite upload complete (local copy removed).');
         } else {
-            $this->warn('Upload returned HTTP ' . $httpCode . ' — check Supabase bucket exists.');
+            $this->info('Local backup saved: ' . $filename . ' (' . number_format($snapshot['size']) . ' bytes)');
+            if ($uploaded) {
+                $this->info('Offsite upload complete.');
+            }
         }
+
+        $this->pruneOldBackups($backupPath);
+
+        if ($uploaded) {
+            $this->pruneSupabase();
+        }
+
+        Log::info('Database backup completed.', ['file' => $filename, 'uploaded' => $uploaded, 'destination' => $destination]);
+        $this->info('Backup complete.');
+
+        // 'local' never fails on upload (it is intentionally skipped);
+        // 'offsite'/'both' still require the offsite copy to succeed.
+        $success = $destination === 'local' || $uploaded;
+
+        $size = number_format($snapshot['size']);
+        if ($success) {
+            $label = match ($destination) {
+                'local' => 'local only',
+                'offsite' => 'offsite only',
+                default => 'local + Supabase',
+            };
+            $this->logAudit('backup_created', "Created database backup {$filename} ({$size} bytes) — {$label}.");
+        } else {
+            $this->logAudit('backup_failed', "Database backup failed: offsite upload failed (local copy saved as {$filename}, {$size} bytes).");
+        }
+
+        return $success ? self::SUCCESS : self::FAILURE;
     }
 
     protected function pruneOldBackups(string $backupPath): void
@@ -125,6 +123,37 @@ class BackupDatabase extends Command
                 unlink($file);
                 $this->info('Pruned: ' . basename($file));
             }
+        }
+    }
+
+    protected function pruneSupabase(): void
+    {
+        $key = config('backup.supabase_key');
+        $secret = config('backup.supabase_secret');
+
+        if (!$key || !$secret) {
+            return;
+        }
+
+        $retention = (int) config('backup.retention_days', 30);
+        $cutoff = now()->subDays($retention);
+
+        try {
+            $disk = Storage::disk('supabase-backups');
+            $files = $disk->files('db');
+
+            foreach ($files as $file) {
+                if (!str_starts_with(basename($file), 'alalay_')) {
+                    continue;
+                }
+                $lastModified = $disk->lastModified($file);
+                if ($lastModified !== false && $lastModified < $cutoff->getTimestamp()) {
+                    $disk->delete($file);
+                    $this->info('Pruned offsite: ' . basename($file));
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Offsite backup pruning failed.', ['error' => $e->getMessage()]);
         }
     }
 }
